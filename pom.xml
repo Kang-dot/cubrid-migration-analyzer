@@ -15,4 +15,17 @@
       </plugin>
     </plugins>
   </build>
+  <dependencies>
+  	<dependency>
+  		<groupId>com.cubrid.cubridmigration</groupId>
+  		<artifactId>com.cubrid.cubridmigration.ui</artifactId>
+  		<version>1.0.0-SNAPSHOT</version>
+  	</dependency>
+  	<!-- https://mvnrepository.com/artifact/org.apache.commons/commons-lang3 -->
+	<dependency>
+	    <groupId>org.apache.commons</groupId>
+	    <artifactId>commons-lang3</artifactId>
+	    <version>3.18.0</version>
+	</dependency>
+  </dependencies>
 </project>

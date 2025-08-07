@@ -14,6 +14,8 @@ import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Shell;
 
+import com.cubrid.cubridmigration.ui.common.UICommonTool;
+
 public class AnalyzerWizardDialog extends WizardDialog {
 
 	public AnalyzerWizardDialog(Shell parentShell, IWizard newWizard) {
@@ -63,6 +65,12 @@ public class AnalyzerWizardDialog extends WizardDialog {
         btnNext.setText("Next >");
         Button btnCancel = super.getButton(IDialogConstants.CANCEL_ID);
         btnCancel.setText("Cancel");
+    }
+    
+    protected void constrainShellSize() {
+        super.constrainShellSize();
+        getShell().setMinimumSize(750, 450);
+        UICommonTool.centerShell(getShell());
     }
     
     protected Control createContents(Composite parent) {

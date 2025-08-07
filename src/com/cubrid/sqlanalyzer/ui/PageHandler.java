@@ -3,11 +3,13 @@ package com.cubrid.sqlanalyzer.ui;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.ui.PlatformUI;
 
+import com.cubrid.cubridmigration.ui.wizard.MigrationWizard;
+
 public class PageHandler {
     public static void newMigrationWizard() {
         Shell activeShell = PlatformUI.getWorkbench().getDisplay().getActiveShell();
-        AnalyzerUIPlugin uiPlugin = new AnalyzerUIPlugin();
-        AnalyzerWizard wizard = new AnalyzerWizard();
+//        AnalyzerUIPlugin uiPlugin = new AnalyzerUIPlugin();
+        MigrationWizard wizard = new AnalyzerWizard();
         AnalyzerWizardDialog dialog = new AnalyzerWizardDialog(activeShell, wizard);
 
         openWizardDlg(dialog);
