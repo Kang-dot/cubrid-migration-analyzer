@@ -5,14 +5,11 @@ import java.util.Date;
 import org.eclipse.jface.dialogs.DialogSettings;
 import org.eclipse.jface.wizard.IWizardPage;
 
-import com.cubrid.cubridmigration.core.engine.config.MigrationConfiguration;
 import com.cubrid.cubridmigration.cubrid.CUBRIDTimeUtil;
-import com.cubrid.cubridmigration.ui.message.Messages;
 import com.cubrid.cubridmigration.ui.wizard.MigrationWizard;
 import com.cubrid.cubridmigration.ui.wizard.page.CSVImportConfirmPage;
 import com.cubrid.cubridmigration.ui.wizard.page.ConfirmationPage;
 import com.cubrid.cubridmigration.ui.wizard.page.SQLMigrationConfirmPage;
-import com.cubrid.cubridmigration.ui.wizard.page.SelectDestinationPage;
 import com.cubrid.sqlanalyzer.core.AnalyzerConfiguration;
 import com.cubrid.sqlanalyzer.ui.page.CreateSrcConnectionPage;
 import com.cubrid.sqlanalyzer.ui.page.CreateTarConnectionPage;

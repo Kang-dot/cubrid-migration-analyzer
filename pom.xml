@@ -15,17 +15,32 @@
       </plugin>
     </plugins>
   </build>
-  <dependencies>
-  	<dependency>
-  		<groupId>com.cubrid.cubridmigration</groupId>
-  		<artifactId>com.cubrid.cubridmigration.ui</artifactId>
-  		<version>1.0.0-SNAPSHOT</version>
-  	</dependency>
-  	<!-- https://mvnrepository.com/artifact/org.apache.commons/commons-lang3 -->
-	<dependency>
-	    <groupId>org.apache.commons</groupId>
-	    <artifactId>commons-lang3</artifactId>
-	    <version>3.18.0</version>
-	</dependency>
-  </dependencies>
+	<dependencies>
+	    <!-- CUBRID Migration 의존성 주석 처리 -->
+	    <dependency>
+	        <groupId>com.cubrid.cubridmigration</groupId>
+	        <artifactId>com.cubrid.cubridmigration.ui</artifactId>
+	        <version>1.0.0-SNAPSHOT</version>
+	    </dependency>
+	    
+	    <dependency>
+	        <groupId>org.apache.commons</groupId>
+	        <artifactId>commons-lang3</artifactId>
+	        <version>3.18.0</version>
+	    </dependency>
+	    
+	    <dependency>
+	        <groupId>com.beust</groupId>
+	        <artifactId>jcommander</artifactId>
+	        <version>1.82</version>
+	    </dependency>
+	    
+		<!-- https://mvnrepository.com/artifact/org.mybatis/mybatis 
+		<dependency>
+		    <groupId>org.mybatis</groupId>
+		    <artifactId>mybatis</artifactId>
+		    <version>3.5.19</version>
+		</dependency>
+		-->
+	</dependencies>
 </project>
