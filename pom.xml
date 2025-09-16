@@ -1,28 +1,145 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
-  <modelVersion>4.0.0</modelVersion>
-  <groupId>SQLAnalyzer</groupId>
-  <artifactId>SQLAnalyzer</artifactId>
-  <version>0.0.1-SNAPSHOT</version>
-  <build>
-    <sourceDirectory>src</sourceDirectory>
-    <plugins>
-      <plugin>
-        <artifactId>maven-compiler-plugin</artifactId>
-        <version>3.13.0</version>
-        <configuration>
-          <release>21</release>
-        </configuration>
-      </plugin>
-    </plugins>
-  </build>
+	<modelVersion>4.0.0</modelVersion>
+	<groupId>SQLAnalyzer</groupId>
+	<artifactId>SQLAnalyzer</artifactId>
+	<version>0.0.1-SNAPSHOT</version>
+  
+	<properties>
+			<version.compiler.plugin>3.8.0</version.compiler.plugin>
+			<version.dependency.plugin>3.7.1</version.dependency.plugin>
+			<version.resources.plugin>3.3.1</version.resources.plugin>
+			<version.surefire.plugin>3.3.1</version.surefire.plugin>
+			<tycho.version>4.0.8</tycho.version>
+	</properties>
+  
+	<build>
+		<sourceDirectory>src</sourceDirectory>
+			<resources>
+				<resource>
+					<directory>src</directory>
+					<excludes>
+						<exclude>**/*.java</exclude>
+					</excludes>
+				</resource>
+			</resources>
+		
+		<testSourceDirectory>test</testSourceDirectory>
+			<testResources>
+				<testResource>
+					<directory>test</directory>
+					<excludes>
+						<exclude>**/*.java</exclude>
+					</excludes>
+				</testResource>
+			</testResources>
+		
+		<plugins>
+			<plugin>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>3.13.0</version>
+				<configuration>
+				<release>21</release>
+				</configuration>
+			</plugin>
+		
+			<plugin>
+				<groupId>org.apache.felix</groupId>
+				<artifactId>maven-bundle-plugin</artifactId>
+				<extensions>true</extensions>
+				<configuration>
+					<instructions>
+						<Bundle-SymbolicName>${project.artifactId};singleton:=true</Bundle-SymbolicName>
+						<Bundle-Version>${project.version}</Bundle-Version>
+						<Embed-Dependency>
+							<!--mybatis, ognl;scope=compile|runtime;inline=true-->
+							*
+						</Embed-Dependency>
+						<Bundle-ClassPath>
+							*
+						</Bundle-ClassPath>
+					</instructions>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.eclipse.tycho</groupId>
+				<artifactId>tycho-maven-plugin</artifactId>
+				<version>${tycho.version}</version>
+				<extensions>true</extensions>
+			</plugin>
+			<plugin>
+				<groupId>org.eclipse.tycho</groupId>
+				<artifactId>target-platform-configuration</artifactId>
+				<version>${tycho.version}</version>
+				<configuration>
+					<target>
+						<artifact>
+							<groupId>org.eclipse.platform</groupId>
+							<artifactId>org.eclipse.platform.target</artifactId>
+							<version>4.32.0</version>
+						</artifact>
+					</target>
+					<environments>
+						<environment>
+							<os>win32</os>
+							<ws>win32</ws>
+							<arch>x86_64</arch>
+						</environment>
+					</environments>
+				</configuration>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-dependency-plugin</artifactId>
+				<version>3.7.1</version>
+				<executions>
+					<execution>
+						<id>copy-dependencies</id>
+						<phase>generate-resources</phase>
+						<goals>
+							<goal>copy-dependencies</goal>
+						</goals>
+						<configuration>
+							<outputDirectory>${project.basedir}/lib</outputDirectory>
+
+							<excludeGroupIds>org.eclipse.platform,
+								com.cubrid.cubridmigration</excludeGroupIds>
+							<overWriteReleases>false</overWriteReleases>
+							<overWriteSnapshots>false</overWriteSnapshots>
+							<overWriteIfNewer>true</overWriteIfNewer>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+				<plugin>
+					<artifactId>maven-compiler-plugin</artifactId>
+					<version>3.13.0</version>
+					<configuration>
+						<release>21</release>
+					</configuration>
+				</plugin>
+		</plugins>
+	</build>
 	<dependencies>
-	    <!-- CUBRID Migration 의존성 주석 처리 -->
+		
 	    <dependency>
 	        <groupId>com.cubrid.cubridmigration</groupId>
 	        <artifactId>com.cubrid.cubridmigration.ui</artifactId>
 	        <version>1.0.0-SNAPSHOT</version>
 	    </dependency>
 	    
+	    <dependency>
+	        <groupId>com.cubrid.cubridmigration</groupId>
+	        <artifactId>com.cubrid.cubridmigration.core</artifactId>
+	        <version>1.0.0-SNAPSHOT</version>
+	    </dependency>
+	    
+	    <dependency>
+	        <groupId>com.cubrid.cubridmigration</groupId>
+	        <artifactId>com.cubrid.common.configuration</artifactId>
+	        <version>1.0.0-SNAPSHOT</version>
+	    </dependency>
+	    	    
 	    <dependency>
 	        <groupId>org.apache.commons</groupId>
 	        <artifactId>commons-lang3</artifactId>
@@ -35,12 +152,35 @@
 	        <version>1.82</version>
 	    </dependency>
 	    
-		<!-- https://mvnrepository.com/artifact/org.mybatis/mybatis 
 		<dependency>
 		    <groupId>org.mybatis</groupId>
 		    <artifactId>mybatis</artifactId>
 		    <version>3.5.19</version>
+		    <scope>compile</scope>
 		</dependency>
-		-->
+		
+		<dependency>
+			<groupId>org.cubrid</groupId>
+			<artifactId>cubrid-jdbc</artifactId>
+			<version>11.3.2.0053</version>
+		</dependency>
+		
+		<dependency>
+		    <groupId>org.eclipse.platform</groupId>
+		    <artifactId>org.eclipse.jface</artifactId>
+		    <version>3.38.0</version>
+		</dependency>
+		
+		<dependency>
+		    <groupId>org.eclipse.platform</groupId>
+		    <artifactId>org.eclipse.ui</artifactId>
+		    <version>3.207.300</version>
+		</dependency>
+		
+		<dependency>
+		    <groupId>org.apache.commons</groupId>
+		    <artifactId>commons-collections4</artifactId>
+		    <version>4.5.0</version>
+		</dependency>
 	</dependencies>
 </project>

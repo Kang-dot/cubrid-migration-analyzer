@@ -2,8 +2,8 @@ package com.cubrid.sqlanalyzer.xmlmetadata;
 
 import java.io.File;
 import java.io.FilenameFilter;
-import java.io.IOException;
-import java.io.Reader;
+//import java.io.IOException;
+//import java.io.Reader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -11,11 +11,11 @@ import java.util.List;
 import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
 
-import com.cubrid.cubridmigration.core.common.Closer;
+//import com.cubrid.cubridmigration.core.common.Closer;
 import com.cubrid.cubridmigration.core.dbmetadata.IBuildSchemaFilter;
 import com.cubrid.cubridmigration.core.dbmetadata.IDBSchemaInfoFetcher;
 import com.cubrid.cubridmigration.core.dbmetadata.IDBSource;
-import com.cubrid.cubridmigration.core.dbobject.Catalog;
+//import com.cubrid.cubridmigration.core.dbobject.Catalog;
 import com.cubrid.sqlanalyzer.core.dbobject.AnalyzerCatalog;
 import com.cubrid.sqlanalyzer.dmlparser.DatabaseManager;
 import com.cubrid.sqlanalyzer.dmlparser.SqlMapHandler;

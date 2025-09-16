@@ -10,3 +10,9 @@ Require-Bundle: org.eclipse.ui,
  com.cubrid.common.configuration;bundle-version="1.0.0"
 Automatic-Module-Name: SQLAnalyzer
 Bundle-RequiredExecutionEnvironment: JavaSE-21
+Bundle-ClassPath: .,
+ lib/mybatis-3.5.19.jar,
+ lib/commons-lang3-3.18.0.jar,
+ lib/jcommander-1.82.jar,
+ lib/cubrid-jdbc-11.3.2.0053.jar,
+ lib/commons-collections4-4.5.0.jar
