@@ -1,43 +1,43 @@
 package com.cubrid.sqlanalyzer.core.dbobject;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
 public class QueryDictionary {
-	private List<String> selectQueryList = new ArrayList<String>();
-	private List<String> insertQueryList = new ArrayList<String>();
-	private List<String> updateQueryList = new ArrayList<String>();
-	private List<String> deleteQueryList = new ArrayList<String>();
+	private Map<String, String> selectQueryMap = new HashMap<String, String>();
+	private Map<String, String> insertQueryMap = new HashMap<String, String>();
+	private Map<String, String> updateQueryMap = new HashMap<String, String>();
+	private Map<String, String> deleteQueryMap = new HashMap<String, String>();
 
-	public void addSelectQuery(String query) {
-		selectQueryList.add(query);
+	public void addSelectQuery(String name, String query) {
+		selectQueryMap.put(name, query);
 	}
 	
-	public void addInsertQuery(String query) {
-		insertQueryList.add(query);
+	public void addInsertQuery(String name, String query) {
+		insertQueryMap.put(name, query);
 	}
 	
-	public void addUpdateQuery(String query) {
-		updateQueryList.add(query);
+	public void addUpdateQuery(String name, String query) {
+		updateQueryMap.put(name, query);
 	}
 	
-	public void addDeleteQuery(String query) {
-		deleteQueryList.add(query);
+	public void addDeleteQuery(String name, String query) {
+		deleteQueryMap.put(name, query);
 	}
 
-	public List<String> getSelectQueryList() {
-		return selectQueryList;
+	public Map<String, String> getSelectQueryMap() {
+		return selectQueryMap;
 	}
 	
-	public List<String> getInsertQueryList() {
-		return insertQueryList;
+	public Map<String, String> getInsertQueryMap() {
+		return insertQueryMap;
 	}
 	
-	public List<String> getUpdateQueryList() {
-		return updateQueryList;
+	public Map<String, String> getUpdateQueryMap() {
+		return updateQueryMap;
 	}
 	
-	public List<String> getDeleteQueryList() {
-		return deleteQueryList;
+	public Map<String, String> getDeleteQueryMap() {
+		return deleteQueryMap;
 	}
 }

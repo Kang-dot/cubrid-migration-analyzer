@@ -1,4 +1,4 @@
-package com.cubrid.sqlanalyzer.ui.page;
+package com.cubrid.sqlanalyzer.ui;
 
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.jface.dialogs.IPageChangedListener;
@@ -8,8 +8,6 @@ import org.eclipse.jface.dialogs.PageChangingEvent;
 import org.eclipse.jface.resource.ImageDescriptor;
 import org.eclipse.jface.wizard.WizardPage;
 import org.eclipse.swt.widgets.Composite;
-
-import com.cubrid.sqlanalyzer.ui.AnalyzerWizard;
 
 public class AnalyzerWizardPage extends WizardPage implements IPageChangedListener, IPageChangingListener {
 

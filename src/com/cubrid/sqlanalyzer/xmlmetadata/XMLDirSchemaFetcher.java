@@ -48,7 +48,10 @@ public class XMLDirSchemaFetcher implements IDBSchemaInfoFetcher {
                 SAXParserFactory sf = SAXParserFactory.newInstance();
                 DatabaseManager analyzerDBManager = new DatabaseManager();
                 
+                sf.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
+        		sf.setNamespaceAware(true);
                 sf.setValidating(false);
+                
                 SAXParser sp = sf.newSAXParser();
                 //		sp.setProperty(
                 //				"http://apache.org/xml/features/continue-after-fatal-error",

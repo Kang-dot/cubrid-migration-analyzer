@@ -88,12 +88,15 @@ public class SqlMapHandler extends DefaultHandler2 implements LexicalHandler {
 	private String fileName = null;
 
 	private BufferedWriter writerLog = null;
+	
+	private QueryDictionary queryDict = null;
 
 	public SqlMapHandler(DatabaseManager databaseManager) {
 		this.databaseManager = databaseManager;
 		
 		ognlHelper = new OgnlHelper();
 		parameterMap= new HashMap<String, Object>();
+		queryDict = new QueryDictionary();
 
 		mapDocType = new HashMap<String, String>();
 		
@@ -125,37 +128,6 @@ public class SqlMapHandler extends DefaultHandler2 implements LexicalHandler {
 		errorCount = 0;
 	}
 
-	private void openLog() {
-		try {
-			writerLog.write("/* Open File: " + fileName + " */");
-			writerLog.append(System.getProperty("line.separator"));
-			writerLog.flush();
-		} catch (IOException e) {
-			System.err.println(e.getMessage());
-		}
-	}
-
-	private void appendQueryId(String query, String queryId) {
-		count++;
-
-		try {
-			writerLog.append(System.getProperty("line.separator"));
-			writerLog.append("================================================================================");
-			writerLog.append(System.getProperty("line.separator"));
-			writerLog.append("Number   : " + count);
-			writerLog.append(System.getProperty("line.separator"));
-			writerLog.append("Query    : " + query);
-			writerLog.append(System.getProperty("line.separator"));
-			writerLog.append("Query Id : " + queryId);
-			writerLog.append(System.getProperty("line.separator"));
-			writerLog.append("================================================================================");
-			writerLog.append(System.getProperty("line.separator"));
-			writerLog.flush();
-		} catch (IOException e) {
-			System.err.println(e.getMessage());
-		}
-	}
-
 	private void appendQuery(String query) {
 		try {
 			writerLog.append(query + System.getProperty("line.separator"));
@@ -165,41 +137,14 @@ public class SqlMapHandler extends DefaultHandler2 implements LexicalHandler {
 		}
 	}
 
-	private void appendResult(String error) {
-		try {
-			writerLog.append(System.getProperty("line.separator"));
-			writerLog.append("--------------------------------------------------------------------------------");
-			writerLog.append(System.getProperty("line.separator"));
-			writerLog.append(error);
-			writerLog.append(System.getProperty("line.separator"));
-			writerLog.append("--------------------------------------------------------------------------------");
-			writerLog.append(System.getProperty("line.separator"));
-			writerLog.flush();
-		} catch (IOException e) {
-			System.err.println(e.getMessage());
-		}
-	}
-
-	private void closeLog() {
-		try {
-			writerLog.append(System.getProperty("line.separator"));
-			writerLog.append("/* Close File: " + fileName + " */");
-			writerLog.append(System.getProperty("line.separator"));
-			writerLog.flush();
-			writerLog.close();
-		} catch (IOException e) {
-			System.err.println(e.getMessage());
-		}
-	}
-
 	@Override
 	public void startDocument() throws SAXException {
-		openLog();
+//		openLog();
 	}
 
 	@Override
 	public void endDocument() throws SAXException {
-		closeLog();
+//		closeLog();
 	}
 
 	@Override
@@ -208,7 +153,7 @@ public class SqlMapHandler extends DefaultHandler2 implements LexicalHandler {
 		saveStartTag(currentTag, localName, attributes);
 
 		if (currentTag.getName().toUpperCase().matches(TAG_DML)) {
-			appendQueryId(currentTag.getName(), currentTag.getId());
+//			appendQueryId(currentTag.getName(), currentTag.getId());
 			parameterMap.clear();
 		}
 	}
@@ -238,52 +183,27 @@ public class SqlMapHandler extends DefaultHandler2 implements LexicalHandler {
 
 		switch (currentTag.getName().toUpperCase()) {
 		case TAG_SELECT:
+			String selectQuery = pttrnMtchSQL(currentTag.getContents()) + ";";
+			queryDict.addSelectQuery(currentTag.getId(), selectQuery);
+			
+			break;
+			
 		case TAG_INSERT:
+			String insertQuery = pttrnMtchSQL(currentTag.getContents()) + ";";
+			queryDict.addInsertQuery(currentTag.getId(), insertQuery);
+			
+			break;
+			
 		case TAG_UPDATE:
+			String updateQuery = pttrnMtchSQL(currentTag.getContents()) + ";";
+			queryDict.addUpdateQuery(currentTag.getId(), updateQuery);
+			
+			break;
+			
 		case TAG_DELETE:
-			String query = pttrnMtchSQL(currentTag.getContents()) + ";";
-			String result = null;
-			appendQuery(query);
-			result = databaseManager.checkQuery(query);
-			if (!NO_ERROR.equals(result)) {
-				errorCount++;
-
-				/* debug */
-				StringBuilder errorBuffer = databaseManager.getErrorBuffer();
-				if (errorBuffer.length() == 0) {
-					errorBuffer
-							.append("--------------------------------------------------------------------------------");
-				}
-				errorBuffer.append(System.getProperty("line.separator"));
-				errorBuffer.append("[" + currentTag.getName().toUpperCase() + "] ID: " + currentTag.getId());
-				errorBuffer.append(System.getProperty("line.separator"));
-				errorBuffer.append(System.getProperty("line.separator"));
-				errorBuffer.append(result);
-				errorBuffer.append(System.getProperty("line.separator"));
-				errorBuffer.append("--------------------------------------------------------------------------------");
-				/**/
-			}
-			/* debug */
-			StringBuilder ognlHelperErrorBuffer = ognlHelper.getErrorBuffer();
-			if (ognlHelperErrorBuffer.length() != 0) {
-				StringBuilder errorBuffer = databaseManager.getErrorBuffer();
-				if (errorBuffer.length() == 0) {
-					errorBuffer
-							.append("--------------------------------------------------------------------------------");
-				}
-				errorBuffer.append(System.getProperty("line.separator"));
-				errorBuffer.append("[" + currentTag.getName().toUpperCase() + "] ID: " + currentTag.getId());
-				errorBuffer.append(System.getProperty("line.separator"));
-				errorBuffer.append(System.getProperty("line.separator"));
-				errorBuffer.append(ognlHelperErrorBuffer.toString());
-				errorBuffer.append(System.getProperty("line.separator"));
-				errorBuffer.append("--------------------------------------------------------------------------------");
-
-				ognlHelper.resetErrorBuffer();
-			}
-			/**/
-
-			appendResult(result);
+			String deleteQuery = pttrnMtchSQL(currentTag.getContents()) + ";";
+			queryDict.addDeleteQuery(currentTag.getId(), deleteQuery);
+			
 			break;
 
 		default:
@@ -666,7 +586,6 @@ public class SqlMapHandler extends DefaultHandler2 implements LexicalHandler {
 	}
 
 	public QueryDictionary getQueryDictionary() {
-		// TODO Auto-generated method stub
-		return null;
+		return queryDict;
 	}
 }

@@ -26,6 +26,9 @@ import com.cubrid.cubridmigration.core.engine.config.MigrationConfiguration;
 import com.cubrid.cubridmigration.ui.common.UIConstant;
 import com.cubrid.cubridmigration.ui.message.Messages;
 import com.cubrid.cubridmigration.ui.wizard.MigrationWizard;
+import com.cubrid.sqlanalyzer.core.AnalyzerConfiguration;
+import com.cubrid.sqlanalyzer.ui.AnalyzerWizard;
+import com.cubrid.sqlanalyzer.ui.AnalyzerWizardPage;
 import com.cubrid.sqlanalyzer.xmlmetadata.XMLDirSchemaProgressFetcher;
 import com.cubrid.sqlanalyzer.xmlmetadata.XMLDirSource;
 
@@ -291,7 +294,7 @@ public class CreateSrcConnectionPage extends AnalyzerWizardPage {
                             + Messages.msgSrcSelectMySQLDump);
             setMessage(Messages.msgSrcSelectMySQLDumpDes);
 
-            final MigrationWizard wizard = getMigrationWizard();
+            final AnalyzerWizard wizard = getMigrationWizard();
             final MigrationConfiguration config = wizard.getMigrationConfig();
             // if load script and use MYSQL dump, load the XML catalog
             if (wizard.isLoadMigrationScript()) {
@@ -344,13 +347,14 @@ public class CreateSrcConnectionPage extends AnalyzerWizardPage {
             if (null == catalog) {
                 return false;
             }
-            final MigrationWizard wzd = getMigrationWizard();
-            if (isInputChanged()) {
-                // If it is a new migration, initialize the configuration
-                wzd.resetBySourceDBChanged();
-            }
+            final AnalyzerWizard wzd = getMigrationWizard();
+//            if (isInputChanged()) {
+//                // If it is a new migration, initialize the configuration
+//                wzd.resetBySourceDBChanged();
+//            }
             wzd.setOriginalSourceCatalog(catalog);
-            MigrationConfiguration cfg = wzd.getMigrationConfig();
+//            MigrationConfiguration cfg = wzd.getMigrationConfig();
+            AnalyzerConfiguration cfg = wzd.getMigrationConfig();
 
             if (cfg.getName() == null) {
                 cfg.setName(
@@ -368,6 +372,9 @@ public class CreateSrcConnectionPage extends AnalyzerWizardPage {
             xmlCatalog.setCharset(cboFileCharset.getItem(cboFileCharset.getSelectionIndex()));
             xmlCatalog.setTimezone(cobTimezone.getItem(cobTimezone.getSelectionIndex()));
             cfg.setSrcCatalog(catalog, isInputChanged());
+            
+            wzd.setSourceDBNode(xmlCatalog);
+            
             return true;
         }
 

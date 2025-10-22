@@ -5,12 +5,15 @@ import java.util.Date;
 import org.eclipse.jface.dialogs.DialogSettings;
 import org.eclipse.jface.wizard.IWizardPage;
 
+import com.cubrid.cubridmigration.core.dbobject.Catalog;
 import com.cubrid.cubridmigration.cubrid.CUBRIDTimeUtil;
+import com.cubrid.cubridmigration.ui.common.navigator.event.CubridNodeManager;
 import com.cubrid.cubridmigration.ui.wizard.MigrationWizard;
 import com.cubrid.cubridmigration.ui.wizard.page.CSVImportConfirmPage;
 import com.cubrid.cubridmigration.ui.wizard.page.ConfirmationPage;
 import com.cubrid.cubridmigration.ui.wizard.page.SQLMigrationConfirmPage;
 import com.cubrid.sqlanalyzer.core.AnalyzerConfiguration;
+import com.cubrid.sqlanalyzer.ui.page.AnalyzerObjectMappingPage;
 import com.cubrid.sqlanalyzer.ui.page.CreateSrcConnectionPage;
 import com.cubrid.sqlanalyzer.ui.page.CreateTarConnectionPage;
 
@@ -51,6 +54,7 @@ public class AnalyzerWizard extends MigrationWizard {
 //
         addPage(new CreateSrcConnectionPage("0"));
         addPage(new CreateTarConnectionPage("1"));
+        addPage(new AnalyzerObjectMappingPage("2"));
 //		addPage(new SelectSourcePage("0"));
 //		addPage(new SelectDestinationPage("1"));
 	}
@@ -103,5 +107,24 @@ public class AnalyzerWizard extends MigrationWizard {
     
     private int[] getPageNOs() {
         return IDX_ONLINE;
+    }
+    
+    /**
+     * setSourceDBNode
+     *
+     * @param sourceCatalog
+     */
+    public void setSourceDBNode(Catalog sourceCatalog) {
+        if (sourceCatalog == null) {
+            sourceDBNode = null;
+        } else {
+            sourceDBNode =
+                    CubridNodeManager.getInstance()
+                            .createDbNode(
+                                    sourceCatalog,
+                                    migrationConfig.sourceIsXMLDump()
+                                            ? "MySQL dump file"
+                                            : "Online");
+        }
     }
 }

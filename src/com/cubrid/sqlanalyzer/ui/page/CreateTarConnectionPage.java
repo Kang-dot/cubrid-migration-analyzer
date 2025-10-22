@@ -17,6 +17,7 @@ import com.cubrid.cubridmigration.ui.wizard.MigrationWizard;
 import com.cubrid.cubridmigration.ui.wizard.page.SelectDestinationPage;
 import com.cubrid.cubridmigration.ui.wizard.utils.MigrationCfgUtils;
 import com.cubrid.sqlanalyzer.core.AnalyzerConfiguration;
+import com.cubrid.sqlanalyzer.ui.AnalyzerWizardPage;
 
 public class CreateTarConnectionPage extends AnalyzerWizardPage {
 	
