@@ -114,10 +114,10 @@ public class AnalyzerObjectTableMappingView extends AbstractMappingView {
     @Override
     public void showData(Object obj) {
         super.showData(obj);
-        if (obj instanceof DefaultNode) {
-            showDefaultNode((DefaultNode) obj);
-            return;
-        }
+//        if (obj instanceof DefaultNode) {
+//            showDefaultNode((DefaultNode) obj);
+//            return;
+//        }
         if (obj instanceof SelectNode) {
             showSelectNode((SelectNode) obj);
         } else if (obj instanceof InsertNode) {
@@ -203,7 +203,7 @@ public class AnalyzerObjectTableMappingView extends AbstractMappingView {
     private List<DmlRow> buildRows(List<? extends IAnalyzerNode> nodes) {
         List<DmlRow> rows = new ArrayList<DmlRow>();
         for (IAnalyzerNode node : nodes) {
-            rows.add(new DmlRow(node.getName(), extractQuery(node)));
+            rows.add(new DmlRow(node, node.getName(), extractQuery(node)));
         }
         return rows;
     }
@@ -228,13 +228,19 @@ public class AnalyzerObjectTableMappingView extends AbstractMappingView {
         return value == null ? "" : value;
     }
 
-    private static class DmlRow {
+    public static class DmlRow {
+        private final IAnalyzerNode node;
         private final String name;
         private final String sql;
 
-        private DmlRow(String name, String sql) {
+        private DmlRow(IAnalyzerNode node, String name, String sql) {
+            this.node = node;
             this.name = name;
             this.sql = sql;
+        }
+
+        public IAnalyzerNode getNode() {
+            return node;
         }
 
         public String getName() {

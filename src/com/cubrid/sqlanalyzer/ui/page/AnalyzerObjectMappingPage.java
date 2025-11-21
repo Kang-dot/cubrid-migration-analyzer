@@ -30,78 +30,11 @@
  */
 package com.cubrid.sqlanalyzer.ui.page;
 
-import com.cubrid.common.ui.navigator.ICUBRIDNode;
-import com.cubrid.cubridmigration.core.dbobject.Catalog;
-import com.cubrid.cubridmigration.core.dbobject.DBObject;
-import com.cubrid.cubridmigration.core.dbobject.Table;
-import com.cubrid.cubridmigration.core.dbtype.DatabaseType;
-import com.cubrid.cubridmigration.core.engine.config.MigrationConfiguration;
-import com.cubrid.cubridmigration.ui.common.UICommonTool;
-import com.cubrid.cubridmigration.ui.common.dialog.DetailMessageDialog;
-import com.cubrid.cubridmigration.ui.common.navigator.event.CubridNodeManager;
-import com.cubrid.cubridmigration.ui.common.navigator.node.ColumnNode;
-import com.cubrid.cubridmigration.ui.common.navigator.node.ColumnsNode;
-import com.cubrid.cubridmigration.ui.common.navigator.node.DatabaseNode;
-import com.cubrid.cubridmigration.ui.common.navigator.node.FKNode;
-import com.cubrid.cubridmigration.ui.common.navigator.node.FKsNode;
-import com.cubrid.cubridmigration.ui.common.navigator.node.FunctionNode;
-import com.cubrid.cubridmigration.ui.common.navigator.node.FunctionsNode;
-import com.cubrid.cubridmigration.ui.common.navigator.node.GrantAuthNode;
-import com.cubrid.cubridmigration.ui.common.navigator.node.GrantGrantorNode;
-import com.cubrid.cubridmigration.ui.common.navigator.node.GrantsNode;
-import com.cubrid.cubridmigration.ui.common.navigator.node.IndexNode;
-import com.cubrid.cubridmigration.ui.common.navigator.node.IndexesNode;
-import com.cubrid.cubridmigration.ui.common.navigator.node.PKNode;
-import com.cubrid.cubridmigration.ui.common.navigator.node.PartitionNode;
-import com.cubrid.cubridmigration.ui.common.navigator.node.PartitionsNode;
-import com.cubrid.cubridmigration.ui.common.navigator.node.ProcedureNode;
-import com.cubrid.cubridmigration.ui.common.navigator.node.ProceduresNode;
-import com.cubrid.cubridmigration.ui.common.navigator.node.SQLTableNode;
-import com.cubrid.cubridmigration.ui.common.navigator.node.SQLTablesNode;
-import com.cubrid.cubridmigration.ui.common.navigator.node.SchemaNode;
-import com.cubrid.cubridmigration.ui.common.navigator.node.SequenceNode;
-import com.cubrid.cubridmigration.ui.common.navigator.node.SequencesNode;
-import com.cubrid.cubridmigration.ui.common.navigator.node.SynonymNode;
-import com.cubrid.cubridmigration.ui.common.navigator.node.SynonymsNode;
-import com.cubrid.cubridmigration.ui.common.navigator.node.TableNode;
-import com.cubrid.cubridmigration.ui.common.navigator.node.TablesNode;
-import com.cubrid.cubridmigration.ui.common.navigator.node.ViewNode;
-import com.cubrid.cubridmigration.ui.common.navigator.node.ViewsNode;
-import com.cubrid.cubridmigration.ui.message.Messages;
-import com.cubrid.cubridmigration.ui.wizard.MigrationWizard;
-import com.cubrid.cubridmigration.ui.wizard.dialog.AdjustCharColumnDialog;
-import com.cubrid.cubridmigration.ui.wizard.dialog.TableIndexSelectorDialog;
-import com.cubrid.cubridmigration.ui.wizard.page.view.AbstractMappingView;
-import com.cubrid.cubridmigration.ui.wizard.page.view.ColumnMappingView;
-import com.cubrid.cubridmigration.ui.wizard.page.view.FKMappingView;
-import com.cubrid.cubridmigration.ui.wizard.page.view.FunctionMappingView;
-import com.cubrid.cubridmigration.ui.wizard.page.view.IRefreshableView;
-import com.cubrid.cubridmigration.ui.wizard.page.view.IndexMappingView;
-import com.cubrid.cubridmigration.ui.wizard.page.view.ProcedureMappingView;
-import com.cubrid.cubridmigration.ui.wizard.page.view.SQLTableMappingView;
-import com.cubrid.cubridmigration.ui.wizard.page.view.SequenceMappingView;
-import com.cubrid.cubridmigration.ui.wizard.page.view.SourceDBExploreView;
-import com.cubrid.cubridmigration.ui.wizard.page.view.SynonymMappingView;
-import com.cubrid.cubridmigration.ui.wizard.page.view.TableMappingView;
-import com.cubrid.cubridmigration.ui.wizard.page.view.ViewMappingView;
-import com.cubrid.cubridmigration.ui.wizard.utils.MigrationCfgUtils;
-import com.cubrid.cubridmigration.ui.wizard.utils.VerifyResultMessages;
-import com.cubrid.sqlanalyzer.core.dbobject.treenode.IAnalyzerNode;
-import com.cubrid.sqlanalyzer.core.dbobject.treenode.DefaultNode;
-import com.cubrid.sqlanalyzer.core.dbobject.treenode.DeleteNode;
-import com.cubrid.sqlanalyzer.core.dbobject.treenode.InsertNode;
-import com.cubrid.sqlanalyzer.core.dbobject.treenode.SelectNode;
-import com.cubrid.sqlanalyzer.core.dbobject.treenode.UpdateNode;
-import com.cubrid.sqlanalyzer.ui.AnalyzerWizard;
-import com.cubrid.sqlanalyzer.ui.AnalyzerWizardPage;
-import com.cubrid.sqlanalyzer.ui.page.view.AnalyzerDMLTreeNodeView;
-import com.cubrid.sqlanalyzer.ui.page.view.AnalyzerObjectTableMappingView;
-
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
 import org.apache.commons.collections4.CollectionUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.eclipse.jface.dialogs.Dialog;
 import org.eclipse.jface.dialogs.IMessageProvider;
 import org.eclipse.jface.dialogs.MessageDialog;
@@ -125,6 +58,36 @@ import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Group;
 import org.eclipse.swt.widgets.ToolBar;
 import org.eclipse.swt.widgets.ToolItem;
+
+import com.cubrid.common.ui.navigator.ICUBRIDNode;
+import com.cubrid.cubridmigration.core.dbobject.Catalog;
+import com.cubrid.cubridmigration.core.dbobject.DBObject;
+import com.cubrid.cubridmigration.core.dbobject.Table;
+import com.cubrid.cubridmigration.core.engine.config.MigrationConfiguration;
+import com.cubrid.cubridmigration.ui.common.dialog.DetailMessageDialog;
+import com.cubrid.cubridmigration.ui.common.navigator.node.ColumnsNode;
+import com.cubrid.cubridmigration.ui.common.navigator.node.FKsNode;
+import com.cubrid.cubridmigration.ui.common.navigator.node.IndexesNode;
+import com.cubrid.cubridmigration.ui.common.navigator.node.TableNode;
+import com.cubrid.cubridmigration.ui.message.Messages;
+import com.cubrid.cubridmigration.ui.wizard.MigrationWizard;
+import com.cubrid.cubridmigration.ui.wizard.dialog.AdjustCharColumnDialog;
+import com.cubrid.cubridmigration.ui.wizard.dialog.TableIndexSelectorDialog;
+import com.cubrid.cubridmigration.ui.wizard.page.view.AbstractMappingView;
+import com.cubrid.cubridmigration.ui.wizard.page.view.IRefreshableView;
+import com.cubrid.cubridmigration.ui.wizard.page.view.TableMappingView;
+import com.cubrid.cubridmigration.ui.wizard.utils.MigrationCfgUtils;
+import com.cubrid.cubridmigration.ui.wizard.utils.VerifyResultMessages;
+import com.cubrid.sqlanalyzer.core.dbobject.treenode.DefaultNode;
+import com.cubrid.sqlanalyzer.core.dbobject.treenode.DeleteNode;
+import com.cubrid.sqlanalyzer.core.dbobject.treenode.IAnalyzerNode;
+import com.cubrid.sqlanalyzer.core.dbobject.treenode.InsertNode;
+import com.cubrid.sqlanalyzer.core.dbobject.treenode.SelectNode;
+import com.cubrid.sqlanalyzer.core.dbobject.treenode.UpdateNode;
+import com.cubrid.sqlanalyzer.ui.AnalyzerWizard;
+import com.cubrid.sqlanalyzer.ui.AnalyzerWizardPage;
+import com.cubrid.sqlanalyzer.ui.page.view.AnalyzerDMLTreeNodeView;
+import com.cubrid.sqlanalyzer.ui.page.view.AnalyzerObjectTableMappingView;
 
 /**
  * Page to set up mapping from source DB objects to target DB objects
@@ -324,96 +287,31 @@ public class AnalyzerObjectMappingPage extends AnalyzerWizardPage implements IRe
 
         AnalyzerObjectTableMappingView analyzerObjMappingView =
                 new AnalyzerObjectTableMappingView(detailContainer);
-        // Double click to show detail information
         analyzerObjMappingView.addDoubleClickListener(
                 new IDoubleClickListener() {
 
                     public void doubleClick(DoubleClickEvent event) {
-                        if (event.getSource() == null || event.getSelection().isEmpty()) {
+                        if (event.getSelection().isEmpty()) {
                             return;
                         }
-                        TableViewer tv = (TableViewer) event.getSource();
-                        String ct = tv.getData(AbstractMappingView.CONTENT_TYPE).toString();
-                        // The last element of the array is the source configuration object
-                        Object[] obj =
-                                (Object[])
-                                        ((StructuredSelection) event.getSelection())
-                                                .getFirstElement();
-                        ICUBRIDNode cn = (ICUBRIDNode) currentView.getModel();
-
-                        while (cn != null) {
-                            if (cn instanceof SchemaNode) {
-                                break;
-                            }
-                            cn = cn.getParent();
-                            if (cn instanceof DatabaseNode) {
-                                break;
-                            }
-                        }
-                        if (cn == null) {
+                        Object first =
+                                ((StructuredSelection) event.getSelection()).getFirstElement();
+                        if (!(first instanceof AnalyzerObjectTableMappingView.DmlRow)) {
                             return;
                         }
-                        ICUBRIDNode selectionParent = cn;
-
-                        if (AbstractMappingView.CT_TABLE.equals(ct)) {
-                            for (ICUBRIDNode chn : cn.getChildren()) {
-                                if (chn instanceof TablesNode) {
-                                    selectionParent = chn;
-                                    break;
-                                }
-                            }
-                        } else if (AbstractMappingView.CT_VIEW.equals(ct)) {
-                            for (ICUBRIDNode chn : cn.getChildren()) {
-                                if (chn instanceof ViewsNode) {
-                                    selectionParent = chn;
-                                    break;
-                                }
-                            }
-                        } else if (AbstractMappingView.CT_SERIAL.equals(ct)) {
-                            for (ICUBRIDNode chn : cn.getChildren()) {
-                                if (chn instanceof SequencesNode) {
-                                    selectionParent = chn;
-                                    break;
-                                }
-                            }
-                        } else if (AbstractMappingView.CT_SYNONYM.equals(ct)) {
-                            for (ICUBRIDNode chn : cn.getChildren()) {
-                                if (chn instanceof SynonymsNode) {
-                                    selectionParent = chn;
-                                    break;
-                                }
-                            }
-                        } else if (AbstractMappingView.CT_GRANT.equals(ct)) {
-                            for (ICUBRIDNode chn : cn.getChildren()) {
-                                if (chn instanceof GrantsNode) {
-                                    selectionParent = chn;
-                                    break;
-                                }
-                            }
-                        } else if (AbstractMappingView.CT_PROCEDURE.equals(ct)) {
-                            for (ICUBRIDNode chn : cn.getChildren()) {
-                                if (chn instanceof ProceduresNode) {
-                                    selectionParent = chn;
-                                    break;
-                                }
-                            }
-                        } else if (AbstractMappingView.CT_FUNCTION.equals(ct)) {
-                            for (ICUBRIDNode chn : cn.getChildren()) {
-                                if (chn instanceof FunctionsNode) {
-                                    selectionParent = chn;
-                                    break;
-                                }
-                            }
+                        AnalyzerObjectTableMappingView.DmlRow row =
+                                (AnalyzerObjectTableMappingView.DmlRow) first;
+                        IAnalyzerNode targetNode = row.getNode();
+                        if (targetNode == null) {
+                            return;
                         }
-                        for (ICUBRIDNode col : selectionParent.getChildren()) {
-                            if (col.getName().equals((String) obj[1])) {
-                                tvSourceDBObjects.setSelection(col);
-                                showRightView(col, true);
-                                return;
-                            }
-                        }
+                        tvSourceDBObjects.setSelection(targetNode);
+                        showRightView(targetNode, true);
                     }
                 });
+        // 기존 GeneralObjMappingView 더블클릭 로직은 DML 화면 개편 후 사용하지 않지만
+        // 레거시 참고를 위해 보관합니다.
+        // analyzerObjMappingView.addDoubleClickListener(new IDoubleClickListener() { ... });
 
         TableMappingView tableMappingView = new TableMappingView(detailContainer);
         // Double click to show detail information
@@ -474,45 +372,45 @@ public class AnalyzerObjectMappingPage extends AnalyzerWizardPage implements IRe
                         }
                     }
                 });
-        ColumnMappingView columnMappingView = new ColumnMappingView(detailContainer);
-        IndexMappingView indexMappingView = new IndexMappingView(detailContainer);
-        FKMappingView fkMappingView = new FKMappingView(detailContainer);
-        SequenceMappingView sequenceMappingView = new SequenceMappingView(detailContainer);
-        ViewMappingView viewMappingView = new ViewMappingView(detailContainer);
-        SynonymMappingView synonymMappingView = new SynonymMappingView(detailContainer);
-        ProcedureMappingView procedureMappingView = new ProcedureMappingView(detailContainer);
-        FunctionMappingView functionMappingView = new FunctionMappingView(detailContainer);
+//        ColumnMappingView columnMappingView = new ColumnMappingView(detailContainer);
+//        IndexMappingView indexMappingView = new IndexMappingView(detailContainer);
+//        FKMappingView fkMappingView = new FKMappingView(detailContainer);
+//        SequenceMappingView sequenceMappingView = new SequenceMappingView(detailContainer);
+//        ViewMappingView viewMappingView = new ViewMappingView(detailContainer);
+//        SynonymMappingView synonymMappingView = new SynonymMappingView(detailContainer);
+//        ProcedureMappingView procedureMappingView = new ProcedureMappingView(detailContainer);
+//        FunctionMappingView functionMappingView = new FunctionMappingView(detailContainer);
 
         // Building Tree node to Mapping view mapping
-        node2ViewMapping.put(DatabaseNode.class.getName(), analyzerObjMappingView);
-        node2ViewMapping.put(SchemaNode.class.getName(), analyzerObjMappingView);
-        node2ViewMapping.put(TablesNode.class.getName(), analyzerObjMappingView);
-        node2ViewMapping.put(ViewsNode.class.getName(), analyzerObjMappingView);
-        node2ViewMapping.put(SequencesNode.class.getName(), analyzerObjMappingView);
-        node2ViewMapping.put(TableNode.class.getName(), tableMappingView);
-        node2ViewMapping.put(ViewNode.class.getName(), viewMappingView);
-        node2ViewMapping.put(SequenceNode.class.getName(), sequenceMappingView);
-        node2ViewMapping.put(SynonymsNode.class.getName(), analyzerObjMappingView);
-        node2ViewMapping.put(SynonymNode.class.getName(), synonymMappingView);
-        node2ViewMapping.put(GrantsNode.class.getName(), analyzerObjMappingView);
-        node2ViewMapping.put(GrantGrantorNode.class.getName(), analyzerObjMappingView);
-        node2ViewMapping.put(GrantAuthNode.class.getName(), analyzerObjMappingView);
-        node2ViewMapping.put(ProceduresNode.class.getName(), analyzerObjMappingView);
-        node2ViewMapping.put(ProcedureNode.class.getName(), procedureMappingView);
-        node2ViewMapping.put(FunctionsNode.class.getName(), analyzerObjMappingView);
-        node2ViewMapping.put(FunctionNode.class.getName(), functionMappingView);
-        node2ViewMapping.put(PKNode.class.getName(), tableMappingView);
-        // node2ViewMapping.put(ColumnsNode.class.getName(), tableMappingView);
-        node2ViewMapping.put(FKsNode.class.getName(), tableMappingView);
-        node2ViewMapping.put(IndexesNode.class.getName(), tableMappingView);
-        node2ViewMapping.put(PartitionsNode.class.getName(), tableMappingView);
-        node2ViewMapping.put(PartitionNode.class.getName(), tableMappingView);
-        node2ViewMapping.put(ColumnNode.class.getName(), columnMappingView);
-        node2ViewMapping.put(FKNode.class.getName(), fkMappingView);
-        node2ViewMapping.put(IndexNode.class.getName(), indexMappingView);
-        node2ViewMapping.put(
-                SQLTableNode.class.getName(), new SQLTableMappingView(detailContainer));
-        node2ViewMapping.put(SQLTablesNode.class.getName(), analyzerObjMappingView);
+//        node2ViewMapping.put(DatabaseNode.class.getName(), analyzerObjMappingView);
+//        node2ViewMapping.put(SchemaNode.class.getName(), analyzerObjMappingView);
+//        node2ViewMapping.put(TablesNode.class.getName(), analyzerObjMappingView);
+//        node2ViewMapping.put(ViewsNode.class.getName(), analyzerObjMappingView);
+//        node2ViewMapping.put(SequencesNode.class.getName(), analyzerObjMappingView);
+//        node2ViewMapping.put(TableNode.class.getName(), tableMappingView);
+//        node2ViewMapping.put(ViewNode.class.getName(), viewMappingView);
+//        node2ViewMapping.put(SequenceNode.class.getName(), sequenceMappingView);
+//        node2ViewMapping.put(SynonymsNode.class.getName(), analyzerObjMappingView);
+//        node2ViewMapping.put(SynonymNode.class.getName(), synonymMappingView);
+//        node2ViewMapping.put(GrantsNode.class.getName(), analyzerObjMappingView);
+//        node2ViewMapping.put(GrantGrantorNode.class.getName(), analyzerObjMappingView);
+//        node2ViewMapping.put(GrantAuthNode.class.getName(), analyzerObjMappingView);
+//        node2ViewMapping.put(ProceduresNode.class.getName(), analyzerObjMappingView);
+//        node2ViewMapping.put(ProcedureNode.class.getName(), procedureMappingView);
+//        node2ViewMapping.put(FunctionsNode.class.getName(), analyzerObjMappingView);
+//        node2ViewMapping.put(FunctionNode.class.getName(), functionMappingView);
+//        node2ViewMapping.put(PKNode.class.getName(), tableMappingView);
+//        // node2ViewMapping.put(ColumnsNode.class.getName(), tableMappingView);
+//        node2ViewMapping.put(FKsNode.class.getName(), tableMappingView);
+//        node2ViewMapping.put(IndexesNode.class.getName(), tableMappingView);
+//        node2ViewMapping.put(PartitionsNode.class.getName(), tableMappingView);
+//        node2ViewMapping.put(PartitionNode.class.getName(), tableMappingView);
+//        node2ViewMapping.put(ColumnNode.class.getName(), columnMappingView);
+//        node2ViewMapping.put(FKNode.class.getName(), fkMappingView);
+//        node2ViewMapping.put(IndexNode.class.getName(), indexMappingView);
+//        node2ViewMapping.put(
+//                SQLTableNode.class.getName(), new SQLTableMappingView(detailContainer));
+//        node2ViewMapping.put(SQLTablesNode.class.getName(), analyzerObjMappingView);
 
         node2ViewMapping.put(DefaultNode.class.getName(), analyzerObjMappingView);
         node2ViewMapping.put(SelectNode.class.getName(), analyzerObjMappingView);
@@ -730,7 +628,7 @@ public class AnalyzerObjectMappingPage extends AnalyzerWizardPage implements IRe
         } else if (schemaNodes.size() > 1) {
             node = schemaNodes.get(0);
         }
-//        showRightView(node, true);
+        showRightView(node, true);
         tvSourceDBObjects.setFocus();
     }
 
