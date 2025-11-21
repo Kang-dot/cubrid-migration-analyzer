@@ -7,20 +7,23 @@ import org.eclipse.jface.wizard.IWizardPage;
 
 import com.cubrid.cubridmigration.core.dbobject.Catalog;
 import com.cubrid.cubridmigration.cubrid.CUBRIDTimeUtil;
-import com.cubrid.cubridmigration.ui.common.navigator.event.CubridNodeManager;
 import com.cubrid.cubridmigration.ui.wizard.MigrationWizard;
 import com.cubrid.cubridmigration.ui.wizard.page.CSVImportConfirmPage;
 import com.cubrid.cubridmigration.ui.wizard.page.ConfirmationPage;
 import com.cubrid.cubridmigration.ui.wizard.page.SQLMigrationConfirmPage;
 import com.cubrid.sqlanalyzer.core.AnalyzerConfiguration;
+import com.cubrid.sqlanalyzer.core.dbobject.AnalyzerCatalog;
+import com.cubrid.sqlanalyzer.core.dbobject.treenode.DefaultNode;
+import com.cubrid.sqlanalyzer.navigator.AnalyzerNodeManager;
 import com.cubrid.sqlanalyzer.ui.page.AnalyzerObjectMappingPage;
 import com.cubrid.sqlanalyzer.ui.page.CreateSrcConnectionPage;
 import com.cubrid.sqlanalyzer.ui.page.CreateTarConnectionPage;
 
 public class AnalyzerWizard extends MigrationWizard {
 
-	private static final int[] IDX_ONLINE = new int[] {0, 1};
+	private static final int[] IDX_ONLINE = new int[] {0, 1, 2};
 	
+	DefaultNode defaultTreeNode;
 	AnalyzerConfiguration analyzerConfig;
 	
     public AnalyzerWizard() {
@@ -116,15 +119,16 @@ public class AnalyzerWizard extends MigrationWizard {
      */
     public void setSourceDBNode(Catalog sourceCatalog) {
         if (sourceCatalog == null) {
-            sourceDBNode = null;
+        	defaultTreeNode = null;
         } else {
-            sourceDBNode =
-                    CubridNodeManager.getInstance()
-                            .createDbNode(
-                                    sourceCatalog,
-                                    migrationConfig.sourceIsXMLDump()
-                                            ? "MySQL dump file"
-                                            : "Online");
+        	defaultTreeNode =
+                    AnalyzerNodeManager.getInstance()
+                            .createDBNode(
+                                    (AnalyzerCatalog) sourceCatalog);
         }
+    }
+    
+    public DefaultNode getSourceDBNode() {
+    	return defaultTreeNode;
     }
 }

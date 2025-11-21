@@ -5,8 +5,6 @@ import java.util.List;
 import org.eclipse.jface.resource.ImageDescriptor;
 import org.eclipse.ui.IPersistableElement;
 
-import com.cubrid.sqlanalyzer.core.dbobject.impl.IAnalyzerNode;
-
 public class DMLNode implements IAnalyzerNode  {
 	@Override
 	public <T> T getAdapter(Class<T> adapter) {
@@ -78,6 +76,12 @@ public class DMLNode implements IAnalyzerNode  {
 	public void setRoot() {
 		// TODO Auto-generated method stub
 		
+	}
+
+	@Override
+	public boolean hasChild() {
+		// TODO Auto-generated method stub
+		return false;
 	}
 
 }

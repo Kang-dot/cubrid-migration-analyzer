@@ -3,8 +3,6 @@ package com.cubrid.sqlanalyzer.core.dbobject.treenode;
 import org.eclipse.jface.resource.ImageDescriptor;
 import org.eclipse.ui.IPersistableElement;
 
-import com.cubrid.sqlanalyzer.core.dbobject.impl.IAnalyzerNode;
-
 public class UpdateNode extends DefaultNode {
 	String updateQuery;
 

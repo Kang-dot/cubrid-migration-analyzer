@@ -7,8 +7,6 @@ import org.apache.commons.compress.harmony.unpack200.bytecode.forms.ThisInitMeth
 import org.eclipse.jface.resource.ImageDescriptor;
 import org.eclipse.ui.IPersistableElement;
 
-import com.cubrid.sqlanalyzer.core.dbobject.impl.IAnalyzerNode;
-
 public class DefaultNode implements IAnalyzerNode {
 	protected List<IAnalyzerNode> childNodeList = null;
 	private IAnalyzerNode parentNode = null;
@@ -103,6 +101,12 @@ public class DefaultNode implements IAnalyzerNode {
 	public <T> T getAdapter(Class<T> adapter) {
 		// TODO Auto-generated method stub
 		return null;
+	}
+
+	@Override
+	public boolean hasChild() {
+		// TODO Auto-generated method stub
+		return false;
 	}
 
 }

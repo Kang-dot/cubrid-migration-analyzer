@@ -1,4 +1,4 @@
-package com.cubrid.sqlanalyzer.core.dbobject.impl;
+package com.cubrid.sqlanalyzer.core.dbobject.treenode;
 
 import java.util.List;
 
@@ -12,4 +12,5 @@ public interface IAnalyzerNode extends IAdaptable, IEditorInput {
 	public void setParent();
 	public IAnalyzerNode getRoot();
 	public void setRoot();
+	public boolean hasChild();
 }
