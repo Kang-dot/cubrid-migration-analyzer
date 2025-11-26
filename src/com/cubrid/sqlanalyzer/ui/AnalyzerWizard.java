@@ -15,13 +15,14 @@ import com.cubrid.sqlanalyzer.core.AnalyzerConfiguration;
 import com.cubrid.sqlanalyzer.core.dbobject.AnalyzerCatalog;
 import com.cubrid.sqlanalyzer.core.dbobject.treenode.DefaultNode;
 import com.cubrid.sqlanalyzer.navigator.AnalyzerNodeManager;
+import com.cubrid.sqlanalyzer.ui.page.AnalyzerComfirmPage;
 import com.cubrid.sqlanalyzer.ui.page.AnalyzerObjectMappingPage;
 import com.cubrid.sqlanalyzer.ui.page.CreateSrcConnectionPage;
 import com.cubrid.sqlanalyzer.ui.page.CreateTarConnectionPage;
 
 public class AnalyzerWizard extends MigrationWizard {
 
-	private static final int[] IDX_ONLINE = new int[] {0, 1, 2};
+	private static final int[] IDX_ONLINE = new int[] {0, 1, 2, 3};
 	
 	DefaultNode defaultTreeNode;
 	AnalyzerConfiguration analyzerConfig;
@@ -58,7 +59,7 @@ public class AnalyzerWizard extends MigrationWizard {
         addPage(new CreateSrcConnectionPage("0"));
         addPage(new CreateTarConnectionPage("1"));
         addPage(new AnalyzerObjectMappingPage("2"));
-//		addPage(new SelectSourcePage("0"));
+        addPage(new AnalyzerComfirmPage("3"));
 //		addPage(new SelectDestinationPage("1"));
 	}
 	
