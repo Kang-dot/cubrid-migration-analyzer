@@ -3,18 +3,20 @@ package com.cubrid.sqlanalyzer.ui;
 import java.util.Date;
 
 import org.eclipse.jface.dialogs.DialogSettings;
+import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.jface.wizard.IWizardPage;
+import org.eclipse.ui.PartInitException;
+import org.eclipse.ui.PlatformUI;
 
 import com.cubrid.cubridmigration.core.dbobject.Catalog;
 import com.cubrid.cubridmigration.cubrid.CUBRIDTimeUtil;
 import com.cubrid.cubridmigration.ui.wizard.MigrationWizard;
-import com.cubrid.cubridmigration.ui.wizard.page.CSVImportConfirmPage;
-import com.cubrid.cubridmigration.ui.wizard.page.ConfirmationPage;
-import com.cubrid.cubridmigration.ui.wizard.page.SQLMigrationConfirmPage;
 import com.cubrid.sqlanalyzer.core.AnalyzerConfiguration;
 import com.cubrid.sqlanalyzer.core.dbobject.AnalyzerCatalog;
 import com.cubrid.sqlanalyzer.core.dbobject.treenode.DefaultNode;
 import com.cubrid.sqlanalyzer.navigator.AnalyzerNodeManager;
+import com.cubrid.sqlanalyzer.ui.editor.AnalyzerProgressEditorInput;
+import com.cubrid.sqlanalyzer.ui.editor.AnalyzerProgressEditorPart;
 import com.cubrid.sqlanalyzer.ui.page.AnalyzerComfirmPage;
 import com.cubrid.sqlanalyzer.ui.page.AnalyzerObjectMappingPage;
 import com.cubrid.sqlanalyzer.ui.page.CreateSrcConnectionPage;
@@ -38,7 +40,8 @@ public class AnalyzerWizard extends MigrationWizard {
 	
 	@Override
 	public boolean performFinish() {
-		// TODO Auto-generated method stub
+		startAnalyze();
+		
 		return false;
 	}
 	
@@ -65,9 +68,7 @@ public class AnalyzerWizard extends MigrationWizard {
 	
     public boolean canFinish() {
         final IWizardPage currentPage = getContainer().getCurrentPage();
-        if (currentPage instanceof SQLMigrationConfirmPage
-                || currentPage instanceof ConfirmationPage
-                || currentPage instanceof CSVImportConfirmPage) {
+        if (currentPage instanceof AnalyzerComfirmPage) {
             return true;
         }
         return false;
@@ -103,6 +104,36 @@ public class AnalyzerWizard extends MigrationWizard {
             }
         }
         return nextPage;
+    }
+    
+    protected void startAnalyze() {
+		  try {
+		      analyzerConfig.cleanNoUsedConfigForStart();
+//		      saveMigrationScript(false, saveSchema);
+//		      if (!checkConnectionStatus()) {
+//		          return;
+//		      }
+//		      String id =
+//		              MigrationWizardFactory.getProgressEditorPartID(migrationConfig.getSourceType());
+//		      PlatformUI.getWorkbench()
+//		              .getActiveWorkbenchWindow()
+//		              .getActivePage()
+//		              .openEditor(
+//		                      new MigrationProgressEditorInput(getMigrationConfig(), migrationScript),
+//		                      id);
+		      
+		      PlatformUI.getWorkbench()
+              .getActiveWorkbenchWindow()
+              .getActivePage()
+              .openEditor(
+                      new AnalyzerProgressEditorInput(getMigrationConfig(), migrationScript),
+                      AnalyzerProgressEditorPart.ID);
+		  } catch (PartInitException e) {
+//		      MessageDialog.openError(
+//		              PlatformUI.getWorkbench().getDisplay().getActiveShell(),
+//		              Messages.msgError,
+//		              Messages.msgStartMigrationFailed);
+		  }
     }
     
     public AnalyzerConfiguration getMigrationConfig() {
