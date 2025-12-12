@@ -4,7 +4,6 @@ import com.cubrid.cubridmigration.core.engine.IMigrationBroker;
 import com.cubrid.cubridmigration.core.engine.IMigrationEventHandler;
 import com.cubrid.cubridmigration.core.engine.IMigrationMonitor;
 import com.cubrid.cubridmigration.core.engine.ThreadUtils;
-import com.cubrid.cubridmigration.core.engine.config.MigrationConfiguration;
 import com.cubrid.cubridmigration.core.engine.event.MigrationCanceledEvent;
 import com.cubrid.cubridmigration.core.engine.event.MigrationErrorEvent;
 import com.cubrid.cubridmigration.core.engine.event.MigrationFinishedEvent;
@@ -17,12 +16,11 @@ import com.cubrid.cubridmigration.core.engine.exporter.impl.JDBCExporter;
 import com.cubrid.cubridmigration.core.engine.exporter.impl.MYSQLDumpXMLExporter;
 import com.cubrid.cubridmigration.core.engine.exporter.impl.PerformMYSQLXMLDataReader;
 import com.cubrid.cubridmigration.core.engine.importer.IMigrationImporter;
-import com.cubrid.cubridmigration.core.engine.importer.impl.JDBCImporter;
-import com.cubrid.cubridmigration.core.engine.importer.impl.LoadFileImporter;
 import com.cubrid.cubridmigration.core.engine.report.IMigrationReporter;
-import com.cubrid.cubridmigration.core.engine.scheduler.MigrationTasksScheduler;
+import com.cubrid.sqlanalyzer.core.AnalyzerConfiguration;
 import com.cubrid.sqlanalyzer.core.engine.schedular.AnalyzerTasksScheduler;
 import com.cubrid.sqlanalyzer.core.engine.task.AnalyzerTaskFactory;
+import com.cubrid.sqlanalyzer.core.runner.JDBCQueryRunner;
 
 public class AnalyzerProcessManager {
 	
@@ -43,8 +41,8 @@ public class AnalyzerProcessManager {
         }
 	}
 	
-	private class AnalyzerrMainThread extends Thread {
-		AnalyzerrMainThread() {
+	private class AnalyzerMainThread extends Thread {
+		AnalyzerMainThread() {
             setName("Migration main thread");
         }
 
@@ -79,7 +77,7 @@ public class AnalyzerProcessManager {
 	private static final Object RUNNING_LOCK = new Object();
 	
     public static AnalyzerProcessManager getInstance(
-            MigrationConfiguration config, IMigrationMonitor monitor, IMigrationReporter reporter) {
+            AnalyzerConfiguration config, IMigrationMonitor monitor, IMigrationReporter reporter) {
         AnalyzerProcessManager mpm = new AnalyzerProcessManager();
         AnalyzerEventHandler eh =
                 new AnalyzerEventHandler(monitor, reporter, new AnalyzerBreaker(mpm));
@@ -129,11 +127,11 @@ public class AnalyzerProcessManager {
     	AnalyzerTaskFactory taskFactory = new AnalyzerTaskFactory();
         taskFactory.setContext(context);
         // Exporter
-        MigrationConfiguration config = context.getConfig();
+        AnalyzerConfiguration config = context.getConfig();
         IMigrationExporter exporter;
         if (config.sourceIsOnline()) {
             JDBCExporter exp =
-                    config.getSourceType() == MigrationConfiguration.SOURCE_TYPE_CUBRID
+                    config.getSourceType() == AnalyzerConfiguration.SOURCE_TYPE_CUBRID
                             ? new CUBRIDJDBCExporter()
                             : new JDBCExporter();
             exp.setConfig(config);
@@ -161,14 +159,17 @@ public class AnalyzerProcessManager {
         
         
         //TODO: need connect jdbc version importer and load .dll file and parse version
-        if (config.targetIsFile()) {
-            importer = new LoadFileImporter(context);
-        } else if (config.targetIsOnline()) {
-            importer = new JDBCImporter(context);
-        } else {
-            // importer = new LoadDBImporter(mrManager);
-            throw new BreakMigrationException("Offline migration is not supported any more.");
-        }
+//        if (config.targetIsFile()) {
+//            importer = new LoadFileImporter(context);
+//        } else if (config.targetIsOnline()) {
+//            importer = new JDBCQueryRunner(context);
+//        } else {
+//            // importer = new LoadDBImporter(mrManager);
+//            throw new BreakMigrationException("Offline migration is not supported any more.");
+//        }
+        
+        importer = new JDBCQueryRunner(context);
+        
         taskFactory.setImporter(importer);
         return taskFactory;
     }
@@ -230,7 +231,7 @@ public class AnalyzerProcessManager {
             if (mainThread != null) {
                 return;
             }
-            mainThread = new AnalyzerrMainThread();
+            mainThread = new AnalyzerMainThread();
             mainThread.start();
         }
     }
