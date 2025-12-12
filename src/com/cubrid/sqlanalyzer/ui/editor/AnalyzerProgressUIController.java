@@ -22,8 +22,6 @@ import org.eclipse.ui.part.EditorPart;
 import com.cubrid.cubridmigration.core.dbobject.Catalog;
 import com.cubrid.cubridmigration.core.dbobject.Table;
 import com.cubrid.cubridmigration.core.engine.IMigrationMonitor;
-import com.cubrid.cubridmigration.core.engine.MigrationProcessManager;
-import com.cubrid.cubridmigration.core.engine.config.MigrationConfiguration;
 import com.cubrid.cubridmigration.core.engine.config.SourceEntryTableConfig;
 import com.cubrid.cubridmigration.core.engine.config.SourceTableConfig;
 import com.cubrid.cubridmigration.core.engine.event.CreateObjectEvent;
@@ -38,6 +36,8 @@ import com.cubrid.cubridmigration.core.engine.event.MigrationEvent;
 import com.cubrid.cubridmigration.cubrid.CUBRIDTimeUtil;
 import com.cubrid.cubridmigration.ui.database.SchemaFetcherWithProgress;
 import com.cubrid.cubridmigration.ui.message.Messages;
+import com.cubrid.sqlanalyzer.core.AnalyzerConfiguration;
+import com.cubrid.sqlanalyzer.core.engine.AnalyzerProcessManager;
 import com.cubrid.sqlanalyzer.ui.reporter.AnalyzerReporter;
 //import com.cubrid.common.ui.swt.ProgressMonitorDialogRunner;
 import com.cubrid.sqlanalyzer.ui.swt.ProgressMonitorDialogRunner;
@@ -49,9 +49,9 @@ public class AnalyzerProgressUIController {
     protected ProgressMonitorDialogRunner progressMonitorDialogRunner =
             new ProgressMonitorDialogRunner();
 
-    protected MigrationConfiguration config;
+    protected AnalyzerConfiguration config;
     protected AnalyzerReporter reporter;
-    protected MigrationProcessManager mpm;
+    protected AnalyzerProcessManager mpm;
 
     protected String[][] tableItems;
 
@@ -354,7 +354,7 @@ public class AnalyzerProgressUIController {
         }
     }
 
-    public void setConfig(MigrationConfiguration config) {
+    public void setConfig(AnalyzerConfiguration config) {
         this.config = config;
     }
 
@@ -378,7 +378,7 @@ public class AnalyzerProgressUIController {
         impCountCache = 0;
         config.cleanNoUsedConfigForStart();
         final AnalyzerReporter reporter = createMigrationReporter(startMode);
-        mpm = MigrationProcessManager.getInstance(config, monitor, reporter);
+        mpm = AnalyzerProcessManager.getInstance(config, monitor, reporter);
         mpm.startMigration();
     }
 

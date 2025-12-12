@@ -1,19 +1,85 @@
 package com.cubrid.sqlanalyzer.ui.editor;
 
-import com.cubrid.cubridmigration.core.engine.config.MigrationConfiguration;
+import org.eclipse.jface.resource.ImageDescriptor;
+import org.eclipse.ui.IEditorInput;
+import org.eclipse.ui.IPersistableElement;
+
+import com.cubrid.cubridmigration.core.engine.report.MigrationBriefReport;
 import com.cubrid.cubridmigration.ui.script.MigrationScript;
-import com.cubrid.cubridmigration.ui.wizard.editor.MigrationProgressEditorInput;
+import com.cubrid.sqlanalyzer.core.AnalyzerConfiguration;
 
 // TODO: maybe useless class
 
-public class AnalyzerProgressEditorInput extends MigrationProgressEditorInput {
-	public AnalyzerProgressEditorInput(MigrationConfiguration config, MigrationScript migrationScript) {
-		super(config, migrationScript);
-		// TODO Auto-generated constructor stub
-	}
-	
-	@Override
-	public Object getAdapter(Class adapter) {
-		return this;
-	}
+public class AnalyzerProgressEditorInput implements IEditorInput {
+
+    private final AnalyzerConfiguration config;
+    private final MigrationScript migrationScript;
+    private final int startMode;
+
+    public AnalyzerProgressEditorInput(
+            AnalyzerConfiguration config, MigrationScript migrationScript) {
+        this(config, migrationScript, MigrationBriefReport.SM_USER);
+    }
+
+    public AnalyzerProgressEditorInput(
+            AnalyzerConfiguration config, MigrationScript migrationScript, int startMode) {
+        this.config = config;
+        this.migrationScript = migrationScript;
+        this.startMode = startMode;
+    }
+
+    /**
+     * @param adapter support MigrationConfiguration and MigrationCfgEditorInput
+     * @return MigrationConfiguration and MigrationCfgEditorInput
+     */
+    @SuppressWarnings("rawtypes")
+    public Object getAdapter(Class adapter) {
+    	return this;
+    }
+
+    /** @return false */
+    public boolean exists() {
+        return false;
+    }
+
+    /**
+     * no image
+     *
+     * @return null
+     */
+    public ImageDescriptor getImageDescriptor() {
+        return null;
+    }
+
+    /**
+     * name
+     *
+     * @return string
+     */
+    public String getName() {
+        return "Migration from " + config.getSourceTypeName();
+    }
+
+    /** @return null */
+    public IPersistableElement getPersistable() {
+        return null;
+    }
+
+    /** @return tool tip text */
+    public String getToolTipText() {
+        return this.getName();
+    }
+
+    public int getStartMode() {
+        return startMode;
+    }
+
+    /**
+     * Retrieves if the migration was started by user
+     *
+     * @return true if by user, false if by scheduler.
+     */
+    public boolean isStartedByUser() {
+        return startMode == MigrationBriefReport.SM_USER;
+    }
 }

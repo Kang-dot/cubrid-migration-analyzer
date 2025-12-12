@@ -3,12 +3,12 @@ package com.cubrid.sqlanalyzer.ui;
 import java.util.Date;
 
 import org.eclipse.jface.dialogs.DialogSettings;
-import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.jface.wizard.IWizardPage;
 import org.eclipse.ui.PartInitException;
 import org.eclipse.ui.PlatformUI;
 
 import com.cubrid.cubridmigration.core.dbobject.Catalog;
+import com.cubrid.cubridmigration.core.engine.config.MigrationConfiguration;
 import com.cubrid.cubridmigration.cubrid.CUBRIDTimeUtil;
 import com.cubrid.cubridmigration.ui.wizard.MigrationWizard;
 import com.cubrid.sqlanalyzer.core.AnalyzerConfiguration;
@@ -126,7 +126,7 @@ public class AnalyzerWizard extends MigrationWizard {
               .getActiveWorkbenchWindow()
               .getActivePage()
               .openEditor(
-                      new AnalyzerProgressEditorInput(getMigrationConfig(), migrationScript),
+                      new AnalyzerProgressEditorInput(getAnalyzerConfig(), migrationScript),
                       AnalyzerProgressEditorPart.ID);
 		  } catch (PartInitException e) {
 //		      MessageDialog.openError(
@@ -136,8 +136,12 @@ public class AnalyzerWizard extends MigrationWizard {
 		  }
     }
     
-    public AnalyzerConfiguration getMigrationConfig() {
+    public AnalyzerConfiguration getAnalyzerConfig() {
         return analyzerConfig;
+    }
+    
+    public MigrationConfiguration getMigrationConfig() {
+    	return super.getMigrationConfig();
     }
     
     private int[] getPageNOs() {

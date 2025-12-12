@@ -14,9 +14,7 @@ import com.cubrid.cubridmigration.ui.common.UICommonTool;
 import com.cubrid.cubridmigration.ui.database.IJDBCConnectionFilter;
 import com.cubrid.cubridmigration.ui.database.JDBCConnectionMgrView;
 import com.cubrid.cubridmigration.ui.wizard.MigrationWizard;
-import com.cubrid.cubridmigration.ui.wizard.page.SelectDestinationPage;
 import com.cubrid.cubridmigration.ui.wizard.utils.MigrationCfgUtils;
-import com.cubrid.sqlanalyzer.core.AnalyzerConfiguration;
 import com.cubrid.sqlanalyzer.ui.AnalyzerWizardPage;
 
 public class CreateTarConnectionPage extends AnalyzerWizardPage {
@@ -42,7 +40,7 @@ public class CreateTarConnectionPage extends AnalyzerWizardPage {
 							new IJDBCConnectionFilter() {
 
 								public boolean doFilter(ConnParameters cp) {
-									final AnalyzerConfiguration cfg =
+									final MigrationConfiguration cfg =
 											getMigrationWizard().getMigrationConfig();
 //									if (cfg.sourceIsOnline()) {
 //										return cfg.getSourceConParams().isSameDB(cp);

@@ -9,12 +9,12 @@ import com.cubrid.cubridmigration.core.engine.IMigrationEventHandler;
 import com.cubrid.cubridmigration.core.engine.JDBCConManager;
 import com.cubrid.cubridmigration.core.engine.MigrationDirAndFilesManager;
 import com.cubrid.cubridmigration.core.engine.MigrationStatusManager;
-import com.cubrid.cubridmigration.core.engine.config.MigrationConfiguration;
 import com.cubrid.cubridmigration.core.engine.executors.IRunnableExecutor;
 import com.cubrid.cubridmigration.core.engine.executors.ImmediateExecutor;
 import com.cubrid.cubridmigration.core.engine.executors.MultiQueueExecutor;
 import com.cubrid.cubridmigration.core.engine.executors.SingleQueueExecutor;
 import com.cubrid.cubridmigration.cubrid.stmt.CUBRIDParameterSetter;
+import com.cubrid.sqlanalyzer.core.AnalyzerConfiguration;
 
 public class AnalyzerContext {
 
@@ -22,7 +22,7 @@ public class AnalyzerContext {
     // private final Map<String, IRunnableExecutor> mergeDataFileExe = new HashMap<String,
     // IRunnableExecutor>();
     private final List<ICanDispose> tobeDisposed = new ArrayList<ICanDispose>();
-    private final MigrationConfiguration config;
+    private final AnalyzerConfiguration config;
     private final IMigrationEventHandler eventsHandler;
 
     private IRunnableExecutor mergeTaskExe;
@@ -34,7 +34,7 @@ public class AnalyzerContext {
     private MigrationStatusManager statusMgr;
     private MigrationDirAndFilesManager dirAndFilesMgr;
 
-    private AnalyzerContext(MigrationConfiguration config, IMigrationEventHandler eventsHandler) {
+    private AnalyzerContext(AnalyzerConfiguration config, IMigrationEventHandler eventsHandler) {
         this.config = config;
         this.eventsHandler = eventsHandler;
         addTobeDisposed(eventsHandler);
@@ -48,7 +48,7 @@ public class AnalyzerContext {
      * @return MigrationContext
      */
     public static AnalyzerContext buildContext(
-            MigrationConfiguration config, IMigrationEventHandler eventsHandler) {
+            AnalyzerConfiguration config, IMigrationEventHandler eventsHandler) {
         final AnalyzerContext context = new AnalyzerContext(config, eventsHandler);
 
         context.setParamSetter(new CUBRIDParameterSetter(config));
@@ -114,7 +114,7 @@ public class AnalyzerContext {
         return mergeTaskExe;
     }
 
-    public MigrationConfiguration getConfig() {
+    public AnalyzerConfiguration getConfig() {
         return config;
     }
 

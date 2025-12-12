@@ -25,8 +25,6 @@ import com.cubrid.cubridmigration.core.dbobject.Catalog;
 import com.cubrid.cubridmigration.core.engine.config.MigrationConfiguration;
 import com.cubrid.cubridmigration.ui.common.UIConstant;
 import com.cubrid.cubridmigration.ui.message.Messages;
-import com.cubrid.cubridmigration.ui.wizard.MigrationWizard;
-import com.cubrid.sqlanalyzer.core.AnalyzerConfiguration;
 import com.cubrid.sqlanalyzer.ui.AnalyzerWizard;
 import com.cubrid.sqlanalyzer.ui.AnalyzerWizardPage;
 import com.cubrid.sqlanalyzer.xmlmetadata.XMLDirSchemaProgressFetcher;
@@ -354,7 +352,7 @@ public class CreateSrcConnectionPage extends AnalyzerWizardPage {
 //            }
             wzd.setOriginalSourceCatalog(catalog);
 //            MigrationConfiguration cfg = wzd.getMigrationConfig();
-            AnalyzerConfiguration cfg = wzd.getMigrationConfig();
+            MigrationConfiguration cfg = wzd.getMigrationConfig();
 
             if (cfg.getName() == null) {
                 cfg.setName(
