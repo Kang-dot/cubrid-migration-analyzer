@@ -1,25 +1,20 @@
 package com.cubrid.sqlanalyzer.core.engine;
 
 import com.cubrid.cubridmigration.core.engine.IMigrationBroker;
-import com.cubrid.cubridmigration.core.engine.IMigrationEventHandler;
 import com.cubrid.cubridmigration.core.engine.IMigrationMonitor;
 import com.cubrid.cubridmigration.core.engine.ThreadUtils;
-import com.cubrid.cubridmigration.core.engine.event.MigrationCanceledEvent;
-import com.cubrid.cubridmigration.core.engine.event.MigrationErrorEvent;
-import com.cubrid.cubridmigration.core.engine.event.MigrationFinishedEvent;
-import com.cubrid.cubridmigration.core.engine.event.MigrationStartEvent;
 import com.cubrid.cubridmigration.core.engine.exception.BreakMigrationException;
 import com.cubrid.cubridmigration.core.engine.exception.NormalMigrationException;
 import com.cubrid.cubridmigration.core.engine.exporter.IMigrationExporter;
-import com.cubrid.cubridmigration.core.engine.exporter.impl.CUBRIDJDBCExporter;
-import com.cubrid.cubridmigration.core.engine.exporter.impl.JDBCExporter;
-import com.cubrid.cubridmigration.core.engine.exporter.impl.MYSQLDumpXMLExporter;
-import com.cubrid.cubridmigration.core.engine.exporter.impl.PerformMYSQLXMLDataReader;
-import com.cubrid.cubridmigration.core.engine.importer.IMigrationImporter;
 import com.cubrid.cubridmigration.core.engine.report.IMigrationReporter;
 import com.cubrid.sqlanalyzer.core.AnalyzerConfiguration;
 import com.cubrid.sqlanalyzer.core.engine.schedular.AnalyzerTasksScheduler;
 import com.cubrid.sqlanalyzer.core.engine.task.AnalyzerTaskFactory;
+import com.cubrid.sqlanalyzer.core.event.AnalyzerCanceledEvent;
+import com.cubrid.sqlanalyzer.core.event.AnalyzerErrorEvent;
+import com.cubrid.sqlanalyzer.core.event.AnalyzerFinishedEvent;
+import com.cubrid.sqlanalyzer.core.event.AnalyzerStartEvent;
+import com.cubrid.sqlanalyzer.core.runner.IAnalyzerRunner;
 import com.cubrid.sqlanalyzer.core.runner.JDBCQueryRunner;
 
 public class AnalyzerProcessManager {
@@ -48,27 +43,27 @@ public class AnalyzerProcessManager {
 
         /** Run */
         public void run() {
-            final IMigrationEventHandler eventsHandler = context.getEventsHandler();
+            final IAnalyzerEventHandler eventsHandler = context.getEventsHandler();
             try {
                 // Initialize
                 if (isRunning()) {
                     // Record start time
-                    eventsHandler.handleEvent(new MigrationStartEvent());
-                    eventsHandler.handleEvent(new MigrationCanceledEvent());
+                    eventsHandler.handleEvent(new AnalyzerStartEvent());
+                    eventsHandler.handleEvent(new AnalyzerCanceledEvent());
                     throw new BreakMigrationException("Migration canceled");
                 }
                 setRunning(true);
-                eventsHandler.handleEvent(new MigrationStartEvent());
+                eventsHandler.handleEvent(new AnalyzerStartEvent());
 
                 AnalyzerTasksScheduler scheduler = buildTaskScheduler();
                 scheduler.schedule();
 
-                eventsHandler.handleEvent(new MigrationFinishedEvent(false));
+                eventsHandler.handleEvent(new AnalyzerFinishedEvent(false));
             } catch (NormalMigrationException ex) {
-                eventsHandler.handleEvent(new MigrationErrorEvent(ex));
-                eventsHandler.handleEvent(new MigrationFinishedEvent(true));
+                eventsHandler.handleEvent(new AnalyzerErrorEvent(ex));
+                eventsHandler.handleEvent(new AnalyzerFinishedEvent(true));
             } catch (Throwable er) {
-                eventsHandler.handleEvent(new MigrationErrorEvent(er));
+                eventsHandler.handleEvent(new AnalyzerErrorEvent(er));
             }
         }
 	}
@@ -128,34 +123,34 @@ public class AnalyzerProcessManager {
         taskFactory.setContext(context);
         // Exporter
         AnalyzerConfiguration config = context.getConfig();
-        IMigrationExporter exporter;
-        if (config.sourceIsOnline()) {
-            JDBCExporter exp =
-                    config.getSourceType() == AnalyzerConfiguration.SOURCE_TYPE_CUBRID
-                            ? new CUBRIDJDBCExporter()
-                            : new JDBCExporter();
-            exp.setConfig(config);
-            exp.setConnManager(context.getConnManager());
-            exp.setEventHandler(context.getEventsHandler());
-            exp.setStatusManager(context.getStatusMgr());
-            exporter = exp;
-        } else if (config.sourceIsXMLDump()) {
-            MYSQLDumpXMLExporter exp = new MYSQLDumpXMLExporter();
-            exp.setConfig(config);
-            exp.setEventHandler(context.getEventsHandler());
-
-            PerformMYSQLXMLDataReader handler = new PerformMYSQLXMLDataReader();
-            handler.setConfig(config);
-            handler.setExecutor(context.getExportRecExe());
-            handler.setStatusManager(context.getStatusMgr());
-            exp.setHandler(handler);
-            exporter = exp;
-        } else {
-            exporter = null;
-        }
+        IMigrationExporter exporter = null;
+//        if (config.sourceIsOnline()) {
+//            JDBCExporter exp =
+//                    config.getSourceType() == AnalyzerConfiguration.SOURCE_TYPE_CUBRID
+//                            ? new CUBRIDJDBCExporter()
+//                            : new JDBCExporter();
+//            exp.setConfig(config);
+//            exp.setConnManager(context.getConnManager());
+//            exp.setEventHandler(context.getEventsHandler());
+//            exp.setStatusManager(context.getStatusMgr());
+//            exporter = exp;
+//        } else if (config.sourceIsXMLDump()) {
+//            MYSQLDumpXMLExporter exp = new MYSQLDumpXMLExporter();
+//            exp.setConfig(config);
+//            exp.setEventHandler(context.getEventsHandler());
+//
+////            PerformMYSQLXMLDataReader handler = new PerformMYSQLXMLDataReader();
+////            handler.setConfig(config);
+////            handler.setExecutor(context.getExportRecExe());
+////            handler.setStatusManager(context.getStatusMgr());
+////            exp.setHandler(handler);
+//            exporter = exp;
+//        } else {
+//            exporter = null;
+//        }
         taskFactory.setExporter(exporter);
         // Importer
-        IMigrationImporter importer;
+        IAnalyzerRunner importer;
         
         
         //TODO: need connect jdbc version importer and load .dll file and parse version
@@ -189,7 +184,7 @@ public class AnalyzerProcessManager {
 
     /** Interrupt the migration process by Users. It should be called in a progress dialog. */
     public void interruptMigration() {
-        context.getEventsHandler().handleEvent(new MigrationFinishedEvent(true));
+        context.getEventsHandler().handleEvent(new AnalyzerFinishedEvent(true));
         // waiting for stopping.
         while (mainThread != null) {
             ThreadUtils.threadSleep(1000, null);

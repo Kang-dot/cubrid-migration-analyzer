@@ -8,13 +8,12 @@ import com.cubrid.cubridmigration.core.engine.ICanInterrupt;
 import com.cubrid.cubridmigration.core.engine.IMigrationEventHandler;
 import com.cubrid.cubridmigration.core.engine.JDBCConManager;
 import com.cubrid.cubridmigration.core.engine.MigrationDirAndFilesManager;
-import com.cubrid.cubridmigration.core.engine.MigrationStatusManager;
 import com.cubrid.cubridmigration.core.engine.executors.IRunnableExecutor;
-import com.cubrid.cubridmigration.core.engine.executors.ImmediateExecutor;
 import com.cubrid.cubridmigration.core.engine.executors.MultiQueueExecutor;
 import com.cubrid.cubridmigration.core.engine.executors.SingleQueueExecutor;
 import com.cubrid.cubridmigration.cubrid.stmt.CUBRIDParameterSetter;
 import com.cubrid.sqlanalyzer.core.AnalyzerConfiguration;
+import com.cubrid.sqlanalyzer.core.engine.executor.ImmediateExecutor;
 
 public class AnalyzerContext {
 
@@ -23,7 +22,7 @@ public class AnalyzerContext {
     // IRunnableExecutor>();
     private final List<ICanDispose> tobeDisposed = new ArrayList<ICanDispose>();
     private final AnalyzerConfiguration config;
-    private final IMigrationEventHandler eventsHandler;
+    private final IAnalyzerEventHandler eventsHandler;
 
     private IRunnableExecutor mergeTaskExe;
     private IRunnableExecutor dbObjectExe;
@@ -31,13 +30,13 @@ public class AnalyzerContext {
     private IRunnableExecutor importRecordExecutor;
     private CUBRIDParameterSetter paramSetter;
     private JDBCConManager connManager;
-    private MigrationStatusManager statusMgr;
+    private AnalyzerStatusManager statusMgr;
     private MigrationDirAndFilesManager dirAndFilesMgr;
 
-    private AnalyzerContext(AnalyzerConfiguration config, IMigrationEventHandler eventsHandler) {
+    private AnalyzerContext(AnalyzerConfiguration config, IAnalyzerEventHandler eventsHandler) {
         this.config = config;
         this.eventsHandler = eventsHandler;
-        addTobeDisposed(eventsHandler);
+//        addTobeDisposed(eventsHandler);
     }
 
     /**
@@ -48,14 +47,14 @@ public class AnalyzerContext {
      * @return MigrationContext
      */
     public static AnalyzerContext buildContext(
-            AnalyzerConfiguration config, IMigrationEventHandler eventsHandler) {
+            AnalyzerConfiguration config, IAnalyzerEventHandler eventsHandler) {
         final AnalyzerContext context = new AnalyzerContext(config, eventsHandler);
 
         context.setParamSetter(new CUBRIDParameterSetter(config));
 
         context.setConnManager(new JDBCConManager(config));
 
-        final MigrationStatusManager msm = new MigrationStatusManager();
+        final AnalyzerStatusManager msm = new AnalyzerStatusManager();
         msm.setHasOOMRisk(config.checkOOMRisk());
         // Adjust OOM control parameters
         final long maxMemory = Runtime.getRuntime().maxMemory() * 95 / 100;
@@ -130,7 +129,7 @@ public class AnalyzerContext {
         return dirAndFilesMgr;
     }
 
-    public IMigrationEventHandler getEventsHandler() {
+    public IAnalyzerEventHandler getEventsHandler() {
         return eventsHandler;
     }
 
@@ -146,7 +145,7 @@ public class AnalyzerContext {
         return paramSetter;
     }
 
-    public MigrationStatusManager getStatusMgr() {
+    public AnalyzerStatusManager getStatusMgr() {
         return statusMgr;
     }
 
@@ -222,7 +221,7 @@ public class AnalyzerContext {
      *
      * @param statusManager MigrationStatusManager
      */
-    protected void setStatusMgr(MigrationStatusManager statusManager) {
+    protected void setStatusMgr(AnalyzerStatusManager statusManager) {
         this.statusMgr = statusManager;
     }
 

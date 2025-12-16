@@ -3,11 +3,12 @@ package com.cubrid.sqlanalyzer.core.engine.task;
 import com.cubrid.cubridmigration.core.engine.exporter.IMigrationExporter;
 import com.cubrid.cubridmigration.core.engine.importer.IMigrationImporter;
 import com.cubrid.sqlanalyzer.core.engine.AnalyzerContext;
+import com.cubrid.sqlanalyzer.core.runner.IAnalyzerRunner;
 
 public class AnalyzerTaskFactory {
     private AnalyzerContext context;
     private IMigrationExporter exporter;
-    private IMigrationImporter importer;
+    private IAnalyzerRunner importer;
 
     public AnalyzerTaskFactory() {}
 
@@ -17,7 +18,7 @@ public class AnalyzerTaskFactory {
      * @param task ExportTask
      * @param isExportRecords boolean
      */
-    private void initExportTask(AnalyzeTask task, boolean isExportRecords) {
+    private void initAnalyzeTask(AnalyzeTask task, boolean isExportRecords) {
         if (isExportRecords) {
             task.setImportTaskExecutor(context.getImportRecordExecutor());
         } else {
@@ -25,7 +26,7 @@ public class AnalyzerTaskFactory {
         }
 
         task.setMigrationEventHandler(context.getEventsHandler());
-        task.setMigrationExporter(exporter);
+        task.setMigrationImporter(importer);
         task.setTaskFactory(this);
     }
     
@@ -37,14 +38,19 @@ public class AnalyzerTaskFactory {
         this.exporter = exporter;
     }
 
-    public void setImporter(IMigrationImporter importer) {
+    public void setImporter(IAnalyzerRunner importer) {
         this.importer = importer;
     }
 
-    
+    public AnalyzeTask executeQuery(String id, String query) {
+    	AnalyzeQueryTask task = new AnalyzeQueryTask(id, query);
+    	initAnalyzeTask(task);
+    	return task;
+    }
     
     // TODO: Execute query and receive result
-//    public initExecuteTask(AnalyzerTask task) {
-//    	
-//    }
+    public void initAnalyzeTask(AnalyzeTask task) {
+    	task.setMigrationImporter(importer);
+    	task.setImportTaskExecutor(null);
+    }
 }

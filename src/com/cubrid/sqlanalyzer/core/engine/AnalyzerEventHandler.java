@@ -4,24 +4,25 @@ import com.cubrid.cubridmigration.core.engine.IMigrationBroker;
 import com.cubrid.cubridmigration.core.engine.IMigrationEventHandler;
 import com.cubrid.cubridmigration.core.engine.IMigrationMonitor;
 import com.cubrid.cubridmigration.core.engine.event.IMigrationErrorEvent;
-import com.cubrid.cubridmigration.core.engine.event.MigrationCanceledEvent;
-import com.cubrid.cubridmigration.core.engine.event.MigrationErrorEvent;
 import com.cubrid.cubridmigration.core.engine.event.MigrationEvent;
 import com.cubrid.cubridmigration.core.engine.event.MigrationFinishedEvent;
-import com.cubrid.cubridmigration.core.engine.event.MigrationStartEvent;
-import com.cubrid.cubridmigration.core.engine.event.SingleRecordErrorEvent;
 import com.cubrid.cubridmigration.core.engine.executors.IRunnableExecutor;
 import com.cubrid.cubridmigration.core.engine.report.IMigrationReporter;
 import com.cubrid.sqlanalyzer.core.engine.executor.SingleQueueExecutor;
+import com.cubrid.sqlanalyzer.core.event.AnalyzerCanceledEvent;
+import com.cubrid.sqlanalyzer.core.event.AnalyzerErrorEvent;
+import com.cubrid.sqlanalyzer.core.event.AnalyzerEvent;
+import com.cubrid.sqlanalyzer.core.event.AnalyzerFinishedEvent;
+import com.cubrid.sqlanalyzer.core.event.AnalyzerStartEvent;
 
-public class AnalyzerEventHandler implements IMigrationEventHandler {
+public class AnalyzerEventHandler implements IAnalyzerEventHandler {
 
 //    private static final Logger LOG = LogUtil.getLogger(MigrationEventHandler.class);
     private final IMigrationMonitor monitor;
     private final IMigrationReporter reporter;
     private final IMigrationBroker breaker;
     private final IRunnableExecutor handlerExecutor = new SingleQueueExecutor(1, false);
-    private MigrationFinishedEvent mfe = null;
+    private AnalyzerFinishedEvent mfe = null;
 
     /**
      * Constructor
@@ -44,7 +45,7 @@ public class AnalyzerEventHandler implements IMigrationEventHandler {
      *
      * @param event MigrationEvent
      */
-    public void handleEvent(final MigrationEvent event) {
+    public void handleEvent(final AnalyzerEvent event) {
         handlerExecutor.execute(new EventHandlerRunnable(event));
     }
 
@@ -63,9 +64,9 @@ public class AnalyzerEventHandler implements IMigrationEventHandler {
      */
     protected class EventHandlerRunnable implements Runnable {
 
-        private final MigrationEvent event;
+        private final AnalyzerEvent event;
 
-        public EventHandlerRunnable(MigrationEvent event) {
+        public EventHandlerRunnable(AnalyzerEvent event) {
             this.event = event;
         }
 
@@ -77,7 +78,7 @@ public class AnalyzerEventHandler implements IMigrationEventHandler {
 //                    LOG.info("Migration already finished; ignoring further event: {}", event);
                     return;
                 }
-                if (event instanceof MigrationCanceledEvent) {
+                if (event instanceof AnalyzerCanceledEvent) {
                     reporter.addEvent(event);
                     return;
                 }
@@ -88,24 +89,24 @@ public class AnalyzerEventHandler implements IMigrationEventHandler {
 //                        LOG.error("", evt.getError());
                     }
                 }
-                if (event instanceof MigrationErrorEvent) {
-                    MigrationErrorEvent ee = (MigrationErrorEvent) event;
+                if (event instanceof AnalyzerErrorEvent) {
+                	AnalyzerErrorEvent ee = (AnalyzerErrorEvent) event;
                     monitor.addEvent(event);
                     reporter.addEvent(event);
-                    if (ee.isFatalError()) {
-                        handleEvent(new MigrationFinishedEvent(true));
-                    }
+//                    if (ee.isFatalError()) {
+//                        handleEvent(new MigrationFinishedEvent(true));
+//                    }
                     return;
                 }
-                if (event instanceof MigrationFinishedEvent) {
+                if (event instanceof AnalyzerFinishedEvent) {
                     // Only receives the first MigrationFinishedEvent.
-                    mfe = (MigrationFinishedEvent) event;
+                    mfe = (AnalyzerFinishedEvent) event;
                     monitor.addEvent(event);
                     reporter.addEvent(event);
                     breaker.migrationStopped(mfe.isBroken());
                     return;
                 }
-                if (event instanceof MigrationStartEvent) {
+                if (event instanceof AnalyzerStartEvent) {
                     monitor.start();
                     mfe = null;
                     monitor.addEvent(event);
@@ -113,9 +114,9 @@ public class AnalyzerEventHandler implements IMigrationEventHandler {
                     return;
                 }
                 // Single record error doesn't be sent to monitor
-                if (!(event instanceof SingleRecordErrorEvent)) {
-                    monitor.addEvent(event);
-                }
+//                if (!(event instanceof SingleRecordErrorEvent)) {
+//                    monitor.addEvent(event);
+//                }
                 reporter.addEvent(event);
             } catch (Throwable ex) {
 //                LOG.error("", ex);
