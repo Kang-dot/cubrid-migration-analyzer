@@ -17,13 +17,25 @@ public class AnalyzerExecuteEvent extends AnalyzerEvent {
 		this.error = error;
 	}
 
+	public String getId() {
+		return id;
+	}
+	
+	public String getQuery() {
+		return query;
+	}
+	
+	public Throwable getError() {
+		return error;
+	}
+
 	public String toString() {
 		StringBuffer buffer = new StringBuffer();
 		
 		if (error == null) {
 			buffer.append("query [" + id + "] success");
 		} else {
-			buffer.append("query [" + id + "] failed. error: " + error.getStackTrace());
+			buffer.append("query [" + id + "] failed. error: " + error.getMessage());
 		}
 		
 		return buffer.toString();

@@ -36,7 +36,7 @@ public class AnalyzerContext {
     private AnalyzerContext(AnalyzerConfiguration config, IAnalyzerEventHandler eventsHandler) {
         this.config = config;
         this.eventsHandler = eventsHandler;
-//        addTobeDisposed(eventsHandler);
+        addTobeDisposed(eventsHandler);
     }
 
     /**
@@ -49,8 +49,6 @@ public class AnalyzerContext {
     public static AnalyzerContext buildContext(
             AnalyzerConfiguration config, IAnalyzerEventHandler eventsHandler) {
         final AnalyzerContext context = new AnalyzerContext(config, eventsHandler);
-
-        context.setParamSetter(new CUBRIDParameterSetter(config));
 
         context.setConnManager(new JDBCConManager(config));
 

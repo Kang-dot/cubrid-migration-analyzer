@@ -59,8 +59,6 @@ import org.eclipse.ui.part.EditorPart;
 import com.cubrid.common.ui.swt.table.ObjectArrayRowTableLabelProvider;
 import com.cubrid.common.ui.swt.table.TableViewerBuilder;
 import com.cubrid.cubridmigration.core.common.TimeZoneUtils;
-import com.cubrid.cubridmigration.core.dbtype.DatabaseType;
-import com.cubrid.cubridmigration.core.engine.IMigrationMonitor;
 import com.cubrid.cubridmigration.core.engine.ThreadUtils;
 import com.cubrid.cubridmigration.core.engine.event.ExportRecordsEvent;
 import com.cubrid.cubridmigration.core.engine.event.ImportRecordsEvent;
@@ -70,6 +68,8 @@ import com.cubrid.cubridmigration.ui.SWTResourceConstents;
 import com.cubrid.cubridmigration.ui.message.Messages;
 import com.cubrid.cubridmigration.ui.script.MigrationScriptManager;
 import com.cubrid.sqlanalyzer.core.AnalyzerConfiguration;
+import com.cubrid.sqlanalyzer.core.event.AnalyzerEvent;
+import com.cubrid.sqlanalyzer.core.event.IAnalyzerMonitor;
 
 /**
  * AnalyzerProgressEditorPart responses to monitor the analyzer progress.
@@ -83,7 +83,7 @@ public class AnalyzerProgressEditorPart extends EditorPart implements ISaveableP
      *
      * @author Kevin Cao
      */
-    protected class MigrationMonitor implements IMigrationMonitor {
+    protected class AnalyzerMonitor implements IAnalyzerMonitor {
         private long startTime = 0;
 
         private final Timer timer = new Timer();
@@ -93,15 +93,15 @@ public class AnalyzerProgressEditorPart extends EditorPart implements ISaveableP
          *
          * @param event MigrationEvent
          */
-        public void addEvent(final MigrationEvent event) {
+        public void addEvent(AnalyzerEvent event) {
             Display.getDefault()
-                    .asyncExec(
-                            new Runnable() {
+            .asyncExec(
+                    new Runnable() {
 
-                                public void run() {
-                                    updateViewWithMigrationEvent(event);
-                                }
-                            });
+                        public void run() {
+                            updateViewWithMigrationEvent(event);
+                        }
+                    });
         }
 
         /** When migration finished. */
@@ -252,23 +252,12 @@ public class AnalyzerProgressEditorPart extends EditorPart implements ISaveableP
     /** @param pnlBackTop Composite */
     protected void createProgressTableViewer(final Composite pnlBackTop) {
         TableViewerBuilder tvBuilder = new TableViewerBuilder();
-        tvBuilder.setColumnNames(
-                new String[] {
-                    Messages.colTable,
-                    Messages.colRecordCount,
-                    Messages.colExportedCount,
-                    Messages.colImportedCount,
-                    Messages.colProgressPercent,
-                    Messages.colOwnerName
-                });
-        int[] columnWidths = new int[] {200, 120, 120, 120, 100, 120};
-        DatabaseType dbType = cf.getSourceDBType();
-        if (dbType != null && !dbType.isSupportMultiSchema()) {
-            columnWidths[5] = 0;
-        }
+        // column: DML type, total count, finish count, percent
+        tvBuilder.setColumnNames(new String[] {"DML Type", "Total", "Finished", "Percent"});
+        int[] columnWidths = new int[] {150, 100, 100, 100};
         tvBuilder.setColumnWidths(columnWidths);
         tvBuilder.setColumnStyles(
-                new int[] {SWT.LEFT, SWT.RIGHT, SWT.RIGHT, SWT.RIGHT, SWT.CENTER, SWT.CENTER});
+                new int[] {SWT.LEFT, SWT.RIGHT, SWT.RIGHT, SWT.CENTER});
         tvBuilder.setContentProvider(new ArrayContentProvider());
         tvBuilder.setLabelProvider(new ObjectArrayRowTableLabelProvider());
         tvProgress = tvBuilder.buildTableViewer(pnlBackTop, SWT.BORDER | SWT.FULL_SELECTION);
@@ -430,8 +419,9 @@ public class AnalyzerProgressEditorPart extends EditorPart implements ISaveableP
             AnalyzerProgressEditorInput migrationProgressEditorInput =
                     (AnalyzerProgressEditorInput) getEditorInput();
             controller.startMigration(
-                    new MigrationMonitor(), migrationProgressEditorInput.getStartMode());
+                    new AnalyzerMonitor(), migrationProgressEditorInput.getStartMode());
         } catch (RuntimeException ex) {
+        	ex.printStackTrace();
             updateUIWhenMigrationStartFailed();
         }
     }
@@ -516,5 +506,22 @@ public class AnalyzerProgressEditorPart extends EditorPart implements ISaveableP
         if (pbvalue > 0) {
             pbTotal.setSelection(pbTotal.getSelection() + pbvalue);
         }
+    }
+    
+    protected void updateViewWithMigrationEvent(AnalyzerEvent event) {
+        boolean errFlag = controller.ifEventHasError(event);
+        if (errFlag && pbTotal.getState() != SWT.ERROR) {
+            pbTotal.setState(SWT.ERROR);
+            ThreadUtils.threadSleep(300, null);
+        }
+
+        controller.addMessage2Text(txtProgress, event.getEventTime(), event.toString(), errFlag);
+
+        int pbvalue = controller.getProgressBarProgressValue(event);
+        if (pbvalue > 0) {
+            pbTotal.setSelection(pbTotal.getSelection() + pbvalue);
+        }
+
+        tvProgress.refresh();
     }
 }

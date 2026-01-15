@@ -1,14 +1,13 @@
 package com.cubrid.sqlanalyzer.ui.editor;
 
 import java.lang.reflect.InvocationTargetException;
-import java.util.ArrayList;
 import java.util.Date;
-import java.util.List;
 
 import org.apache.commons.lang3.StringUtils;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.jface.operation.IRunnableWithProgress;
+import org.eclipse.jface.wizard.Wizard;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.StyleRange;
 import org.eclipse.swt.custom.StyledText;
@@ -20,10 +19,6 @@ import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.part.EditorPart;
 
 import com.cubrid.cubridmigration.core.dbobject.Catalog;
-import com.cubrid.cubridmigration.core.dbobject.Table;
-import com.cubrid.cubridmigration.core.engine.IMigrationMonitor;
-import com.cubrid.cubridmigration.core.engine.config.SourceEntryTableConfig;
-import com.cubrid.cubridmigration.core.engine.config.SourceTableConfig;
 import com.cubrid.cubridmigration.core.engine.event.CreateObjectEvent;
 import com.cubrid.cubridmigration.core.engine.event.ExportCSVEvent;
 import com.cubrid.cubridmigration.core.engine.event.ExportRecordsEvent;
@@ -37,7 +32,13 @@ import com.cubrid.cubridmigration.cubrid.CUBRIDTimeUtil;
 import com.cubrid.cubridmigration.ui.database.SchemaFetcherWithProgress;
 import com.cubrid.cubridmigration.ui.message.Messages;
 import com.cubrid.sqlanalyzer.core.AnalyzerConfiguration;
+import com.cubrid.sqlanalyzer.core.dbobject.AnalyzerCatalog;
+import com.cubrid.sqlanalyzer.core.dbobject.QueryDictionary;
 import com.cubrid.sqlanalyzer.core.engine.AnalyzerProcessManager;
+import com.cubrid.sqlanalyzer.core.event.AnalyzerErrorEvent;
+import com.cubrid.sqlanalyzer.core.event.AnalyzerEvent;
+import com.cubrid.sqlanalyzer.core.event.AnalyzerExecuteEvent;
+import com.cubrid.sqlanalyzer.core.event.IAnalyzerMonitor;
 import com.cubrid.sqlanalyzer.ui.reporter.AnalyzerReporter;
 //import com.cubrid.common.ui.swt.ProgressMonitorDialogRunner;
 import com.cubrid.sqlanalyzer.ui.swt.ProgressMonitorDialogRunner;
@@ -54,6 +55,18 @@ public class AnalyzerProgressUIController {
     protected AnalyzerProcessManager mpm;
 
     protected String[][] tableItems;
+    // DML total/finished counters for analyzer progress
+    protected int selectTotal;
+    protected int insertTotal;
+    protected int updateTotal;
+    protected int deleteTotal;
+    protected int totalQueries;
+
+    protected int selectFinished;
+    protected int insertFinished;
+    protected int updateFinished;
+    protected int deleteFinished;
+    protected int finishedQueries;
 
     protected int expCountCache = 0;
 
@@ -175,91 +188,106 @@ public class AnalyzerProgressUIController {
         return 0;
     }
 
+    /**
+     * AnalyzerExecuteEvent progress bar controller
+     * 
+     * @param event AnalyzerEvent
+     * @return how much the progress bar should grow up when the event received.
+     */
+    public int getProgressBarProgressValue(AnalyzerEvent event) {
+        if (!(event instanceof AnalyzerExecuteEvent)) {
+            return 0;
+        }
+        AnalyzerExecuteEvent aev = (AnalyzerExecuteEvent) event;
+
+        //count will be update even result is failed
+        String dmlType = resolveDmlType(aev.getId());
+        if (dmlType == null) {
+            return 0;
+        }
+
+        incrementFinished(dmlType);
+
+        return 1;
+    }
+
     /** @return the progress bar's style according to the config.isImplicitEstimate */
     public int getProgressBarStyle() {
         return config.isImplicitEstimate() ? SWT.INDETERMINATE : SWT.NONE;
     }
 
-    /** @return the progress table viewer's input date */
+    /** @return the progress table viewer's input data */
     public String[][] getProgressTableInput() {
-        List<SourceTableConfig> expStcs = new ArrayList<SourceTableConfig>();
-        expStcs.addAll(config.getExpEntryTableCfg());
-        expStcs.addAll(config.getExpSQLCfg());
-        int index = 0;
-        tableItems = new String[expStcs.size()][6];
-        for (SourceTableConfig stc : expStcs) {
-            Table tbl = config.getSrcTableSchema(stc.getOwner(), stc.getName());
-            if (config.isImplicitEstimate()) {
-                tableItems[index] =
-                        new String[] {
-                            stc.getName(),
-                            NA_STRING,
-                            NA_STRING,
-                            NA_STRING,
-                            NA_STRING,
-                            stc.getOwner()
-                        };
-            } else if (tbl == null || tbl.getTableRowCount() == 0) {
-                tableItems[index] =
-                        new String[] {
-                            stc.getName(),
-                            NA_STRING,
-                            NA_STRING,
-                            NA_STRING,
-                            NA_STRING,
-                            stc.getOwner()
-                        };
-            } else {
-                tableItems[index] =
-                        new String[] {
-                            stc.getName(),
-                            String.valueOf(tbl.getTableRowCount()),
-                            "0",
-                            "0",
-                            "0%",
-                            stc.getOwner()
-                        };
+        tableItems = new String[4][4];
+
+        int row = 0;
+        selectTotal = 0;
+        insertTotal = 0;
+        updateTotal = 0;
+        deleteTotal = 0;
+
+        QueryDictionary dict = config.getQueryDict();
+        if (dict != null) {
+            if (dict.getSelectQueryMap() != null) {
+                selectTotal = dict.getSelectQueryMap().size();
             }
-            index++;
+            if (dict.getInsertQueryMap() != null) {
+                insertTotal = dict.getInsertQueryMap().size();
+            }
+            if (dict.getUpdateQueryMap() != null) {
+                updateTotal = dict.getUpdateQueryMap().size();
+            }
+            if (dict.getDeleteQueryMap() != null) {
+                deleteTotal = dict.getDeleteQueryMap().size();
+            }
         }
+
+        totalQueries = selectTotal + insertTotal + updateTotal + deleteTotal;
+        selectFinished = insertFinished = updateFinished = deleteFinished = 0;
+        finishedQueries = 0;
+
+        // SELECT
+        tableItems[row++] =
+                new String[] {
+                    "SELECT",
+                    String.valueOf(selectTotal),
+                    "0",
+                    selectTotal == 0 ? "0%" : "0%"
+                };
+
+        // INSERT
+        tableItems[row++] =
+                new String[] {
+                    "INSERT",
+                    String.valueOf(insertTotal),
+                    "0",
+                    insertTotal == 0 ? "0%" : "0%"
+                };
+
+        // UPDATE
+        tableItems[row++] =
+                new String[] {
+                    "UPDATE",
+                    String.valueOf(updateTotal),
+                    "0",
+                    updateTotal == 0 ? "0%" : "0%"
+                };
+
+        // DELETE
+        tableItems[row++] =
+                new String[] {
+                    "DELETE",
+                    String.valueOf(deleteTotal),
+                    "0",
+                    deleteTotal == 0 ? "0%" : "0%"
+                };
+
         return tableItems;
     }
 
     /** @return the progress bar's total progress value */
     public int getTotalProgress() {
-        int value = config.getExpObjCount();
-        List<SourceEntryTableConfig> allExportTables = config.getExpEntryTableCfg();
-        int commitCount = config.getCommitCount();
-        for (SourceTableConfig stc : allExportTables) {
-            final Table st = config.getSrcTableSchema(stc.getOwner(), stc.getName());
-            if (st == null) {
-                continue;
-            }
-            long count = st.getTableRowCount();
-            int inc = (int) (count / commitCount);
-            int inc2 = (int) (count / commitCount);
-            if (count % commitCount > 0) {
-                inc++;
-            }
-            if (count % commitCount > 0) {
-                inc2++;
-            }
-            value = value + inc + inc2;
-        }
-        List<Table> exportSQLTables = config.getSrcSQLSchema2Exp();
-        for (Table stc : exportSQLTables) {
-            long count = stc.getTableRowCount();
-            int inc = (int) (count / commitCount);
-            int inc2 = (int) (count / commitCount);
-            if (count % commitCount > 0) {
-                inc++;
-            }
-            if (count % commitCount > 0) {
-                inc2++;
-            }
-            value = value + inc + inc2;
-        }
-        return value;
+        return Math.max(totalQueries, 0);
     }
 
     /**
@@ -281,6 +309,17 @@ public class AnalyzerProgressUIController {
             return !ire.isSuccess();
         }
         return event instanceof MigrationErrorEvent;
+    }
+
+    /**
+     * @param event AnalyzerEvent
+     * @return true if the event has error
+     */
+    public boolean ifEventHasError(AnalyzerEvent event) {
+        if (event instanceof AnalyzerExecuteEvent) {
+            return ((AnalyzerExecuteEvent) event).getError() != null;
+        }
+        return event instanceof AnalyzerErrorEvent;
     }
 
     /**
@@ -373,7 +412,7 @@ public class AnalyzerProgressUIController {
      * @param monitor migration monitor
      * @param startMode start by user or scheduler
      */
-    public void startMigration(IMigrationMonitor monitor, int startMode) {
+    public void startMigration(IAnalyzerMonitor monitor, int startMode) {
         expCountCache = 0;
         impCountCache = 0;
         config.cleanNoUsedConfigForStart();
@@ -531,11 +570,83 @@ public class AnalyzerProgressUIController {
                             throws InvocationTargetException, InterruptedException {
                         monitor.beginTask(Messages.msgPrepare4Start, IProgressMonitor.UNKNOWN);
                         try {
-                            config.getSourceDBType().getExportHelper().fillTablesRowCount(config);
+//                            config.getSourceDBType().getExportHelper().fillTablesRowCount(config);
                         } finally {
                             monitor.done();
                         }
                     }
                 });
+    }
+
+    /**
+     * receive dml type from query id
+     * 
+     * @param id query ID
+     * @return DML type (SELECT, INSERT, UPDATE, DELETE) or null
+     */
+    private String resolveDmlType(String id) {
+        if (id == null) {
+            return null;
+        }
+        
+        QueryDictionary dict = config.getQueryDict();
+        
+        if (dict == null) {
+            return null;
+        }
+        if (dict.getSelectQueryMap() != null && dict.getSelectQueryMap().containsKey(id)) {
+            return "SELECT";
+        }
+        if (dict.getInsertQueryMap() != null && dict.getInsertQueryMap().containsKey(id)) {
+            return "INSERT";
+        }
+        if (dict.getUpdateQueryMap() != null && dict.getUpdateQueryMap().containsKey(id)) {
+            return "UPDATE";
+        }
+        if (dict.getDeleteQueryMap() != null && dict.getDeleteQueryMap().containsKey(id)) {
+            return "DELETE";
+        }
+        return null;
+    }
+
+    /**
+     * update table finish count
+     * 
+     * @param dmlType DML type (SELECT, INSERT, UPDATE, DELETE)
+     */
+    private void incrementFinished(String dmlType) {
+        int rowIndex = -1;
+        int total = 0;
+        int finished = 0;
+
+        if ("SELECT".equals(dmlType)) {
+            rowIndex = 0;
+            selectFinished++;
+            finished = selectFinished;
+            total = selectTotal;
+        } else if ("INSERT".equals(dmlType)) {
+            rowIndex = 1;
+            insertFinished++;
+            finished = insertFinished;
+            total = insertTotal;
+        } else if ("UPDATE".equals(dmlType)) {
+            rowIndex = 2;
+            updateFinished++;
+            finished = updateFinished;
+            total = updateTotal;
+        } else if ("DELETE".equals(dmlType)) {
+            rowIndex = 3;
+            deleteFinished++;
+            finished = deleteFinished;
+            total = deleteTotal;
+        }
+
+        if (rowIndex >= 0 && tableItems != null && rowIndex < tableItems.length) {
+            tableItems[rowIndex][2] = String.valueOf(finished);
+            String percent = (total <= 0) ? "0%" : (Math.round(100.0 * finished / total) + "%");
+            tableItems[rowIndex][3] = percent;
+        }
+
+        finishedQueries++;
     }
 }

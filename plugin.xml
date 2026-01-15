@@ -65,4 +65,22 @@
          </toolbar>
       </menuContribution>
    </extension>
+   <extension
+         point="org.eclipse.ui.editors">
+      <editor
+            default="false"
+            id="com.cubrid.sqlanalyzer.ui.editor.AnalyzerProgressEditorPart"
+            class="com.cubrid.sqlanalyzer.ui.editor.AnalyzerProgressEditorPart"
+            name="analyzer progress">
+      </editor>
+   </extension>
+   <extension
+   point="org.eclipse.ui.editors">
+      <editor
+            default="false"
+            id="com.cubrid.sqlanalyzer.ui.editor.AnalyzerReportEditorPart"
+            class="com.cubrid.sqlanalyzer.ui.editor.AnalyzerReportEditorPart"
+            name="analyzer report">
+      </editor>
+</extension>
 </plugin>

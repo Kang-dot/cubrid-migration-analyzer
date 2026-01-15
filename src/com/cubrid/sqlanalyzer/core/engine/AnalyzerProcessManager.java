@@ -1,7 +1,6 @@
 package com.cubrid.sqlanalyzer.core.engine;
 
 import com.cubrid.cubridmigration.core.engine.IMigrationBroker;
-import com.cubrid.cubridmigration.core.engine.IMigrationMonitor;
 import com.cubrid.cubridmigration.core.engine.ThreadUtils;
 import com.cubrid.cubridmigration.core.engine.exception.BreakMigrationException;
 import com.cubrid.cubridmigration.core.engine.exception.NormalMigrationException;
@@ -14,6 +13,7 @@ import com.cubrid.sqlanalyzer.core.event.AnalyzerCanceledEvent;
 import com.cubrid.sqlanalyzer.core.event.AnalyzerErrorEvent;
 import com.cubrid.sqlanalyzer.core.event.AnalyzerFinishedEvent;
 import com.cubrid.sqlanalyzer.core.event.AnalyzerStartEvent;
+import com.cubrid.sqlanalyzer.core.event.IAnalyzerMonitor;
 import com.cubrid.sqlanalyzer.core.runner.IAnalyzerRunner;
 import com.cubrid.sqlanalyzer.core.runner.JDBCQueryRunner;
 
@@ -72,7 +72,7 @@ public class AnalyzerProcessManager {
 	private static final Object RUNNING_LOCK = new Object();
 	
     public static AnalyzerProcessManager getInstance(
-            AnalyzerConfiguration config, IMigrationMonitor monitor, IMigrationReporter reporter) {
+            AnalyzerConfiguration config, IAnalyzerMonitor monitor, IMigrationReporter reporter) {
         AnalyzerProcessManager mpm = new AnalyzerProcessManager();
         AnalyzerEventHandler eh =
                 new AnalyzerEventHandler(monitor, reporter, new AnalyzerBreaker(mpm));

@@ -30,6 +30,13 @@ public class AnalyzerTaskFactory {
         task.setTaskFactory(this);
     }
     
+    // TODO: Execute query and receive result
+    public void initAnalyzeTask(AnalyzeTask task) {
+    	task.setMigrationEventHandler(context.getEventsHandler());
+    	task.setMigrationImporter(importer);
+    	task.setImportTaskExecutor(null);
+    }
+    
     public void setContext(AnalyzerContext context) {
         this.context = context;
     }
@@ -47,10 +54,5 @@ public class AnalyzerTaskFactory {
     	initAnalyzeTask(task);
     	return task;
     }
-    
-    // TODO: Execute query and receive result
-    public void initAnalyzeTask(AnalyzeTask task) {
-    	task.setMigrationImporter(importer);
-    	task.setImportTaskExecutor(null);
-    }
 }
+

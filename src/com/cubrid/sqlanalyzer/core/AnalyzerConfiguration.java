@@ -76,6 +76,7 @@ import com.cubrid.cubridmigration.cubrid.CUBRIDSQLHelper;
 import com.cubrid.cubridmigration.mysql.MysqlXmlDumpSource;
 import com.cubrid.cubridmigration.oracle.parser.PlConvOracleToCubrid;
 import com.cubrid.cubridmigration.oracle.parser.ProcedureDDL;
+import com.cubrid.sqlanalyzer.core.dbobject.QueryDictionary;
 
 import au.com.bytecode.opencsv.CSVReader;
 
@@ -245,6 +246,8 @@ public class AnalyzerConfiguration extends MigrationConfiguration {
 
     private boolean isTarSchemaDuplicate = false;
 
+    private QueryDictionary queryDict = null;
+    
     /**
      * Add a CSV file to exporting list.
      *
@@ -254,7 +257,15 @@ public class AnalyzerConfiguration extends MigrationConfiguration {
         csvFiles.add(csvFile);
     }
 
-    /**
+    public QueryDictionary getQueryDict() {
+		return queryDict;
+	}
+
+	public void setQueryDict(QueryDictionary queryDict) {
+		this.queryDict = queryDict;
+	}
+
+	/**
      * Add a CSV file to exporting list.
      *
      * @param csvFile full name of the CSV file

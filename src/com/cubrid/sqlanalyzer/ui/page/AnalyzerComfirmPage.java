@@ -13,6 +13,8 @@ import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.ToolBar;
 
 import com.cubrid.cubridmigration.ui.SWTResourceConstents;
+import com.cubrid.sqlanalyzer.core.AnalyzerConfiguration;
+import com.cubrid.sqlanalyzer.core.dbobject.AnalyzerCatalog;
 import com.cubrid.sqlanalyzer.ui.AnalyzerWizard;
 import com.cubrid.sqlanalyzer.ui.AnalyzerWizardPage;
 import com.cubrid.sqlanalyzer.ui.page.service.AnalyzerConfirmTextBuilder;
@@ -239,6 +241,7 @@ public class AnalyzerComfirmPage extends AnalyzerWizardPage {
 		if (!isGotoNextPage(event) && isScriptSaved) {
 			// Add script saving logic if needed
 		}
+		saveDictionaryInConfig();
 		super.handlePageLeaving(event);
 	}
 
@@ -250,5 +253,14 @@ public class AnalyzerComfirmPage extends AnalyzerWizardPage {
 
 	protected boolean isSaveSchema() {
 		return btnSaveSchema != null && btnSaveSchema.getSelection();
+	}
+	
+	private void saveDictionaryInConfig() {
+		AnalyzerCatalog analyzerCatalog =
+				((AnalyzerCatalog) getMigrationWizard().getOriginalSourceCatalog());
+		
+		AnalyzerConfiguration analyzerConfig = getMigrationWizard().getAnalyzerConfig();
+		
+		analyzerConfig.setQueryDict(analyzerCatalog.getQueryDictionary());
 	}
 }

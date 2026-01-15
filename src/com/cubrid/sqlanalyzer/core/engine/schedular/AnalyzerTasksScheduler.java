@@ -1,6 +1,7 @@
 package com.cubrid.sqlanalyzer.core.engine.schedular;
 
 import com.cubrid.cubridmigration.core.dbobject.Catalog;
+import com.cubrid.sqlanalyzer.core.AnalyzerConfiguration;
 import com.cubrid.sqlanalyzer.core.dbobject.AnalyzerCatalog;
 import com.cubrid.sqlanalyzer.core.dbobject.QueryDictionary;
 import com.cubrid.sqlanalyzer.core.engine.AnalyzerContext;
@@ -19,16 +20,14 @@ public class AnalyzerTasksScheduler {
 	
 	public void schedule() {
 		// TODO: schedule
+		setQueryDictionary();
 		executeDDL();
 		executeDML();
 	}
 	
 	public void setQueryDictionary() {
-    	Catalog catalog = context.getConfig().getSrcCatalog();
-    	if (catalog instanceof AnalyzerCatalog) {
-    	    AnalyzerCatalog analyzerCatalog = (AnalyzerCatalog) catalog;
-    	    queryDict = analyzerCatalog.getQueryDictionary();
-    	}
+    	AnalyzerConfiguration config = context.getConfig();
+    	queryDict = config.getQueryDict();
 	}
 		
 
@@ -49,6 +48,17 @@ public class AnalyzerTasksScheduler {
     		executeTask(taskFactory.executeQuery(id, query));
     	});
     	
+    	queryDict.getInsertQueryMap().forEach((id, query) -> {
+    		executeTask(taskFactory.executeQuery(id, query));
+    	});
+    	
+    	queryDict.getDeleteQueryMap().forEach((id, query) -> {
+    		executeTask(taskFactory.executeQuery(id, query));
+    	});
+    	
+    	queryDict.getUpdateQueryMap().forEach((id, query) -> {
+    		executeTask(taskFactory.executeQuery(id, query));
+    	});
     	
     }
     

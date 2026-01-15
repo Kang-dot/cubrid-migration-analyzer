@@ -5,7 +5,7 @@ import com.cubrid.sqlanalyzer.core.engine.IAnalyzerEventHandler;
 import com.cubrid.sqlanalyzer.core.event.AnalyzerErrorEvent;
 import com.cubrid.sqlanalyzer.core.runner.IAnalyzerRunner;
 
-public abstract class AnalyzeTask {
+public abstract class AnalyzeTask implements Runnable {
     protected IRunnableExecutor importTaskExecutor;
     protected IAnalyzerRunner importer;
     protected IAnalyzerEventHandler eventHandler;

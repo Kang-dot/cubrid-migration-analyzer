@@ -40,9 +40,12 @@ public class AnalyzerWizard extends MigrationWizard {
 	
 	@Override
 	public boolean performFinish() {
+		AnalyzerCatalog analyzerCatalog = ((AnalyzerCatalog) getOriginalSourceCatalog());
+		analyzerConfig.setQueryDict(analyzerCatalog.getQueryDictionary());
+        
 		startAnalyze();
 		
-		return false;
+		return true;
 	}
 	
 	/**addPages
@@ -129,10 +132,7 @@ public class AnalyzerWizard extends MigrationWizard {
                       new AnalyzerProgressEditorInput(getAnalyzerConfig(), migrationScript),
                       AnalyzerProgressEditorPart.ID);
 		  } catch (PartInitException e) {
-//		      MessageDialog.openError(
-//		              PlatformUI.getWorkbench().getDisplay().getActiveShell(),
-//		              Messages.msgError,
-//		              Messages.msgStartMigrationFailed);
+			  e.printStackTrace();
 		  }
     }
     

@@ -42,6 +42,7 @@ import com.cubrid.cubridmigration.ui.wizard.editor.CSVProgressEditorPart;
 import com.cubrid.cubridmigration.ui.wizard.editor.MigrationProgressEditorPart;
 import com.cubrid.cubridmigration.ui.wizard.editor.SQLProgressEditorPart;
 import com.cubrid.sqlanalyzer.core.AnalyzerConfiguration;
+import com.cubrid.sqlanalyzer.ui.reporter.AnalyzerReport;
 import com.cubrid.sqlanalyzer.ui.reporter.AnalyzerReporter;
 
 public class AnalyzerWizardFactory {
@@ -319,7 +320,7 @@ public class AnalyzerWizardFactory {
         if (reporter == null) {
             throw new RuntimeException(Messages.msgErrNoMigrationHistorySelected);
         }
-        final MigrationReport rpt = reporter.getReport();
+        final AnalyzerReport rpt = reporter.getReport();
         if (rpt == null) {
             throw new RuntimeException(Messages.msgErrInvalidMigrationHistory);
         }
@@ -342,16 +343,6 @@ public class AnalyzerWizardFactory {
                 return;
             }
             handlingMode = dlg.getHandlingMode();
-        }
-        // Open wizard according to the handling mode
-        if (handlingMode == 0) {
-            MigrationWizardFactory.openMigrationScript(scriptFile);
-        } else if (handlingMode == 1) {
-            openWizardWithAllError(rpt, config);
-        } else if (handlingMode == 2) {
-            openWizardWithErrorData(rpt, config);
-        } else if (handlingMode == 3) {
-            openWizardWithErrorFiles(rpt, config);
         }
     }
 

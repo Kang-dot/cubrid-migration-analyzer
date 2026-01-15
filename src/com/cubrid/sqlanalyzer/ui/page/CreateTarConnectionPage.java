@@ -1,6 +1,7 @@
 package com.cubrid.sqlanalyzer.ui.page;
 
 import org.eclipse.jface.dialogs.MessageDialog;
+import org.eclipse.jface.dialogs.PageChangingEvent;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
@@ -15,6 +16,7 @@ import com.cubrid.cubridmigration.ui.database.IJDBCConnectionFilter;
 import com.cubrid.cubridmigration.ui.database.JDBCConnectionMgrView;
 import com.cubrid.cubridmigration.ui.wizard.MigrationWizard;
 import com.cubrid.cubridmigration.ui.wizard.utils.MigrationCfgUtils;
+import com.cubrid.sqlanalyzer.ui.AnalyzerWizard;
 import com.cubrid.sqlanalyzer.ui.AnalyzerWizardPage;
 
 public class CreateTarConnectionPage extends AnalyzerWizardPage {
@@ -26,12 +28,9 @@ public class CreateTarConnectionPage extends AnalyzerWizardPage {
 	 * @version 1.0 - 2012-10-9 created by Kevin Cao
 	 */
 	private class OnlineTargetDBView {
-		private final int USERSCHEMA_VERSION = 112;
 		private final JDBCConnectionMgrView conMgrView;
-
-		private Button btnWriteErrorRecords;
+		
 		private Button btnCreateConstrainsNow;
-		private Button btnUpdateStatistics;
 
 		private OnlineTargetDBView() {
 			conMgrView =
@@ -42,9 +41,6 @@ public class CreateTarConnectionPage extends AnalyzerWizardPage {
 								public boolean doFilter(ConnParameters cp) {
 									final MigrationConfiguration cfg =
 											getMigrationWizard().getMigrationConfig();
-//									if (cfg.sourceIsOnline()) {
-//										return cfg.getSourceConParams().isSameDB(cp);
-//									}
 									return false;
 								}
 							});
@@ -87,38 +83,11 @@ public class CreateTarConnectionPage extends AnalyzerWizardPage {
 						getShell(), "Error", "No Selected Item");
 				return false;
 			}
-			final MigrationWizard wzd = getMigrationWizard();
-			final MigrationConfiguration config = wzd.getMigrationConfig();
+			final AnalyzerWizard wzd = getMigrationWizard();
+			final MigrationConfiguration config = wzd.getAnalyzerConfig();
 			ConnParameters connParameters = conMgrView.getSelectedDCI().getConnParameters();
-			// connParameters.setTimeZone(onLineTimezoneCombo.getItem(onLineTimezoneCombo.getSelectionIndex()));
 			config.setTargetConParams(connParameters);
-			config.setWriteErrorRecords(btnWriteErrorRecords.getSelection());
-			config.setUpdateStatistics(btnUpdateStatistics.getSelection());
 
-			Catalog catalog = conMgrView.getCatalog();
-
-			if (catalog == null) {
-				return false;
-			}
-
-			int targetCubridVersion =
-					(catalog.getVersion().getDbMajorVersion() * 10)
-							+ (catalog.getVersion().getDbMinorVersion());
-			config.setTargetDBVersion(String.valueOf(targetCubridVersion));
-			config.setAddUserSchema(targetCubridVersion >= USERSCHEMA_VERSION);
-
-			if (null != catalog) {
-				wzd.setTargetCatalog(catalog);
-				config.setTarSchemaSize(catalog.getSchemas().size());
-
-				if (!btnCreateConstrainsNow.getSelection()
-						&& MigrationCfgUtils.isHACUBRID(config)
-						&& UICommonTool.openConfirmBox("PK HA database alert")) {
-					btnCreateConstrainsNow.setSelection(true);
-				}
-			}
-			config.setTargetDBAGroup(catalog.isDBAGroup());
-			config.setCreateConstrainsBeforeData(btnCreateConstrainsNow.getSelection());
 			return true;
 		}
 
@@ -155,6 +124,15 @@ public class CreateTarConnectionPage extends AnalyzerWizardPage {
 		onlineTargetDBView.init();
 		onlineTargetDBView.show();
 		container.layout();
+	}
+	
+	protected void handlePageLeaving(PageChangingEvent event) {
+        if (!isPageComplete()) {
+            return;
+        }
+        if (isGotoNextPage(event)) {
+            event.doit = updateMigrationConfig();
+        }
 	}
 
 	/**

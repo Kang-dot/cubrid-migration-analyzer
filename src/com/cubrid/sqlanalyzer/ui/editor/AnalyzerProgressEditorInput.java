@@ -29,12 +29,19 @@ public class AnalyzerProgressEditorInput implements IEditorInput {
     }
 
     /**
-     * @param adapter support MigrationConfiguration and MigrationCfgEditorInput
-     * @return MigrationConfiguration and MigrationCfgEditorInput
+     * @param adapter support AnalyzerConfiguration and AnalyzerProgressEditorInput
+     * @return AnalyzerConfiguration and AnalyzerProgressEditorInput
      */
     @SuppressWarnings("rawtypes")
     public Object getAdapter(Class adapter) {
-    	return this;
+        if (adapter.equals(AnalyzerConfiguration.class)) {
+            return config;
+        } else if (adapter.equals(AnalyzerProgressEditorInput.class)) {
+            return this;
+        } else if (adapter.equals(MigrationScript.class)) {
+            return migrationScript;
+        }
+        return null;
     }
 
     /** @return false */
