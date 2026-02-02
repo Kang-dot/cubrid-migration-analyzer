@@ -3,7 +3,6 @@ package com.cubrid.sqlanalyzer.core.dbobject.treenode;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.commons.compress.harmony.unpack200.bytecode.forms.ThisInitMethodRefForm;
 import org.eclipse.jface.resource.ImageDescriptor;
 import org.eclipse.ui.IPersistableElement;
 

@@ -29,6 +29,7 @@ import com.cubrid.cubridmigration.ui.history.tableviewer.ObjectMigrationResultTa
 import com.cubrid.cubridmigration.ui.history.tableviewer.RecordMigrationResultTableLabelProvider;
 import com.cubrid.cubridmigration.ui.message.Messages;
 import com.cubrid.sqlanalyzer.ui.AnalyzerWizardFactory;
+import com.cubrid.sqlanalyzer.ui.reporter.AnalyzerReport;
 import com.cubrid.sqlanalyzer.ui.reporter.AnalyzerReporter;
 
 public class AnalyzerReportUIController {
@@ -298,7 +299,7 @@ public class AnalyzerReportUIController {
      * @return output files
      */
     public String saveReportToDirectory(AnalyzerReporter reporter, String outputDir) {
-        MigrationReport report = reporter.getReport();
+    	AnalyzerReport report = reporter.getReport();
         String filePartName =
                 outputDir
                         + File.separator
@@ -311,7 +312,7 @@ public class AnalyzerReportUIController {
         String renameObjectFile = filePartName + ".rename";
 
         StringBuffer savedFiles = new StringBuffer();
-        savedFiles.append(saveReportToXls(report, xlsFile));
+//        savedFiles.append(saveReportToXls(report, xlsFile));
         savedFiles.append(extracNonSupportedReport(reporter, noSupportedFile));
         savedFiles.append(extractLogs(reporter, logFile));
         savedFiles.append(extractRenameObjectReport(reporter, renameObjectFile));

@@ -4,14 +4,27 @@
 	<artifactId>SQLAnalyzer</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
   
+  	<repositories>
+	    <repository>
+	        <id>eclipse-nebula</id>
+	        <url>https://download.eclipse.org/nebula/releases/latest</url>
+	        <layout>p2</layout>
+	    </repository>
+	    
+	<!-- will remove in future -->
+	    <repository>
+            <id>CMT-p2-site</id>
+            <url>${cmt-p2-site}</url>
+            <layout>p2</layout>
+        </repository>
+	</repositories>
+	
 	<properties>
 			<version.compiler.plugin>3.8.0</version.compiler.plugin>
 			<version.dependency.plugin>3.7.1</version.dependency.plugin>
 			<version.resources.plugin>3.3.1</version.resources.plugin>
 			<version.surefire.plugin>3.3.1</version.surefire.plugin>
-			<tycho.version>4.0.8</tycho.version>
 	</properties>
-  
 	<build>
 		<sourceDirectory>src</sourceDirectory>
 			<resources>
@@ -35,21 +48,14 @@
 		
 		<plugins>
 			<plugin>
-				<artifactId>maven-compiler-plugin</artifactId>
-				<version>3.13.0</version>
-				<configuration>
-				<release>21</release>
-				</configuration>
-			</plugin>
-		
-			<plugin>
 				<groupId>org.apache.felix</groupId>
 				<artifactId>maven-bundle-plugin</artifactId>
+				<version>5.1.9</version>
 				<extensions>true</extensions>
 				<configuration>
 					<instructions>
 						<Bundle-SymbolicName>${project.artifactId};singleton:=true</Bundle-SymbolicName>
-						<Bundle-Version>${project.version}</Bundle-Version>
+						<Bundle-Version>1.0.0</Bundle-Version>
 						<Embed-Dependency>
 							<!--mybatis, ognl;scope=compile|runtime;inline=true-->
 							*
@@ -63,14 +69,17 @@
 			<plugin>
 				<groupId>org.eclipse.tycho</groupId>
 				<artifactId>tycho-maven-plugin</artifactId>
-				<version>${tycho.version}</version>
+				<version>4.0.13</version>
 				<extensions>true</extensions>
 			</plugin>
 			<plugin>
 				<groupId>org.eclipse.tycho</groupId>
 				<artifactId>target-platform-configuration</artifactId>
-				<version>${tycho.version}</version>
+				<version>4.0.13</version>
 				<configuration>
+				<dependency-resolution>
+		            <optionalDependencies>ignore</optionalDependencies>
+		        </dependency-resolution>
 					<target>
 						<artifact>
 							<groupId>org.eclipse.platform</groupId>
@@ -78,6 +87,7 @@
 							<version>4.32.0</version>
 						</artifact>
 					</target>
+					<pomDependencies>consider</pomDependencies> 
 					<environments>
 						<environment>
 							<os>win32</os>
@@ -121,7 +131,7 @@
 		</plugins>
 	</build>
 	<dependencies>
-		
+<!--
 	    <dependency>
 	        <groupId>com.cubrid.cubridmigration</groupId>
 	        <artifactId>com.cubrid.cubridmigration.ui</artifactId>
@@ -139,7 +149,7 @@
 	        <artifactId>com.cubrid.common.configuration</artifactId>
 	        <version>1.0.0-SNAPSHOT</version>
 	    </dependency>
-	    	    
+-->	    	    
 	    <dependency>
 	        <groupId>org.apache.commons</groupId>
 	        <artifactId>commons-lang3</artifactId>

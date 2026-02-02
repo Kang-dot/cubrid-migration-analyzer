@@ -45,19 +45,19 @@ public class AnalyzerTasksScheduler {
     
     public void executeDML() {
     	queryDict.getSelectQueryMap().forEach((id, query) -> {
-    		executeTask(taskFactory.executeQuery(id, query));
+    		executeTask(taskFactory.executeQuery("SELECT", id, query));
     	});
     	
     	queryDict.getInsertQueryMap().forEach((id, query) -> {
-    		executeTask(taskFactory.executeQuery(id, query));
+    		executeTask(taskFactory.executeQuery("INSERT", id, query));
     	});
     	
     	queryDict.getDeleteQueryMap().forEach((id, query) -> {
-    		executeTask(taskFactory.executeQuery(id, query));
+    		executeTask(taskFactory.executeQuery("DELETE", id, query));
     	});
     	
     	queryDict.getUpdateQueryMap().forEach((id, query) -> {
-    		executeTask(taskFactory.executeQuery(id, query));
+    		executeTask(taskFactory.executeQuery("UPDATE", id, query));
     	});
     	
     }

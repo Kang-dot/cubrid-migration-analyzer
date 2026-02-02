@@ -24,7 +24,7 @@ public class JDBCQueryRunner implements IAnalyzerRunner {
 		this.eventHandler = (AnalyzerEventHandler) context.getEventsHandler();
 	}
 	
-	public void executeQuery(String id, String query) {
+	public void executeQuery(String queryType, String id, String query) {
 		//TODO: Execute query (ddl, dml)
 		// make event
 		// get result
@@ -35,20 +35,20 @@ public class JDBCQueryRunner implements IAnalyzerRunner {
 		try {
 			stmt = conn.createStatement();
 			stmt.execute(query);
-			runSuccess(id, query);
+			runSuccess(queryType, id, query);
 		} catch (SQLException ex) {
 			ex.printStackTrace();
-			runFailed(id, query, ex);
+			runFailed(queryType, id, query, ex);
 		} finally {
 			Closer.close(conn);
 		}
 	}
 	
-	protected void runSuccess(String id, String query) {
-		eventHandler.handleEvent(new AnalyzerExecuteEvent(id, query));
+	protected void runSuccess(String queryType, String id, String query) {
+		eventHandler.handleEvent(new AnalyzerExecuteEvent(queryType, id, query));
 	}
 	
-	protected void runFailed(String id, String query, Throwable ex) {
-		eventHandler.handleEvent(new AnalyzerExecuteEvent(id, query, ex));
+	protected void runFailed(String queryType, String id, String query, Throwable ex) {
+		eventHandler.handleEvent(new AnalyzerExecuteEvent(queryType, id, query, ex));
 	}
 }

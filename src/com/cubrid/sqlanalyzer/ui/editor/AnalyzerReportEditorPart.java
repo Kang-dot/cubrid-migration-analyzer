@@ -3,62 +3,50 @@ package com.cubrid.sqlanalyzer.ui.editor;
 import java.util.Date;
 
 import org.eclipse.core.runtime.IProgressMonitor;
-import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.jface.viewers.ArrayContentProvider;
 import org.eclipse.jface.viewers.DoubleClickEvent;
 import org.eclipse.jface.viewers.IDoubleClickListener;
 import org.eclipse.jface.viewers.TableViewer;
+import org.eclipse.nebula.jface.gridviewer.GridTableViewer;
+import org.eclipse.nebula.widgets.grid.Grid;
+import org.eclipse.nebula.widgets.grid.GridItem;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.ScrolledComposite;
-import org.eclipse.swt.events.MouseAdapter;
-import org.eclipse.swt.events.MouseEvent;
-import org.eclipse.swt.events.SelectionAdapter;
-import org.eclipse.swt.events.SelectionEvent;
+import org.eclipse.swt.events.PaintEvent;
+import org.eclipse.swt.events.PaintListener;
 import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
-import org.eclipse.swt.program.Program;
 import org.eclipse.swt.widgets.Composite;
-import org.eclipse.swt.widgets.DirectoryDialog;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.TabFolder;
 import org.eclipse.swt.widgets.TabItem;
-import org.eclipse.swt.widgets.TableItem;
 import org.eclipse.swt.widgets.Text;
-import org.eclipse.swt.widgets.ToolBar;
-import org.eclipse.swt.widgets.ToolItem;
 import org.eclipse.ui.IEditorInput;
 import org.eclipse.ui.IEditorSite;
 import org.eclipse.ui.PartInitException;
 import org.eclipse.ui.part.EditorPart;
 
-import com.cubrid.common.ui.swt.Resources;
-import com.cubrid.common.ui.swt.table.TableViewerBuilder;
 import com.cubrid.cubridmigration.core.common.TimeZoneUtils;
-import com.cubrid.cubridmigration.core.engine.report.MigrationBriefReport;
-import com.cubrid.cubridmigration.core.engine.report.MigrationReport;
 import com.cubrid.cubridmigration.cubrid.CUBRIDTimeUtil;
 import com.cubrid.cubridmigration.ui.MigrationUIPlugin;
 import com.cubrid.cubridmigration.ui.common.TextAppender;
-import com.cubrid.cubridmigration.ui.history.controller.MigrationReportUIController;
-import com.cubrid.cubridmigration.ui.history.dialog.ShowTextDialog;
-import com.cubrid.cubridmigration.ui.history.tableviewer.MigrationObjectNameChangeTableLabelProvider;
-import com.cubrid.cubridmigration.ui.history.tableviewer.MigrationOverviewTableLabelProvider;
-import com.cubrid.cubridmigration.ui.history.tableviewer.ObjectMigrationResultTableLabelProvider;
-import com.cubrid.cubridmigration.ui.history.tableviewer.RecordMigrationResultTableLabelProvider;
 import com.cubrid.cubridmigration.ui.message.Messages;
+import com.cubrid.sqlanalyzer.ui.reporter.AnalyzerReport;
 import com.cubrid.sqlanalyzer.ui.reporter.AnalyzerReporter;
+import com.cubrid.sqlanalyzer.ui.swt.table.GridTableBuilder;
+import com.cubrid.sqlanalyzer.ui.swt.table.GridTableLabelProvider;
 
 public class AnalyzerReportEditorPart extends EditorPart {
 
     public static final String ID = AnalyzerReportEditorPart.class.getName();
     public static final String EMPTY_CELL_VALUE = "-";
 
-    private TableViewer tvOverview;
+    private GridTableViewer tvOverview;
     private TableViewer tvObjDetails;
     private TableViewer tvTableRecords;
-    private TableViewer tvObjNames;
+    private GridTableViewer tvObjNames;
 
     private Text txtNonsupport;
     private Text txtLog;
@@ -88,102 +76,102 @@ public class AnalyzerReportEditorPart extends EditorPart {
             };
 
     /** Create configuration summary page */
-    private void createConfigSummaryPage() {
-        TabItem tiCs = new TabItem(tfReport, SWT.NONE);
-        tiCs.setText(Messages.lblConfigSummary);
-        txtConfigSummary = new Text(tfReport, SWT.BORDER | SWT.H_SCROLL | SWT.V_SCROLL);
-        txtConfigSummary.setEditable(false);
-        txtConfigSummary.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
-        tiCs.setControl(txtConfigSummary);
-    }
+//    private void createConfigSummaryPage() {
+//        TabItem tiCs = new TabItem(tfReport, SWT.NONE);
+//        tiCs.setText(Messages.lblConfigSummary);
+//        txtConfigSummary = new Text(tfReport, SWT.BORDER | SWT.H_SCROLL | SWT.V_SCROLL);
+//        txtConfigSummary.setEditable(false);
+//        txtConfigSummary.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
+//        tiCs.setControl(txtConfigSummary);
+//    }
 
     /**
      * Create the detail page
      *
      * @param tfReport parent
      */
-    private void createDetailPage(TabFolder tfReport) {
-        TabItem tiDetail = new TabItem(tfReport, SWT.NONE);
-        tiDetail.setText(Messages.lblDetail);
-        Composite comDetail = new Composite(tfReport, SWT.NONE);
-        tiDetail.setControl(comDetail);
-        comDetail.setLayout(new GridLayout());
-        comDetail.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
-
-        tfDetail = new TabFolder(comDetail, SWT.NONE);
-        tfDetail.setLayout(new GridLayout());
-        tfDetail.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
-
-        TabItem tiDBObjects = new TabItem(tfDetail, SWT.NONE);
-        tiDBObjects.setText(Messages.lblDBObjects);
-
-        TabItem tiRecords = new TabItem(tfDetail, SWT.NONE);
-        tiRecords.setText(Messages.lblDBRecords);
-
-        createObjectDetailTableViewer(tiDBObjects);
-        createRecordDetailTableViewer(tiRecords);
-    }
+//    private void createDetailPage(TabFolder tfReport) {
+//        TabItem tiDetail = new TabItem(tfReport, SWT.NONE);
+//        tiDetail.setText(Messages.lblDetail);
+//        Composite comDetail = new Composite(tfReport, SWT.NONE);
+//        tiDetail.setControl(comDetail);
+//        comDetail.setLayout(new GridLayout());
+//        comDetail.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
+//
+//        tfDetail = new TabFolder(comDetail, SWT.NONE);
+//        tfDetail.setLayout(new GridLayout());
+//        tfDetail.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
+//
+//        TabItem tiDBObjects = new TabItem(tfDetail, SWT.NONE);
+//        tiDBObjects.setText(Messages.lblDBObjects);
+//
+//        TabItem tiRecords = new TabItem(tfDetail, SWT.NONE);
+//        tiRecords.setText(Messages.lblDBRecords);
+//
+//        createObjectDetailTableViewer(tiDBObjects);
+//        createRecordDetailTableViewer(tiRecords);
+//    }
 
     /**
      * Create Log Page
      *
      * @param tfReport parent
      */
-    private void createLogPage(TabFolder tfReport) {
-        TabItem tiLog = new TabItem(tfReport, SWT.NONE);
-        tiLog.setText(Messages.lblLog);
-        txtLog = new Text(tfReport, SWT.BORDER | SWT.H_SCROLL | SWT.V_SCROLL);
-        txtLog.setEditable(false);
-        txtLog.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
-        tiLog.setControl(txtLog);
-    }
+//    private void createLogPage(TabFolder tfReport) {
+//        TabItem tiLog = new TabItem(tfReport, SWT.NONE);
+//        tiLog.setText(Messages.lblLog);
+//        txtLog = new Text(tfReport, SWT.BORDER | SWT.H_SCROLL | SWT.V_SCROLL);
+//        txtLog.setEditable(false);
+//        txtLog.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
+//        tiLog.setControl(txtLog);
+//    }
 
     /**
      * Create non-supported objects page
      *
      * @param tfReport parent
      */
-    private void createNonsupportPage(TabFolder tfReport) {
-        TabItem tiNonsupport = new TabItem(tfReport, SWT.NONE);
-        tiNonsupport.setText(Messages.lblNonsupport);
-        txtNonsupport = new Text(tfReport, SWT.BORDER | SWT.H_SCROLL | SWT.V_SCROLL);
-        txtNonsupport.setEditable(false);
-        txtNonsupport.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
-        tiNonsupport.setControl(txtNonsupport);
-    }
+//    private void createNonsupportPage(TabFolder tfReport) {
+//        TabItem tiNonsupport = new TabItem(tfReport, SWT.NONE);
+//        tiNonsupport.setText(Messages.lblNonsupport);
+//        txtNonsupport = new Text(tfReport, SWT.BORDER | SWT.H_SCROLL | SWT.V_SCROLL);
+//        txtNonsupport.setEditable(false);
+//        txtNonsupport.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
+//        tiNonsupport.setControl(txtNonsupport);
+//    }
 
     /** @param tiViews TabItem */
-    private void createObjectDetailTableViewer(TabItem tiViews) {
-        TableViewerBuilder tvBuilder = new TableViewerBuilder();
-        tvBuilder.setColumnNames(MigrationReportUIController.TABLE_HEADER_OBJ);
-        tvBuilder.setColumnWidths(new int[] {50, 110, 150, 300, 150});
-        tvBuilder.setColumnStyles(new int[] {SWT.LEFT, SWT.LEFT, SWT.LEFT, SWT.LEFT, SWT.LEFT});
-        tvBuilder.setContentProvider(new ArrayContentProvider());
-        tvBuilder.setLabelProvider(new ObjectMigrationResultTableLabelProvider());
-        tvObjDetails =
-                tvBuilder.buildTableViewer(
-                        tfDetail, SWT.BORDER | SWT.FULL_SELECTION | SWT.H_SCROLL | SWT.V_SCROLL);
-        tvObjDetails.addDoubleClickListener(
-                new IDoubleClickListener() {
-
-                    public void doubleClick(DoubleClickEvent event) {
-                        TableItem[] selection = tvObjDetails.getTable().getSelection();
-                        if (selection == null || selection.length == 0) {
-                            return;
-                        }
-                        String message = selection[0].getText(3);
-                        if (!EMPTY_CELL_VALUE.equals(selection[0].getText(4))) {
-                            message = message + "\nError:\n" + selection[0].getText(4);
-                        }
-                        ShowTextDialog dialog =
-                                new ShowTextDialog(
-                                        AnalyzerReportEditorPart.this.getSite().getShell(),
-                                        message);
-                        dialog.open();
-                    }
-                });
-        tiViews.setControl(tvObjDetails.getTable());
-    }
+//    private void createObjectDetailTableViewer(TabItem tiViews) {
+//        TableViewerBuilder tvBuilder = new TableViewerBuilder();
+//        tvBuilder.setColumnNames(AnalyzerReportUIController.TABLE_HEADER_OBJ);
+//        tvBuilder.setColumnWidths(new int[] {50, 110, 150, 300, 150});
+//        tvBuilder.setColumnStyles(new int[] {SWT.LEFT, SWT.LEFT, SWT.LEFT, SWT.LEFT, SWT.LEFT});
+//        tvBuilder.setContentProvider(new ArrayContentProvider());
+////        tvBuilder.setLabelProvider(new ObjectMigrationResultTableLabelProvider());
+//        tvObjDetails =
+//                tvBuilder.buildTableViewer(
+//                        tfDetail, SWT.BORDER | SWT.FULL_SELECTION | SWT.H_SCROLL | SWT.V_SCROLL);
+//        tvObjDetails.addDoubleClickListener(
+//                new IDoubleClickListener() {
+//
+//                    public void doubleClick(DoubleClickEvent event) {
+//                        TableItem[] selection = tvObjDetails.getTable().getSelection();
+//                        if (selection == null || selection.length == 0) {
+//                            return;
+//                        }
+//                        String message = selection[0].getText(3);
+//                        if (!EMPTY_CELL_VALUE.equals(selection[0].getText(4))) {
+//                            message = message + "\nError:\n" + selection[0].getText(4);
+//                        }
+//                        ShowTextDialog dialog =
+//                                new ShowTextDialog(
+//                                        AnalyzerReportEditorPart.this.getSite().getShell(),
+//                                        message);
+//                        dialog.open();
+//                    }
+//                });
+//        tiViews.setControl(tvObjDetails.getTable());
+//    }
 
     /**
      * Create overview page
@@ -212,7 +200,7 @@ public class AnalyzerReportEditorPart extends EditorPart {
         lblStartTime.setText(Messages.lblStartTime);
         Label txtStartTime = new Label(comTime, SWT.NONE);
         txtStartTime.setLayoutData(new GridData(SWT.CENTER));
-        MigrationReport report = getReporter().getReport();
+        AnalyzerReport report = getReporter().getReport();
         txtStartTime.setText(
                 CUBRIDTimeUtil.defaultFormatMilin(new Date(report.getTotalStartTime())));
         final Color clrBlue = Display.getDefault().getSystemColor(SWT.COLOR_BLUE);
@@ -235,25 +223,25 @@ public class AnalyzerReportEditorPart extends EditorPart {
                 TimeZoneUtils.format(report.getTotalEndTime() - report.getTotalStartTime()));
         txtTotalTime.setForeground(clrBlue);
 
-        if (controller.isFileOutputMigration(report)) {
-            Label lblOuputDir = new Label(comTime, SWT.NONE);
-            lblOuputDir.setLayoutData(new GridData(SWT.CENTER));
-            lblOuputDir.setText(Messages.lblOutputDir);
-            txtOuputDir = new Label(comTime, SWT.NONE);
-            txtOuputDir.setLayoutData(new GridData(SWT.CENTER));
-            final MigrationBriefReport brief = this.getReporter().getReport().getBrief();
-            txtOuputDir.setText(brief.getOutputDir());
-            txtOuputDir.setForeground(clrBlue);
-
-            txtOuputDir.setCursor(Resources.getInstance().getCursor(SWT.CURSOR_HAND));
-            txtOuputDir.addMouseListener(
-                    new MouseAdapter() {
-
-                        public void mouseDown(MouseEvent event) {
-                            Program.launch(txtOuputDir.getText());
-                        }
-                    });
-        }
+//        if (controller.isFileOutputMigration(report)) {
+//            Label lblOuputDir = new Label(comTime, SWT.NONE);
+//            lblOuputDir.setLayoutData(new GridData(SWT.CENTER));
+//            lblOuputDir.setText(Messages.lblOutputDir);
+//            txtOuputDir = new Label(comTime, SWT.NONE);
+//            txtOuputDir.setLayoutData(new GridData(SWT.CENTER));
+//            final MigrationBriefReport brief = this.getReporter().getReport().getBrief();
+//            txtOuputDir.setText(brief.getOutputDir());
+//            txtOuputDir.setForeground(clrBlue);
+//
+//            txtOuputDir.setCursor(Resources.getInstance().getCursor(SWT.CURSOR_HAND));
+//            txtOuputDir.addMouseListener(
+//                    new MouseAdapter() {
+//
+//                        public void mouseDown(MouseEvent event) {
+//                            Program.launch(txtOuputDir.getText());
+//                        }
+//                    });
+//        }
 
         scComposite.setContent(comTime);
         scComposite.setExpandHorizontal(true);
@@ -261,14 +249,14 @@ public class AnalyzerReportEditorPart extends EditorPart {
         scComposite.setMinSize(comTime.computeSize(SWT.DEFAULT, SWT.DEFAULT));
         scComposite.layout(true);
 
-        TableViewerBuilder tvBuilder = new TableViewerBuilder();
-        tvBuilder.setColumnNames(MigrationReportUIController.TABLE_HEADER_OVERVIEW);
-        tvBuilder.setColumnWidths(new int[] {150, 150, 150, 150, 150});
-        tvBuilder.setColumnStyles(new int[] {SWT.LEFT, SWT.RIGHT, SWT.RIGHT, SWT.RIGHT, SWT.LEFT});
+        GridTableBuilder tvBuilder = new GridTableBuilder();
+//        tvBuilder.setColumnNames(AnalyzerReportUIController.TABLE_HEADER_OVERVIEW);
+//        tvBuilder.setColumnWidths(new int[] {150, 150, 150, 150, 150});
+//        tvBuilder.setColumnStyles(new int[] {SWT.LEFT, SWT.RIGHT, SWT.RIGHT, SWT.RIGHT, SWT.LEFT});
         tvBuilder.setContentProvider(new ArrayContentProvider());
-        tvBuilder.setLabelProvider(new MigrationOverviewTableLabelProvider());
+        tvBuilder.setLabelProvider(new GridTableLabelProvider());
         tvOverview =
-                tvBuilder.buildTableViewer(
+                tvBuilder.buildGridTable(
                         comOverview, SWT.BORDER | SWT.FULL_SELECTION | SWT.H_SCROLL | SWT.V_SCROLL);
 
         tvOverview.addDoubleClickListener(
@@ -279,8 +267,8 @@ public class AnalyzerReportEditorPart extends EditorPart {
                             return;
                         }
                         AnalyzerReportEditorPart.this.tfReport.setSelection(1);
-                        if (tvOverview.getTable().getSelectionIndex()
-                                == tvOverview.getTable().getItemCount() - 1) {
+                        if (tvOverview.getGrid().getSelectionIndex()
+                                == tvOverview.getGrid().getItemCount() - 1) {
                             tfDetail.setSelection(1);
                         } else {
                             tfDetail.setSelection(0);
@@ -289,36 +277,36 @@ public class AnalyzerReportEditorPart extends EditorPart {
                 });
     }
 
-    private void createChangeObjectNamePage(TabFolder tfReport) {
-        TabItem tiDetail = new TabItem(tfReport, SWT.NONE);
-        tiDetail.setText(Messages.lblRenamedObject);
-        Composite comDetail = new Composite(tfReport, SWT.NONE);
-        tiDetail.setControl(comDetail);
-        comDetail.setLayout(new GridLayout());
-        comDetail.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
+//    private void createChangeObjectNamePage(TabFolder tfReport) {
+//        TabItem tiDetail = new TabItem(tfReport, SWT.NONE);
+//        tiDetail.setText(Messages.lblRenamedObject);
+//        Composite comDetail = new Composite(tfReport, SWT.NONE);
+//        tiDetail.setControl(comDetail);
+//        comDetail.setLayout(new GridLayout());
+//        comDetail.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
+//
+//        tfDetail = new TabFolder(comDetail, SWT.NONE);
+//        tfDetail.setLayout(new GridLayout());
+//        tfDetail.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
+//
+//        TabItem tiDBObjects = new TabItem(tfDetail, SWT.NONE);
+//        tiDBObjects.setText(Messages.lblDBObjects);
+//
+//        createChangeObjectNameTableViewer(tiDBObjects);
+//    }
 
-        tfDetail = new TabFolder(comDetail, SWT.NONE);
-        tfDetail.setLayout(new GridLayout());
-        tfDetail.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
-
-        TabItem tiDBObjects = new TabItem(tfDetail, SWT.NONE);
-        tiDBObjects.setText(Messages.lblDBObjects);
-
-        createChangeObjectNameTableViewer(tiDBObjects);
-    }
-
-    private void createChangeObjectNameTableViewer(TabItem tiViews) {
-        TableViewerBuilder tvBuilder = new TableViewerBuilder();
-        tvBuilder.setColumnNames(MigrationReportUIController.TABLE_HEADER_OBJ_NAME_CHANGE);
-        tvBuilder.setColumnWidths(new int[] {110, 150, 150});
-        tvBuilder.setColumnStyles(new int[] {SWT.LEFT, SWT.LEFT, SWT.LEFT});
-        tvBuilder.setContentProvider(new ArrayContentProvider());
-        tvBuilder.setLabelProvider(new MigrationObjectNameChangeTableLabelProvider());
-        tvObjNames =
-                tvBuilder.buildTableViewer(
-                        tfDetail, SWT.BORDER | SWT.FULL_SELECTION | SWT.H_SCROLL | SWT.V_SCROLL);
-        tiViews.setControl(tvObjNames.getTable());
-    }
+//    private void createChangeObjectNameTableViewer(TabItem tiViews) {
+//    	GridTableBuilder tvBuilder = new GridTableBuilder();
+////        tvBuilder.setColumnNames(AnalyzerReportUIController.TABLE_HEADER_OBJ_NAME_CHANGE);
+////        tvBuilder.setColumnWidths(new int[] {110, 150, 150});
+////        tvBuilder.setColumnStyles(new int[] {SWT.LEFT, SWT.LEFT, SWT.LEFT});
+//        tvBuilder.setContentProvider(new ArrayContentProvider());
+////        tvBuilder.setLabelProvider(new MigrationObjectNameChangeTableLabelProvider());
+//        tvObjNames =
+//                tvBuilder.buildGridTable(
+//                        tfDetail, SWT.BORDER | SWT.FULL_SELECTION | SWT.H_SCROLL | SWT.V_SCROLL);
+//        tiViews.setControl(tvObjNames.getGrid());
+//    }
 
     /**
      * Creates the SWT controls for this workbench part.
@@ -330,18 +318,18 @@ public class AnalyzerReportEditorPart extends EditorPart {
         backGroundCom.setLayout(new GridLayout());
         backGroundCom.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
 
-        createToolbar(backGroundCom);
+//        createToolbar(backGroundCom);
 
         tfReport = new TabFolder(backGroundCom, SWT.NONE);
         tfReport.setLayout(new GridLayout());
         tfReport.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
 
         createOverviewPage(tfReport);
-        createDetailPage(tfReport);
-        createChangeObjectNamePage(tfReport);
-        createNonsupportPage(tfReport);
-        createLogPage(tfReport);
-        createConfigSummaryPage();
+//        createDetailPage(tfReport);
+//        createChangeObjectNamePage(tfReport);
+//        createNonsupportPage(tfReport);
+//        createLogPage(tfReport);
+//        createConfigSummaryPage();
 
         setContent2Tables();
         tfReport.setSelection(0);
@@ -349,74 +337,74 @@ public class AnalyzerReportEditorPart extends EditorPart {
     }
 
     /** @param tiTables TabItem */
-    private void createRecordDetailTableViewer(TabItem tiTables) {
-        TableViewerBuilder tvBuilder = new TableViewerBuilder();
-        tvBuilder.setColumnNames(MigrationReportUIController.TABLE_HEADER_DATA);
-        tvBuilder.setColumnWidths(new int[] {150, 100, 140, 130, 140, 130, 90, 130, 130});
-        tvBuilder.setColumnStyles(
-                new int[] {
-                    SWT.LEFT,
-                    SWT.RIGHT,
-                    SWT.RIGHT,
-                    SWT.LEFT,
-                    SWT.RIGHT,
-                    SWT.LEFT,
-                    SWT.RIGHT,
-                    SWT.LEFT,
-                    SWT.CENTER
-                });
-        tvBuilder.setContentProvider(new ArrayContentProvider());
-        tvBuilder.setLabelProvider(new RecordMigrationResultTableLabelProvider());
-        tvTableRecords =
-                tvBuilder.buildTableViewer(
-                        tfDetail, SWT.BORDER | SWT.FULL_SELECTION | SWT.H_SCROLL | SWT.V_SCROLL);
-        tiTables.setControl(tvTableRecords.getTable());
-    }
+//    private void createRecordDetailTableViewer(TabItem tiTables) {
+//        TableViewerBuilder tvBuilder = new TableViewerBuilder();
+//        tvBuilder.setColumnNames(AnalyzerReportUIController.TABLE_HEADER_DATA);
+//        tvBuilder.setColumnWidths(new int[] {150, 100, 140, 130, 140, 130, 90, 130, 130});
+//        tvBuilder.setColumnStyles(
+//                new int[] {
+//                    SWT.LEFT,
+//                    SWT.RIGHT,
+//                    SWT.RIGHT,
+//                    SWT.LEFT,
+//                    SWT.RIGHT,
+//                    SWT.LEFT,
+//                    SWT.RIGHT,
+//                    SWT.LEFT,
+//                    SWT.CENTER
+//                });
+//        tvBuilder.setContentProvider(new ArrayContentProvider());
+//        tvBuilder.setLabelProvider(new RecordMigrationResultTableLabelProvider());
+//        tvTableRecords =
+//                tvBuilder.buildTableViewer(
+//                        tfDetail, SWT.BORDER | SWT.FULL_SELECTION | SWT.H_SCROLL | SWT.V_SCROLL);
+//        tiTables.setControl(tvTableRecords.getTable());
+//    }
 
     /** @param backGroundCom Composite */
-    private void createToolbar(Composite backGroundCom) {
-        ToolBar tbReport = new ToolBar(backGroundCom, SWT.WRAP | SWT.FLAT | SWT.RIGHT);
-        ToolItem btnSaveAll = new ToolItem(tbReport, SWT.PUSH);
-        btnSaveAll.setImage(MigrationUIPlugin.getImage("icon/saveall.gif"));
-        btnSaveAll.setToolTipText(Messages.btnSaveAllTab);
-        btnSaveAll.addSelectionListener(
-                new SelectionAdapter() {
+//    private void createToolbar(Composite backGroundCom) {
+//        ToolBar tbReport = new ToolBar(backGroundCom, SWT.WRAP | SWT.FLAT | SWT.RIGHT);
+//        ToolItem btnSaveAll = new ToolItem(tbReport, SWT.PUSH);
+//        btnSaveAll.setImage(MigrationUIPlugin.getImage("icon/saveall.gif"));
+//        btnSaveAll.setToolTipText(Messages.btnSaveAllTab);
+//        btnSaveAll.addSelectionListener(
+//                new SelectionAdapter() {
+//
+//                    public void widgetSelected(SelectionEvent event) {
+//                        saveAllTableContent();
+//                    }
+//                });
+//
+//        new ToolItem(tbReport, SWT.SEPARATOR);
+//
+//        final ToolItem btnOpenWizard = new ToolItem(tbReport, SWT.PUSH);
+//        btnOpenWizard.setToolTipText(Messages.btnOpenWizardWithReport);
+//        btnOpenWizard.setText(Messages.btnStartMigrationByHistory);
+//        btnOpenWizard.setImage(MigrationUIPlugin.getImage("icon/tb/mnu_script_wizard.png"));
+//        btnOpenWizard.addSelectionListener(
+//                new SelectionAdapter() {
+//
+//                    public void widgetSelected(final SelectionEvent event) {
+//                        controller.openMigrationWizardByHistory(getReporter());
+//                    }
+//                });
 
-                    public void widgetSelected(SelectionEvent event) {
-                        saveAllTableContent();
-                    }
-                });
-
-        new ToolItem(tbReport, SWT.SEPARATOR);
-
-        final ToolItem btnOpenWizard = new ToolItem(tbReport, SWT.PUSH);
-        btnOpenWizard.setToolTipText(Messages.btnOpenWizardWithReport);
-        btnOpenWizard.setText(Messages.btnStartMigrationByHistory);
-        btnOpenWizard.setImage(MigrationUIPlugin.getImage("icon/tb/mnu_script_wizard.png"));
-        btnOpenWizard.addSelectionListener(
-                new SelectionAdapter() {
-
-                    public void widgetSelected(final SelectionEvent event) {
-                        controller.openMigrationWizardByHistory(getReporter());
-                    }
-                });
-
-        if (controller.isFileOutputMigration(getReporter().getReport())) {
-            new ToolItem(tbReport, SWT.SEPARATOR);
-
-            final ToolItem btnGotoOutputDir = new ToolItem(tbReport, SWT.PUSH);
-            btnGotoOutputDir.setText(
-                    Messages.btnGotoOutputDirectory); // Messages.btnStartMigrationByHistory
-            btnGotoOutputDir.setImage(MigrationUIPlugin.getImage("icon/file_open.png"));
-            btnGotoOutputDir.addSelectionListener(
-                    new SelectionAdapter() {
-
-                        public void widgetSelected(final SelectionEvent event) {
-                            Program.launch(txtOuputDir.getText());
-                        }
-                    });
-        }
-    }
+//        if (controller.isFileOutputMigration(getReporter().getReport())) {
+//            new ToolItem(tbReport, SWT.SEPARATOR);
+//
+//            final ToolItem btnGotoOutputDir = new ToolItem(tbReport, SWT.PUSH);
+//            btnGotoOutputDir.setText(
+//                    Messages.btnGotoOutputDirectory); // Messages.btnStartMigrationByHistory
+//            btnGotoOutputDir.setImage(MigrationUIPlugin.getImage("icon/file_open.png"));
+//            btnGotoOutputDir.addSelectionListener(
+//                    new SelectionAdapter() {
+//
+//                        public void widgetSelected(final SelectionEvent event) {
+//                            Program.launch(txtOuputDir.getText());
+//                        }
+//                    });
+//        }
+//    }
 
     /**
      * Do no thing
@@ -472,30 +460,77 @@ public class AnalyzerReportEditorPart extends EditorPart {
     }
 
     /** Save all report information to a directory. */
-    private void saveAllTableContent() {
-        DirectoryDialog fd = new DirectoryDialog(tfReport.getShell(), SWT.NONE);
-        String file = fd.open();
-        if (file == null) {
-            return;
-        }
-        String savedFiles = controller.saveReportToDirectory(getReporter(), file);
-        MessageDialog.openInformation(
-                getSite().getShell(),
-                Messages.msgInformation,
-                Messages.bind(Messages.msgReportSaved, savedFiles));
-    }
+//    private void saveAllTableContent() {
+//        DirectoryDialog fd = new DirectoryDialog(tfReport.getShell(), SWT.NONE);
+//        String file = fd.open();
+//        if (file == null) {
+//            return;
+//        }
+//        String savedFiles = controller.saveReportToDirectory(getReporter(), file);
+//        MessageDialog.openInformation(
+//                getSite().getShell(),
+//                Messages.msgInformation,
+//                Messages.bind(Messages.msgReportSaved, savedFiles));
+//    }
 
     /** Fill the data to tables. */
     private void setContent2Tables() {
         AnalyzerReporter reporter = getReporter();
-        MigrationReport report = reporter.getReport();
+        AnalyzerReport report = reporter.getReport();
+        //TODO: getQueryResults
+        
         tvOverview.setInput(report.getOverviewResults());
-        tvObjDetails.setInput(report.getDbObjectsResult());
-        tvObjNames.setInput(report.getObjNameResult());
-        tvTableRecords.setInput(report.getRecMigResults());
-        txtConfigSummary.setText(report.getConfigSummary());
-        controller.loadNonSupportedObjectText(reporter, noSupportedAppender);
-        controller.loadLogText(reporter, logAppender);
+        
+        // 각 count 가져오기
+        long selectCount = report.getSelectTotalCount();
+        long insertCount = report.getInsertTotalCount();
+        long deleteCount = report.getDeleteTotalCount();
+        long updateCount = report.getUpdateTotalCount();
+        
+		tvOverview.getGrid()
+				.addPaintListener(new PaintListener() {
+					public void paintControl(PaintEvent e) {
+						Grid grid = tvOverview.getGrid();
+						
+                        // span select
+						if (selectCount > 0 && 0 < grid.getItemCount()) {
+							GridItem selectItem = grid.getItem(0);
+							selectItem.setRowSpan(0, (int)(selectCount - 1));
+							selectItem.setRowSpan(1, (int)(selectCount - 1));
+						}
+						
+						// span insert
+						int insertStartIndex = (int)selectCount;
+						if (insertCount > 0 && insertStartIndex < grid.getItemCount()) {
+							GridItem insertItem = grid.getItem(insertStartIndex);
+							insertItem.setRowSpan(0, (int)(insertCount - 1));
+							insertItem.setRowSpan(1, (int)(insertCount - 1));
+						}
+						
+						// span delete
+						int deleteStartIndex = (int)(selectCount + insertCount);
+						if (deleteCount > 0 && deleteStartIndex < grid.getItemCount()) {
+							GridItem deleteItem = grid.getItem(deleteStartIndex);
+							deleteItem.setRowSpan(0, (int)(deleteCount - 1));
+							deleteItem.setRowSpan(1, (int)(deleteCount - 1));
+						}
+						
+						// span update
+						int updateStartIndex = (int)(selectCount + insertCount + deleteCount);
+						if (updateCount > 0 && updateStartIndex < grid.getItemCount()) {
+							GridItem updateItem = grid.getItem(updateStartIndex);
+							updateItem.setRowSpan(0, (int)(updateCount - 1));
+							updateItem.setRowSpan(1, (int)(updateCount - 1));
+						}
+					}
+				});
+//        tvOverview.setInput(null);
+//        tvObjDetails.setInput(report.getDbObjectsResult());
+//        tvObjNames.setInput(report.getOverviewResults());
+//        tvTableRecords.setInput(report.getRecMigResults());
+//        txtConfigSummary.setText(report.getConfigSummary());
+//        controller.loadNonSupportedObjectText(reporter, noSupportedAppender);
+//        controller.loadLogText(reporter, logAppender);
     }
 
     /** Set focus event */
