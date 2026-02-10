@@ -11,11 +11,9 @@ import org.eclipse.swt.widgets.Composite;
 import com.cubrid.cubridmigration.core.connection.ConnParameters;
 import com.cubrid.cubridmigration.core.dbobject.Catalog;
 import com.cubrid.cubridmigration.core.engine.config.MigrationConfiguration;
-import com.cubrid.cubridmigration.ui.common.UICommonTool;
 import com.cubrid.cubridmigration.ui.database.IJDBCConnectionFilter;
 import com.cubrid.cubridmigration.ui.database.JDBCConnectionMgrView;
 import com.cubrid.cubridmigration.ui.wizard.MigrationWizard;
-import com.cubrid.cubridmigration.ui.wizard.utils.MigrationCfgUtils;
 import com.cubrid.sqlanalyzer.ui.AnalyzerWizard;
 import com.cubrid.sqlanalyzer.ui.AnalyzerWizardPage;
 
@@ -87,6 +85,12 @@ public class CreateTarConnectionPage extends AnalyzerWizardPage {
 			final MigrationConfiguration config = wzd.getAnalyzerConfig();
 			ConnParameters connParameters = conMgrView.getSelectedDCI().getConnParameters();
 			config.setTargetConParams(connParameters);
+            
+            Catalog catalog = conMgrView.getCatalog();
+            if (catalog == null) {
+                return false;
+            }
+            wzd.setTargetCatalog(catalog);
 
 			return true;
 		}
@@ -119,7 +123,6 @@ public class CreateTarConnectionPage extends AnalyzerWizardPage {
 
 		onlineTargetDBView = new OnlineTargetDBView();
 		
-		// UI 컨트롤들을 즉시 생성
 		onlineTargetDBView.createControls(container);
 		onlineTargetDBView.init();
 		onlineTargetDBView.show();

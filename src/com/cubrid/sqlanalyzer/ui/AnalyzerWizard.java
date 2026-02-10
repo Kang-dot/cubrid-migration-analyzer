@@ -19,15 +19,17 @@ import com.cubrid.sqlanalyzer.ui.editor.AnalyzerProgressEditorInput;
 import com.cubrid.sqlanalyzer.ui.editor.AnalyzerProgressEditorPart;
 import com.cubrid.sqlanalyzer.ui.page.AnalyzerComfirmPage;
 import com.cubrid.sqlanalyzer.ui.page.AnalyzerObjectMappingPage;
+import com.cubrid.sqlanalyzer.ui.page.AnalyzerSelectSrcTarTypePage;
 import com.cubrid.sqlanalyzer.ui.page.CreateSrcConnectionPage;
 import com.cubrid.sqlanalyzer.ui.page.CreateTarConnectionPage;
 
 public class AnalyzerWizard extends MigrationWizard {
 
-	private static final int[] IDX_ONLINE = new int[] {0, 1, 2, 3};
+	private static final int[] IDX_ONLINE = new int[] {0, 1, 2, 3, 4};
 	
 	DefaultNode defaultTreeNode;
 	AnalyzerConfiguration analyzerConfig;
+    private Catalog targetCatalog;
 	
     public AnalyzerWizard() {
         setWindowTitle("Analyzer wizard");
@@ -61,11 +63,11 @@ public class AnalyzerWizard extends MigrationWizard {
 	
 	public void addPages() {
 //        addPage(new SelectSrcTarTypesPage("0"));
-//
-        addPage(new CreateSrcConnectionPage("0"));
-        addPage(new CreateTarConnectionPage("1"));
-        addPage(new AnalyzerObjectMappingPage("2"));
-        addPage(new AnalyzerComfirmPage("3"));
+		addPage(new AnalyzerSelectSrcTarTypePage("0"));
+        addPage(new CreateSrcConnectionPage("1"));
+        addPage(new CreateTarConnectionPage("2"));
+        addPage(new AnalyzerObjectMappingPage("3"));
+        addPage(new AnalyzerComfirmPage("4"));
 //		addPage(new SelectDestinationPage("1"));
 	}
 	
@@ -163,8 +165,25 @@ public class AnalyzerWizard extends MigrationWizard {
                                     (AnalyzerCatalog) sourceCatalog);
         }
     }
+
+        public boolean updateSrcTarType(int srcType, int tarType) {
+        // Warning message : type changing will cause settings reset
+        AnalyzerConfiguration cfg = analyzerConfig;
+
+        cfg.setSourceType(srcType);
+        cfg.setDestType(tarType);
+        return true;
+    }
     
     public DefaultNode getSourceDBNode() {
     	return defaultTreeNode;
+    }
+
+    public void setTargetCatalog(Catalog catalog) {
+        this.targetCatalog = catalog;
+    }
+
+    public Catalog getTargetCatalog() {
+        return targetCatalog;
     }
 }
