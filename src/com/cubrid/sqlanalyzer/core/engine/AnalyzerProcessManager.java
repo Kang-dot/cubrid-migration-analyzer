@@ -16,6 +16,7 @@ import com.cubrid.sqlanalyzer.core.event.AnalyzerStartEvent;
 import com.cubrid.sqlanalyzer.core.event.IAnalyzerMonitor;
 import com.cubrid.sqlanalyzer.core.runner.IAnalyzerRunner;
 import com.cubrid.sqlanalyzer.core.runner.JDBCQueryRunner;
+import com.cubrid.sqlanalyzer.core.runner.ParserQueryRunner;
 
 public class AnalyzerProcessManager {
 	
@@ -124,46 +125,15 @@ public class AnalyzerProcessManager {
         // Exporter
         AnalyzerConfiguration config = context.getConfig();
         IMigrationExporter exporter = null;
-//        if (config.sourceIsOnline()) {
-//            JDBCExporter exp =
-//                    config.getSourceType() == AnalyzerConfiguration.SOURCE_TYPE_CUBRID
-//                            ? new CUBRIDJDBCExporter()
-//                            : new JDBCExporter();
-//            exp.setConfig(config);
-//            exp.setConnManager(context.getConnManager());
-//            exp.setEventHandler(context.getEventsHandler());
-//            exp.setStatusManager(context.getStatusMgr());
-//            exporter = exp;
-//        } else if (config.sourceIsXMLDump()) {
-//            MYSQLDumpXMLExporter exp = new MYSQLDumpXMLExporter();
-//            exp.setConfig(config);
-//            exp.setEventHandler(context.getEventsHandler());
-//
-////            PerformMYSQLXMLDataReader handler = new PerformMYSQLXMLDataReader();
-////            handler.setConfig(config);
-////            handler.setExecutor(context.getExportRecExe());
-////            handler.setStatusManager(context.getStatusMgr());
-////            exp.setHandler(handler);
-//            exporter = exp;
-//        } else {
-//            exporter = null;
-//        }
         taskFactory.setExporter(exporter);
         // Importer
         IAnalyzerRunner importer;
         
-        
-        //TODO: need connect jdbc version importer and load .dll file and parse version
-//        if (config.targetIsFile()) {
-//            importer = new LoadFileImporter(context);
-//        } else if (config.targetIsOnline()) {
-//            importer = new JDBCQueryRunner(context);
-//        } else {
-//            // importer = new LoadDBImporter(mrManager);
-//            throw new BreakMigrationException("Offline migration is not supported any more.");
-//        }
-        
-        importer = new JDBCQueryRunner(context);
+        if (config.isTargetParser()) {
+        	importer = new ParserQueryRunner(context);
+        } else {
+        	importer = new JDBCQueryRunner(context);
+        }
         
         taskFactory.setImporter(importer);
         return taskFactory;

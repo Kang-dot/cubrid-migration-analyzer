@@ -7,8 +7,11 @@ public class AnalyzerConfiguration extends MigrationConfiguration {
 
 //    private static final Logger LOG = LogUtil.getLogger(MigrationConfiguration.class);
 
+	// TODO: ora2cubrid
     public static int SOURCE_TYPE_DB = 1;
-    public static int SOURCE_TYPE_MYBATIS = 2;
+    
+    // TODO: mybatis xml
+    public static int SOURCE_TYPE_XML = 2;
     
     public static int TARGET_TYPE_CUBRID = 3;
     public static int TARGET_TYPE_PARSER = 4;
@@ -22,4 +25,8 @@ public class AnalyzerConfiguration extends MigrationConfiguration {
 	public void setQueryDict(QueryDictionary queryDict) {
 		this.queryDict = queryDict;
 	}
+	
+    public boolean isTargetParser() {
+    	return getDestType() == AnalyzerConfiguration.TARGET_TYPE_PARSER;
+    }
 }

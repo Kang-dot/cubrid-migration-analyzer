@@ -26,6 +26,7 @@ import com.cubrid.sqlanalyzer.ui.page.CreateTarConnectionPage;
 public class AnalyzerWizard extends MigrationWizard {
 
 	private static final int[] IDX_ONLINE = new int[] {0, 1, 2, 3, 4};
+	private static final int[] IDX_PARSER = new int[] {0, 1, 3, 4};
 	
 	DefaultNode defaultTreeNode;
 	AnalyzerConfiguration analyzerConfig;
@@ -147,6 +148,10 @@ public class AnalyzerWizard extends MigrationWizard {
     }
     
     private int[] getPageNOs() {
+    	if (analyzerConfig.isTargetParser()) {
+    		return IDX_PARSER;
+    	}
+    	
         return IDX_ONLINE;
     }
     
@@ -175,6 +180,8 @@ public class AnalyzerWizard extends MigrationWizard {
         return true;
     }
     
+
+        
     public DefaultNode getSourceDBNode() {
     	return defaultTreeNode;
     }

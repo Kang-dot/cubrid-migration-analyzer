@@ -8,6 +8,7 @@ public class AnalyzerExecuteEvent extends AnalyzerEvent {
 	private Throwable error;
 	
     public AnalyzerExecuteEvent(String queryType, String id, String query) {
+    	this.queryType = queryType;
     	this.id = id;
 		this.query = query;
 	}

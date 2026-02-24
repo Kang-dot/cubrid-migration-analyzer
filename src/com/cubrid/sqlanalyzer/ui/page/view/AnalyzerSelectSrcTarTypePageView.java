@@ -100,7 +100,7 @@ public class AnalyzerSelectSrcTarTypePageView {
         btnXMLSrc =
                 createSrcTarTypeBtn(
                         grpSrc, Messages.btnSrcMySQLDumpDB, Messages.btnSrcMySQLDumpDBDes);
-        btnXMLSrc.setData(AnalyzerConfiguration.SOURCE_TYPE_MYBATIS);
+        btnXMLSrc.setData(AnalyzerConfiguration.SOURCE_TYPE_XML);
         srcButtons.add(btnXMLSrc);
         
 //        btnDumpSrc.setSelection(true);
@@ -165,7 +165,7 @@ public class AnalyzerSelectSrcTarTypePageView {
                 return (Integer) btn.getData();
             }
         }
-        return AnalyzerConfiguration.SOURCE_TYPE_DB;
+        return AnalyzerConfiguration.SOURCE_TYPE_XML;
     }
 
     /**
