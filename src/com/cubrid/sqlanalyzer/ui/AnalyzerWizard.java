@@ -115,18 +115,6 @@ public class AnalyzerWizard extends MigrationWizard {
     protected void startAnalyze() {
 		  try {
 		      analyzerConfig.cleanNoUsedConfigForStart();
-//		      saveMigrationScript(false, saveSchema);
-//		      if (!checkConnectionStatus()) {
-//		          return;
-//		      }
-//		      String id =
-//		              MigrationWizardFactory.getProgressEditorPartID(migrationConfig.getSourceType());
-//		      PlatformUI.getWorkbench()
-//		              .getActiveWorkbenchWindow()
-//		              .getActivePage()
-//		              .openEditor(
-//		                      new MigrationProgressEditorInput(getMigrationConfig(), migrationScript),
-//		                      id);
 		      
 		      PlatformUI.getWorkbench()
               .getActiveWorkbenchWindow()
