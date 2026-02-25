@@ -19,9 +19,13 @@ public class ParserQueryRunner implements IAnalyzerRunner {
 	
 	public void executeQuery(String queryType, String id, String query) {
 		try {
-			System.out.println(queryParser.validateSQL(query));
+			queryParser.checkSQL(query);
 			runSuccess(queryType, id, query);
+		} catch (SQLParserException ex) {
+			ex.printStackTrace();
+			runFailed(queryType, id, query, ex);
 		} catch (Exception ex) {
+			// for jni exception
 			ex.printStackTrace();
 			runFailed(queryType, id, query, ex);
 		}
