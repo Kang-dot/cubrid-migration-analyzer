@@ -131,37 +131,6 @@ public class AnalyzerObjectMappingPage extends AnalyzerWizardPage implements IRe
             Catalog targetCatalog = mw.getTargetCatalog();
 
             final MigrationConfiguration cfg = mw.getMigrationConfig();
-//            if (cfg.sourceIsOnline() && !cfg.getSourceDBType().equals(DatabaseType.CUBRID)) {
-//                MessageDialog.openInformation(
-//                        getShell(), Messages.msgInformation, Messages.msgLowerCaseWarning);
-//            }
-
-//            int tarSchemaSize = getMigrationWizard().getTarCatalogSchemaCount();
-//            if (isFirstVisible) {
-//                if (util.checkMultipleSchema(sourceCatalog, cfg)
-//                        && util.createAllObjectsMap(sourceCatalog, targetCatalog, cfg)
-//                        && util.hasDuplicatedObjects(sourceCatalog)
-//                        && (tarSchemaSize <= 1 || cfg.isTarSchemaDuplicate())) {
-//                    showDetailMessageDialog(sourceCatalog);
-//                }
-//            }
-
-//            if (cfg.targetIsOnline()
-//                    && Integer.parseInt(cfg.getTargetDBVersion()) < USERSCHEMA_VERSION) {
-//                MessageDialog.openWarning(
-//                        getShell(),
-//                        Messages.msgWarning,
-//                        Messages.msgWarningImpossibleMigrationSynonymGrant);
-//            } else if (cfg.targetIsOnline() && !cfg.isTargetDBAGroup()) {
-//                MessageDialog.openWarning(
-//                        getShell(),
-//                        Messages.msgWarning,
-//                        Messages.msgWarningImpossibleMigrationGrant);
-//            }
-
-//            showLobInfo(sourceCatalog);
-//            cfg.setSrcCatalog(sourceCatalog, isFirstVisible && !mw.isLoadMigrationScript());
-//            cfg.setTarCatalog(mw.getTargetCatalog());
 
             // Reset migration configuration
             for (AbstractMappingView amv : node2ViewMapping.values()) {
@@ -179,33 +148,11 @@ public class AnalyzerObjectMappingPage extends AnalyzerWizardPage implements IRe
                 cfg.setAll(true);
                 refreshCurrentView();
             }
-
-//            String msg = util.getNoPKSourceTablesCheckingResult();
-//            if (StringUtils.isNotBlank(msg)) {
-//                super.setMessage(msg);
-//            }
-//            if (util.doesNeedToChangeCharacterTypeSize()
-//                    && UICommonTool.openConfirmBox(Messages.msgCheckCharset)) {
-//                openAdjustCharColumnDialog();
-//            }
         } catch (RuntimeException ex) {
 //            LOG.error(LogUtil.getExceptionString(ex));
             throw ex;
         }
     }
-//
-//    /**
-//     * showLobInfo
-//     *
-//     * @param sourceCatalog
-//     */
-//    private void showLobInfo(Catalog sourceCatalog) {
-//        String lobInfo = util.getLobInfo(sourceCatalog);
-//        if (StringUtils.isNotEmpty(lobInfo)) {
-//            DetailMessageDialog.openInfo(
-//                    getShell(), Messages.titleLobInformation, Messages.msgLobInformation, lobInfo);
-//        }
-//    }
 
     private void showDetailMessageDialog(Catalog sourceCatalog) {
         String detailMessage = getDetailMessage(sourceCatalog, 1);
@@ -287,6 +234,13 @@ public class AnalyzerObjectMappingPage extends AnalyzerWizardPage implements IRe
 
         AnalyzerObjectTableMappingView analyzerObjMappingView =
                 new AnalyzerObjectTableMappingView(detailContainer);
+        analyzerObjMappingView.addTabSelectionListener(
+                new AnalyzerObjectTableMappingView.ITabSelectionListener() {
+                    @Override
+                    public void tabChanged(IAnalyzerNode node) {
+                        tvSourceDBObjects.setSelection(node);
+                    }
+                });
         analyzerObjMappingView.addDoubleClickListener(
                 new IDoubleClickListener() {
 
@@ -309,8 +263,6 @@ public class AnalyzerObjectMappingPage extends AnalyzerWizardPage implements IRe
                         showRightView(targetNode, true);
                     }
                 });
-        // 기존 GeneralObjMappingView 더블클릭 로직은 DML 화면 개편 후 사용하지 않지만
-        // 레거시 참고를 위해 보관합니다.
         // analyzerObjMappingView.addDoubleClickListener(new IDoubleClickListener() { ... });
 
         TableMappingView tableMappingView = new TableMappingView(detailContainer);
@@ -372,45 +324,6 @@ public class AnalyzerObjectMappingPage extends AnalyzerWizardPage implements IRe
                         }
                     }
                 });
-//        ColumnMappingView columnMappingView = new ColumnMappingView(detailContainer);
-//        IndexMappingView indexMappingView = new IndexMappingView(detailContainer);
-//        FKMappingView fkMappingView = new FKMappingView(detailContainer);
-//        SequenceMappingView sequenceMappingView = new SequenceMappingView(detailContainer);
-//        ViewMappingView viewMappingView = new ViewMappingView(detailContainer);
-//        SynonymMappingView synonymMappingView = new SynonymMappingView(detailContainer);
-//        ProcedureMappingView procedureMappingView = new ProcedureMappingView(detailContainer);
-//        FunctionMappingView functionMappingView = new FunctionMappingView(detailContainer);
-
-        // Building Tree node to Mapping view mapping
-//        node2ViewMapping.put(DatabaseNode.class.getName(), analyzerObjMappingView);
-//        node2ViewMapping.put(SchemaNode.class.getName(), analyzerObjMappingView);
-//        node2ViewMapping.put(TablesNode.class.getName(), analyzerObjMappingView);
-//        node2ViewMapping.put(ViewsNode.class.getName(), analyzerObjMappingView);
-//        node2ViewMapping.put(SequencesNode.class.getName(), analyzerObjMappingView);
-//        node2ViewMapping.put(TableNode.class.getName(), tableMappingView);
-//        node2ViewMapping.put(ViewNode.class.getName(), viewMappingView);
-//        node2ViewMapping.put(SequenceNode.class.getName(), sequenceMappingView);
-//        node2ViewMapping.put(SynonymsNode.class.getName(), analyzerObjMappingView);
-//        node2ViewMapping.put(SynonymNode.class.getName(), synonymMappingView);
-//        node2ViewMapping.put(GrantsNode.class.getName(), analyzerObjMappingView);
-//        node2ViewMapping.put(GrantGrantorNode.class.getName(), analyzerObjMappingView);
-//        node2ViewMapping.put(GrantAuthNode.class.getName(), analyzerObjMappingView);
-//        node2ViewMapping.put(ProceduresNode.class.getName(), analyzerObjMappingView);
-//        node2ViewMapping.put(ProcedureNode.class.getName(), procedureMappingView);
-//        node2ViewMapping.put(FunctionsNode.class.getName(), analyzerObjMappingView);
-//        node2ViewMapping.put(FunctionNode.class.getName(), functionMappingView);
-//        node2ViewMapping.put(PKNode.class.getName(), tableMappingView);
-//        // node2ViewMapping.put(ColumnsNode.class.getName(), tableMappingView);
-//        node2ViewMapping.put(FKsNode.class.getName(), tableMappingView);
-//        node2ViewMapping.put(IndexesNode.class.getName(), tableMappingView);
-//        node2ViewMapping.put(PartitionsNode.class.getName(), tableMappingView);
-//        node2ViewMapping.put(PartitionNode.class.getName(), tableMappingView);
-//        node2ViewMapping.put(ColumnNode.class.getName(), columnMappingView);
-//        node2ViewMapping.put(FKNode.class.getName(), fkMappingView);
-//        node2ViewMapping.put(IndexNode.class.getName(), indexMappingView);
-//        node2ViewMapping.put(
-//                SQLTableNode.class.getName(), new SQLTableMappingView(detailContainer));
-//        node2ViewMapping.put(SQLTablesNode.class.getName(), analyzerObjMappingView);
 
         node2ViewMapping.put(DefaultNode.class.getName(), analyzerObjMappingView);
         node2ViewMapping.put(SelectNode.class.getName(), analyzerObjMappingView);
