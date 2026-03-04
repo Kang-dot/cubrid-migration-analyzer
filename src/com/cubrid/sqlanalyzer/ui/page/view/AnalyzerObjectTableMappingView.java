@@ -9,6 +9,7 @@ import com.cubrid.sqlanalyzer.core.dbobject.treenode.IAnalyzerNode;
 import com.cubrid.sqlanalyzer.core.dbobject.treenode.InsertNode;
 import com.cubrid.sqlanalyzer.core.dbobject.treenode.SelectNode;
 import com.cubrid.sqlanalyzer.core.dbobject.treenode.UpdateNode;
+import com.cubrid.sqlanalyzer.ui.AnalyzerWizard;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -19,6 +20,8 @@ import org.eclipse.jface.viewers.TableViewer;
 import org.eclipse.jface.viewers.TableViewerColumn;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.CTabFolder;
+import org.eclipse.swt.events.SelectionAdapter;
+import org.eclipse.swt.events.SelectionEvent;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Table;
@@ -43,6 +46,16 @@ public class AnalyzerObjectTableMappingView extends AbstractMappingView {
     private TableViewer tvUpdate;
     private TableViewer tvDelete;
 
+    private final List<ITabSelectionListener> tabListeners = new ArrayList<>();
+
+    public interface ITabSelectionListener {
+        void tabChanged(IAnalyzerNode node);
+    }
+
+    public void addTabSelectionListener(ITabSelectionListener listener) {
+        tabListeners.add(listener);
+    }
+
     public AnalyzerObjectTableMappingView(Composite parent) {
         super(parent);
     }
@@ -60,6 +73,51 @@ public class AnalyzerObjectTableMappingView extends AbstractMappingView {
         tvInsert = createDmlTab(dmlFolder, "INSERT", CT_INSERT);
         tvUpdate = createDmlTab(dmlFolder, "UPDATE", CT_UPDATE);
         tvDelete = createDmlTab(dmlFolder, "DELETE", CT_DELETE);
+
+        dmlFolder.addSelectionListener(
+                new SelectionAdapter() {
+                    @Override
+                    public void widgetSelected(SelectionEvent e) {
+                        handleTabSelection();
+                    }
+                });
+    }
+
+    private void handleTabSelection() {
+        int index = dmlFolder.getSelectionIndex();
+        Class<? extends IAnalyzerNode> targetClass = null;
+        switch (index) {
+            case 0:
+                targetClass = SelectNode.class;
+                break;
+            case 1:
+                targetClass = InsertNode.class;
+                break;
+            case 2:
+                targetClass = UpdateNode.class;
+                break;
+            case 3:
+                targetClass = DeleteNode.class;
+                break;
+        }
+
+        if (targetClass != null && wizardStatus instanceof AnalyzerWizard) {
+            DefaultNode root = ((AnalyzerWizard) wizardStatus).getSourceDBNode();
+            if (root != null) {
+                for (IAnalyzerNode child : root.getChildren()) {
+                    if (targetClass.isInstance(child)) {
+                        notifyTabChanged(child);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    private void notifyTabChanged(IAnalyzerNode node) {
+        for (ITabSelectionListener l : tabListeners) {
+            l.tabChanged(node);
+        }
     }
 
     private TableViewer createDmlTab(CTabFolder parent, String title, String contentType) {
@@ -114,10 +172,17 @@ public class AnalyzerObjectTableMappingView extends AbstractMappingView {
     @Override
     public void showData(Object obj) {
         super.showData(obj);
-//        if (obj instanceof DefaultNode) {
-//            showDefaultNode((DefaultNode) obj);
-//            return;
-//        }
+
+        if (wizardStatus instanceof AnalyzerWizard) {
+            DefaultNode root = ((AnalyzerWizard) wizardStatus).getSourceDBNode();
+            if (root != null) {
+                tvSelect.setInput(buildRows(findChildNodes(root, SelectNode.class)));
+                tvInsert.setInput(buildRows(findChildNodes(root, InsertNode.class)));
+                tvUpdate.setInput(buildRows(findChildNodes(root, UpdateNode.class)));
+                tvDelete.setInput(buildRows(findChildNodes(root, DeleteNode.class)));
+            }
+        }
+
         if (obj instanceof SelectNode) {
             showSelectNode((SelectNode) obj);
         } else if (obj instanceof InsertNode) {
