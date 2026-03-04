@@ -13,6 +13,7 @@ public class AnalyzerOverviewResult {
 	private boolean success;
 	private String errorMessage;
 	private long executeTime;
+	private boolean isFirstInGroup = false;
 
 	public AnalyzerOverviewResult(String queryId, String query, boolean success, String errorMessage,
 			long executeTime) {
@@ -91,5 +92,13 @@ public class AnalyzerOverviewResult {
 
 	public void setExecuteTime(long executeTime) {
 		this.executeTime = executeTime;
+	}
+
+	public boolean isFirstInGroup() {
+		return isFirstInGroup;
+	}
+
+	public void setFirstInGroup(boolean isFirstInGroup) {
+		this.isFirstInGroup = isFirstInGroup;
 	}
 }

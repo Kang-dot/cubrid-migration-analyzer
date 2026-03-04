@@ -1,23 +1,21 @@
 package com.cubrid.sqlanalyzer.ui.editor;
 
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jface.viewers.ArrayContentProvider;
 import org.eclipse.jface.viewers.DoubleClickEvent;
 import org.eclipse.jface.viewers.IDoubleClickListener;
+import org.eclipse.jface.viewers.IStructuredSelection;
+import org.eclipse.jface.viewers.ITableLabelProvider;
+import org.eclipse.jface.viewers.LabelProvider;
 import org.eclipse.jface.viewers.TableViewer;
-import org.eclipse.nebula.jface.gridviewer.GridTableViewer;
-import org.eclipse.nebula.widgets.grid.Grid;
-import org.eclipse.nebula.widgets.grid.GridItem;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.ScrolledComposite;
-import org.eclipse.swt.events.PaintEvent;
-import org.eclipse.swt.events.PaintListener;
 import org.eclipse.swt.graphics.Color;
-import org.eclipse.swt.graphics.Font;
-import org.eclipse.swt.graphics.FontData;
-import org.eclipse.swt.graphics.Rectangle;
+import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Composite;
@@ -25,6 +23,8 @@ import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.TabFolder;
 import org.eclipse.swt.widgets.TabItem;
+import org.eclipse.swt.widgets.Table;
+import org.eclipse.swt.widgets.TableColumn;
 import org.eclipse.swt.widgets.Text;
 import org.eclipse.ui.IEditorInput;
 import org.eclipse.ui.IEditorSite;
@@ -36,20 +36,25 @@ import com.cubrid.cubridmigration.cubrid.CUBRIDTimeUtil;
 import com.cubrid.cubridmigration.ui.MigrationUIPlugin;
 import com.cubrid.cubridmigration.ui.common.TextAppender;
 import com.cubrid.cubridmigration.ui.message.Messages;
+import com.cubrid.sqlanalyzer.ui.reporter.AnalyzerOverviewResult;
 import com.cubrid.sqlanalyzer.ui.reporter.AnalyzerReport;
 import com.cubrid.sqlanalyzer.ui.reporter.AnalyzerReporter;
-import com.cubrid.sqlanalyzer.ui.swt.table.GridTableBuilder;
-import com.cubrid.sqlanalyzer.ui.swt.table.GridTableLabelProvider;
+import com.cubrid.sqlanalyzer.ui.swt.dialog.SimpleTextDialog;
+import com.cubrid.sqlanalyzer.ui.swt.table.DetailTableBuilder;
+import com.cubrid.sqlanalyzer.ui.swt.table.DetailTableLabelProvider;
 
 public class AnalyzerReportEditorPart extends EditorPart {
 
     public static final String ID = AnalyzerReportEditorPart.class.getName();
     public static final String EMPTY_CELL_VALUE = "-";
 
-    private GridTableViewer tvOverview;
+    private TableViewer tvOverview;
+    private TableViewer tvSelect;
+    private TableViewer tvInsert;
+    private TableViewer tvDelete;
+    private TableViewer tvUpdate;
     private TableViewer tvObjDetails;
     private TableViewer tvTableRecords;
-    private GridTableViewer tvObjNames;
 
     private Text txtNonsupport;
     private Text txtLog;
@@ -61,6 +66,54 @@ public class AnalyzerReportEditorPart extends EditorPart {
     private Label txtOuputDir;
 
     private AnalyzerReportUIController controller = new AnalyzerReportUIController();
+
+    /** Summary data for each DML type */
+    private static class DMLSummary {
+        String type;
+        long total;
+        long error;
+        String successRate;
+
+        DMLSummary(String type, long total, long error) {
+            this.type = type;
+            this.total = total;
+            this.error = error;
+            if (total == 0) {
+                this.successRate = "100%";
+            } else {
+                double rate = ((double) (total - error) / total) * 100;
+                this.successRate = String.format("%.2f%%", rate);
+            }
+        }
+    }
+
+    /** Label provider for DML summary table */
+    private static class DMLSummaryLabelProvider extends LabelProvider
+            implements ITableLabelProvider {
+
+        public Image getColumnImage(Object element, int columnIndex) {
+            return null;
+        }
+
+        public String getColumnText(Object element, int columnIndex) {
+            if (!(element instanceof DMLSummary)) {
+                return "";
+            }
+            DMLSummary summary = (DMLSummary) element;
+            switch (columnIndex) {
+                case 0:
+                    return summary.type;
+                case 1:
+                    return String.valueOf(summary.total);
+                case 2:
+                    return String.valueOf(summary.error);
+                case 3:
+                    return summary.successRate;
+                default:
+                    return "";
+            }
+        }
+    }
 
     private TextAppender noSupportedAppender =
             new TextAppender() {
@@ -77,104 +130,6 @@ public class AnalyzerReportEditorPart extends EditorPart {
                     txtLog.append(text);
                 }
             };
-
-    /** Create configuration summary page */
-//    private void createConfigSummaryPage() {
-//        TabItem tiCs = new TabItem(tfReport, SWT.NONE);
-//        tiCs.setText(Messages.lblConfigSummary);
-//        txtConfigSummary = new Text(tfReport, SWT.BORDER | SWT.H_SCROLL | SWT.V_SCROLL);
-//        txtConfigSummary.setEditable(false);
-//        txtConfigSummary.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
-//        tiCs.setControl(txtConfigSummary);
-//    }
-
-    /**
-     * Create the detail page
-     *
-     * @param tfReport parent
-     */
-//    private void createDetailPage(TabFolder tfReport) {
-//        TabItem tiDetail = new TabItem(tfReport, SWT.NONE);
-//        tiDetail.setText(Messages.lblDetail);
-//        Composite comDetail = new Composite(tfReport, SWT.NONE);
-//        tiDetail.setControl(comDetail);
-//        comDetail.setLayout(new GridLayout());
-//        comDetail.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
-//
-//        tfDetail = new TabFolder(comDetail, SWT.NONE);
-//        tfDetail.setLayout(new GridLayout());
-//        tfDetail.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
-//
-//        TabItem tiDBObjects = new TabItem(tfDetail, SWT.NONE);
-//        tiDBObjects.setText(Messages.lblDBObjects);
-//
-//        TabItem tiRecords = new TabItem(tfDetail, SWT.NONE);
-//        tiRecords.setText(Messages.lblDBRecords);
-//
-//        createObjectDetailTableViewer(tiDBObjects);
-//        createRecordDetailTableViewer(tiRecords);
-//    }
-
-    /**
-     * Create Log Page
-     *
-     * @param tfReport parent
-     */
-//    private void createLogPage(TabFolder tfReport) {
-//        TabItem tiLog = new TabItem(tfReport, SWT.NONE);
-//        tiLog.setText(Messages.lblLog);
-//        txtLog = new Text(tfReport, SWT.BORDER | SWT.H_SCROLL | SWT.V_SCROLL);
-//        txtLog.setEditable(false);
-//        txtLog.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
-//        tiLog.setControl(txtLog);
-//    }
-
-    /**
-     * Create non-supported objects page
-     *
-     * @param tfReport parent
-     */
-//    private void createNonsupportPage(TabFolder tfReport) {
-//        TabItem tiNonsupport = new TabItem(tfReport, SWT.NONE);
-//        tiNonsupport.setText(Messages.lblNonsupport);
-//        txtNonsupport = new Text(tfReport, SWT.BORDER | SWT.H_SCROLL | SWT.V_SCROLL);
-//        txtNonsupport.setEditable(false);
-//        txtNonsupport.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
-//        tiNonsupport.setControl(txtNonsupport);
-//    }
-
-    /** @param tiViews TabItem */
-//    private void createObjectDetailTableViewer(TabItem tiViews) {
-//        TableViewerBuilder tvBuilder = new TableViewerBuilder();
-//        tvBuilder.setColumnNames(AnalyzerReportUIController.TABLE_HEADER_OBJ);
-//        tvBuilder.setColumnWidths(new int[] {50, 110, 150, 300, 150});
-//        tvBuilder.setColumnStyles(new int[] {SWT.LEFT, SWT.LEFT, SWT.LEFT, SWT.LEFT, SWT.LEFT});
-//        tvBuilder.setContentProvider(new ArrayContentProvider());
-////        tvBuilder.setLabelProvider(new ObjectMigrationResultTableLabelProvider());
-//        tvObjDetails =
-//                tvBuilder.buildTableViewer(
-//                        tfDetail, SWT.BORDER | SWT.FULL_SELECTION | SWT.H_SCROLL | SWT.V_SCROLL);
-//        tvObjDetails.addDoubleClickListener(
-//                new IDoubleClickListener() {
-//
-//                    public void doubleClick(DoubleClickEvent event) {
-//                        TableItem[] selection = tvObjDetails.getTable().getSelection();
-//                        if (selection == null || selection.length == 0) {
-//                            return;
-//                        }
-//                        String message = selection[0].getText(3);
-//                        if (!EMPTY_CELL_VALUE.equals(selection[0].getText(4))) {
-//                            message = message + "\nError:\n" + selection[0].getText(4);
-//                        }
-//                        ShowTextDialog dialog =
-//                                new ShowTextDialog(
-//                                        AnalyzerReportEditorPart.this.getSite().getShell(),
-//                                        message);
-//                        dialog.open();
-//                    }
-//                });
-//        tiViews.setControl(tvObjDetails.getTable());
-//    }
 
     /**
      * Create overview page
@@ -252,162 +207,187 @@ public class AnalyzerReportEditorPart extends EditorPart {
         scComposite.setMinSize(comTime.computeSize(SWT.DEFAULT, SWT.DEFAULT));
         scComposite.layout(true);
 
-        GridTableBuilder tvBuilder = new GridTableBuilder();
-//        tvBuilder.setColumnNames(AnalyzerReportUIController.TABLE_HEADER_OVERVIEW);
-//        tvBuilder.setColumnWidths(new int[] {150, 150, 150, 150, 150});
-//        tvBuilder.setColumnStyles(new int[] {SWT.LEFT, SWT.RIGHT, SWT.RIGHT, SWT.RIGHT, SWT.LEFT});
-        tvBuilder.setContentProvider(new ArrayContentProvider());
-        tvBuilder.setLabelProvider(new GridTableLabelProvider());
         tvOverview =
-                tvBuilder.buildGridTable(
+                new TableViewer(
                         comOverview, SWT.BORDER | SWT.FULL_SELECTION | SWT.H_SCROLL | SWT.V_SCROLL);
+        Table table = tvOverview.getTable();
+        table.setHeaderVisible(true);
+        table.setLinesVisible(true);
+        table.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
+
+        String[] titles = {
+            Messages.colType, Messages.colTotal, Messages.colError, Messages.colProgress
+        };
+        int[] widths = {150, 150, 150, 150};
+
+        for (int i = 0; i < titles.length; i++) {
+            TableColumn column = new TableColumn(table, SWT.NONE);
+            column.setText(titles[i]);
+            column.setWidth(widths[i]);
+            if (i > 0) {
+                column.setAlignment(SWT.RIGHT);
+            }
+        }
+
+        tvOverview.setContentProvider(new ArrayContentProvider());
+        tvOverview.setLabelProvider(new DMLSummaryLabelProvider());
 
         tvOverview.addDoubleClickListener(
                 new IDoubleClickListener() {
-
                     public void doubleClick(DoubleClickEvent event) {
                         if (event.getSelection().isEmpty()) {
                             return;
                         }
-                        AnalyzerReportEditorPart.this.tfReport.setSelection(1);
-                        if (tvOverview.getGrid().getSelectionIndex()
-                                == tvOverview.getGrid().getItemCount() - 1) {
-                            tfDetail.setSelection(1);
-                        } else {
-                            tfDetail.setSelection(0);
+                        int index = tvOverview.getTable().getSelectionIndex();
+                        
+                        if (index < 0) {
+                            return;
                         }
+                        // Index mapping: 0: SELECT, 1: INSERT, 2: DELETE, 3: UPDATE
+                        tfReport.setSelection(index + 1);
                     }
                 });
     }
 
-//    private void createChangeObjectNamePage(TabFolder tfReport) {
-//        TabItem tiDetail = new TabItem(tfReport, SWT.NONE);
-//        tiDetail.setText(Messages.lblRenamedObject);
-//        Composite comDetail = new Composite(tfReport, SWT.NONE);
-//        tiDetail.setControl(comDetail);
-//        comDetail.setLayout(new GridLayout());
-//        comDetail.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
-//
-//        tfDetail = new TabFolder(comDetail, SWT.NONE);
-//        tfDetail.setLayout(new GridLayout());
-//        tfDetail.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
-//
-//        TabItem tiDBObjects = new TabItem(tfDetail, SWT.NONE);
-//        tiDBObjects.setText(Messages.lblDBObjects);
-//
-//        createChangeObjectNameTableViewer(tiDBObjects);
-//    }
-
-//    private void createChangeObjectNameTableViewer(TabItem tiViews) {
-//    	GridTableBuilder tvBuilder = new GridTableBuilder();
-////        tvBuilder.setColumnNames(AnalyzerReportUIController.TABLE_HEADER_OBJ_NAME_CHANGE);
-////        tvBuilder.setColumnWidths(new int[] {110, 150, 150});
-////        tvBuilder.setColumnStyles(new int[] {SWT.LEFT, SWT.LEFT, SWT.LEFT});
-//        tvBuilder.setContentProvider(new ArrayContentProvider());
-////        tvBuilder.setLabelProvider(new MigrationObjectNameChangeTableLabelProvider());
-//        tvObjNames =
-//                tvBuilder.buildGridTable(
-//                        tfDetail, SWT.BORDER | SWT.FULL_SELECTION | SWT.H_SCROLL | SWT.V_SCROLL);
-//        tiViews.setControl(tvObjNames.getGrid());
-//    }
-
-    /**
-     * Creates the SWT controls for this workbench part.
-     *
-     * @param parent the parent control
-     */
     public void createPartControl(Composite parent) {
         Composite backGroundCom = new Composite(parent, SWT.NONE);
         backGroundCom.setLayout(new GridLayout());
         backGroundCom.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
-
-//        createToolbar(backGroundCom);
 
         tfReport = new TabFolder(backGroundCom, SWT.NONE);
         tfReport.setLayout(new GridLayout());
         tfReport.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
 
         createOverviewPage(tfReport);
-//        createDetailPage(tfReport);
-//        createChangeObjectNamePage(tfReport);
-//        createNonsupportPage(tfReport);
-//        createLogPage(tfReport);
-//        createConfigSummaryPage();
+        createSelectPage(tfReport);
+        createInsertPage(tfReport);
+        createDeletePage(tfReport);
+        createUpdatePage(tfReport);
 
         setContent2Tables();
         tfReport.setSelection(0);
         tfReport.layout();
     }
 
-    /** @param tiTables TabItem */
-//    private void createRecordDetailTableViewer(TabItem tiTables) {
-//        TableViewerBuilder tvBuilder = new TableViewerBuilder();
-//        tvBuilder.setColumnNames(AnalyzerReportUIController.TABLE_HEADER_DATA);
-//        tvBuilder.setColumnWidths(new int[] {150, 100, 140, 130, 140, 130, 90, 130, 130});
-//        tvBuilder.setColumnStyles(
-//                new int[] {
-//                    SWT.LEFT,
-//                    SWT.RIGHT,
-//                    SWT.RIGHT,
-//                    SWT.LEFT,
-//                    SWT.RIGHT,
-//                    SWT.LEFT,
-//                    SWT.RIGHT,
-//                    SWT.LEFT,
-//                    SWT.CENTER
-//                });
-//        tvBuilder.setContentProvider(new ArrayContentProvider());
-//        tvBuilder.setLabelProvider(new RecordMigrationResultTableLabelProvider());
-//        tvTableRecords =
-//                tvBuilder.buildTableViewer(
-//                        tfDetail, SWT.BORDER | SWT.FULL_SELECTION | SWT.H_SCROLL | SWT.V_SCROLL);
-//        tiTables.setControl(tvTableRecords.getTable());
-//    }
+    /**
+     * Create select page
+     *
+     * @param tfReport parent
+     */
+    private void createSelectPage(TabFolder tfReport) {
+        TabItem tiSelect = new TabItem(tfReport, SWT.NONE);
+        tiSelect.setText("SELECT");
 
-    /** @param backGroundCom Composite */
-//    private void createToolbar(Composite backGroundCom) {
-//        ToolBar tbReport = new ToolBar(backGroundCom, SWT.WRAP | SWT.FLAT | SWT.RIGHT);
-//        ToolItem btnSaveAll = new ToolItem(tbReport, SWT.PUSH);
-//        btnSaveAll.setImage(MigrationUIPlugin.getImage("icon/saveall.gif"));
-//        btnSaveAll.setToolTipText(Messages.btnSaveAllTab);
-//        btnSaveAll.addSelectionListener(
-//                new SelectionAdapter() {
-//
-//                    public void widgetSelected(SelectionEvent event) {
-//                        saveAllTableContent();
-//                    }
-//                });
-//
-//        new ToolItem(tbReport, SWT.SEPARATOR);
-//
-//        final ToolItem btnOpenWizard = new ToolItem(tbReport, SWT.PUSH);
-//        btnOpenWizard.setToolTipText(Messages.btnOpenWizardWithReport);
-//        btnOpenWizard.setText(Messages.btnStartMigrationByHistory);
-//        btnOpenWizard.setImage(MigrationUIPlugin.getImage("icon/tb/mnu_script_wizard.png"));
-//        btnOpenWizard.addSelectionListener(
-//                new SelectionAdapter() {
-//
-//                    public void widgetSelected(final SelectionEvent event) {
-//                        controller.openMigrationWizardByHistory(getReporter());
-//                    }
-//                });
+        Composite comSelect = new Composite(tfReport, SWT.NONE);
+        tiSelect.setControl(comSelect);
+        comSelect.setLayout(new GridLayout());
+        comSelect.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
 
-//        if (controller.isFileOutputMigration(getReporter().getReport())) {
-//            new ToolItem(tbReport, SWT.SEPARATOR);
-//
-//            final ToolItem btnGotoOutputDir = new ToolItem(tbReport, SWT.PUSH);
-//            btnGotoOutputDir.setText(
-//                    Messages.btnGotoOutputDirectory); // Messages.btnStartMigrationByHistory
-//            btnGotoOutputDir.setImage(MigrationUIPlugin.getImage("icon/file_open.png"));
-//            btnGotoOutputDir.addSelectionListener(
-//                    new SelectionAdapter() {
-//
-//                        public void widgetSelected(final SelectionEvent event) {
-//                            Program.launch(txtOuputDir.getText());
-//                        }
-//                    });
-//        }
-//    }
+        DetailTableBuilder tvBuilder = new DetailTableBuilder();
+        tvBuilder.setContentProvider(new ArrayContentProvider());
+        tvBuilder.setLabelProvider(new DetailTableLabelProvider());
+        tvSelect =
+                tvBuilder.buildTable(
+                        comSelect, SWT.BORDER | SWT.FULL_SELECTION | SWT.H_SCROLL | SWT.V_SCROLL);
+        addDMLTableDoubleClickListener(tvSelect);
+    }
+
+    /**
+     * Add double click listener to DML detail table
+     *
+     * @param tv TableViewer
+     */
+    private void addDMLTableDoubleClickListener(TableViewer tv) {
+        tv.addDoubleClickListener(
+                new IDoubleClickListener() {
+                    public void doubleClick(DoubleClickEvent event) {
+                        IStructuredSelection selection = (IStructuredSelection) event.getSelection();
+                        Object firstElement = selection.getFirstElement();
+                        if (firstElement instanceof AnalyzerOverviewResult) {
+                            AnalyzerOverviewResult result = (AnalyzerOverviewResult) firstElement;
+                            StringBuilder sb = new StringBuilder();
+                            sb.append(result.getQuery());
+                            if (!result.isSuccess() && result.getErrorMessage() != null) {
+                                sb.append("\n\n\nError:\n");
+                                sb.append(result.getErrorMessage());
+                            }
+                            SimpleTextDialog dialog =
+                                    new SimpleTextDialog(getSite().getShell(), sb.toString());
+                            dialog.open();
+                        }
+                    }
+                });
+    }
+
+    /**
+     * Create insert page
+     *
+     * @param tfReport parent
+     */
+    private void createInsertPage(TabFolder tfReport) {
+        TabItem tiInsert = new TabItem(tfReport, SWT.NONE);
+        tiInsert.setText("INSERT");
+
+        Composite comInsert = new Composite(tfReport, SWT.NONE);
+        tiInsert.setControl(comInsert);
+        comInsert.setLayout(new GridLayout());
+        comInsert.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
+
+        DetailTableBuilder tvBuilder = new DetailTableBuilder();
+        tvBuilder.setContentProvider(new ArrayContentProvider());
+        tvBuilder.setLabelProvider(new DetailTableLabelProvider());
+        tvInsert =
+                tvBuilder.buildTable(
+                        comInsert, SWT.BORDER | SWT.FULL_SELECTION | SWT.H_SCROLL | SWT.V_SCROLL);
+        addDMLTableDoubleClickListener(tvInsert);
+    }
+
+    /**
+     * Create delete page
+     *
+     * @param tfReport parent
+     */
+    private void createDeletePage(TabFolder tfReport) {
+        TabItem tiDelete = new TabItem(tfReport, SWT.NONE);
+        tiDelete.setText("DELETE");
+
+        Composite comDelete = new Composite(tfReport, SWT.NONE);
+        tiDelete.setControl(comDelete);
+        comDelete.setLayout(new GridLayout());
+        comDelete.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
+
+        DetailTableBuilder tvBuilder = new DetailTableBuilder();
+        tvBuilder.setContentProvider(new ArrayContentProvider());
+        tvBuilder.setLabelProvider(new DetailTableLabelProvider());
+        tvDelete =
+                tvBuilder.buildTable(
+                        comDelete, SWT.BORDER | SWT.FULL_SELECTION | SWT.H_SCROLL | SWT.V_SCROLL);
+        addDMLTableDoubleClickListener(tvDelete);
+    }
+
+    /**
+     * Create update page
+     *
+     * @param tfReport parent
+     */
+    private void createUpdatePage(TabFolder tfReport) {
+        TabItem tiUpdate = new TabItem(tfReport, SWT.NONE);
+        tiUpdate.setText("UPDATE");
+
+        Composite comUpdate = new Composite(tfReport, SWT.NONE);
+        tiUpdate.setControl(comUpdate);
+        comUpdate.setLayout(new GridLayout());
+        comUpdate.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
+
+        DetailTableBuilder tvBuilder = new DetailTableBuilder();
+        tvBuilder.setContentProvider(new ArrayContentProvider());
+        tvBuilder.setLabelProvider(new DetailTableLabelProvider());
+        tvUpdate =
+                tvBuilder.buildTable(
+                        comUpdate, SWT.BORDER | SWT.FULL_SELECTION | SWT.H_SCROLL | SWT.V_SCROLL);
+        addDMLTableDoubleClickListener(tvUpdate);
+    }
+
 
     /**
      * Do no thing
@@ -480,137 +460,44 @@ public class AnalyzerReportEditorPart extends EditorPart {
     private void setContent2Tables() {
         AnalyzerReporter reporter = getReporter();
         AnalyzerReport report = reporter.getReport();
-        //TODO: getQueryResults
-        
-        tvOverview.setInput(report.getOverviewResults());
-        
-        // 각 count 가져오기
-        long selectCount = report.getSelectTotalCount();
-        long insertCount = report.getInsertTotalCount();
-        long deleteCount = report.getDeleteTotalCount();
-        long updateCount = report.getUpdateTotalCount();
-        
-		tvOverview.getGrid()
-				.addPaintListener(new PaintListener() {
-					public void paintControl(PaintEvent e) {
-						Grid grid = tvOverview.getGrid();
-						
-						Font groupHeaderFont = (Font) grid.getData("GROUP_FONT");
-						if (groupHeaderFont == null) {
-							FontData[] fontData = grid.getFont().getFontData();
-							for (FontData fd : fontData) {
-								fd.setHeight(fd.getHeight() + 2);
-								fd.setStyle(SWT.BOLD);
-							}
-							
-							groupHeaderFont = new Font(Display.getDefault(), fontData);
-							grid.setData("GROUP_FONT", groupHeaderFont);
-							
-							Font finalFont = groupHeaderFont;
-							grid.addDisposeListener(event -> {
-								if (finalFont != null && !finalFont.isDisposed()) {
-									finalFont.dispose();
-								}
-							});
-						}
-						
-						if (grid.getColumnCount() >= 2) {
-							grid.getColumn(0).setAlignment(SWT.CENTER);
-							grid.getColumn(1).setAlignment(SWT.CENTER);
-							grid.getColumn(0).setVerticalAlignment(SWT.CENTER);
-							grid.getColumn(1).setVerticalAlignment(SWT.CENTER);
-						}
-						
-                        // span select
-						if (selectCount > 0 && 0 < grid.getItemCount()) {
-							GridItem selectItem = grid.getItem(0);
-							selectItem.setRowSpan(0, (int)(selectCount - 1));
-							selectItem.setRowSpan(1, (int)(selectCount - 1));
 
-                            selectItem.setFont(0, groupHeaderFont);
-                            selectItem.setFont(1, groupHeaderFont);
-						}
-						
-						// span insert
-						int insertStartIndex = (int)selectCount;
-						if (insertCount > 0 && insertStartIndex < grid.getItemCount()) {
-							GridItem insertItem = grid.getItem(insertStartIndex);
-							insertItem.setRowSpan(0, (int)(insertCount - 1));
-							insertItem.setRowSpan(1, (int)(insertCount - 1));
+        List<DMLSummary> summaryList = new ArrayList<>();
+        summaryList.add(
+                new DMLSummary(
+                        "SELECT", report.getSelectTotalCount(), report.getSelectErrorCount()));
+        summaryList.add(
+                new DMLSummary(
+                        "INSERT", report.getInsertTotalCount(), report.getInsertErrorCount()));
+        summaryList.add(
+                new DMLSummary(
+                        "DELETE", report.getDeleteTotalCount(), report.getDeleteErrorCount()));
+        summaryList.add(
+                new DMLSummary(
+                        "UPDATE", report.getUpdateTotalCount(), report.getUpdateErrorCount()));
 
-                            insertItem.setFont(0, groupHeaderFont);
-                            insertItem.setFont(1, groupHeaderFont);
-						}
-						
-						// span delete
-						int deleteStartIndex = (int)(selectCount + insertCount);
-						if (deleteCount > 0 && deleteStartIndex < grid.getItemCount()) {
-							GridItem deleteItem = grid.getItem(deleteStartIndex);
-							deleteItem.setRowSpan(0, (int)(deleteCount - 1));
-							deleteItem.setRowSpan(1, (int)(deleteCount - 1));
+        tvOverview.setInput(summaryList);
 
-                            deleteItem.setFont(0, groupHeaderFont);
-                            deleteItem.setFont(1, groupHeaderFont);
-						}
-						
-						// span update
-						int updateStartIndex = (int)(selectCount + insertCount + deleteCount);
-						if (updateCount > 0 && updateStartIndex < grid.getItemCount()) {
-							GridItem updateItem = grid.getItem(updateStartIndex);
-							updateItem.setRowSpan(0, (int)(updateCount - 1));
-							updateItem.setRowSpan(1, (int)(updateCount - 1));
+        setupDmlTableInput(tvSelect, report.getSelectResults(), "SELECT");
+        setupDmlTableInput(tvInsert, report.getInsertResults(), "INSERT");
+        setupDmlTableInput(tvDelete, report.getDeleteResults(), "DELETE");
+        setupDmlTableInput(tvUpdate, report.getUpdateResults(), "UPDATE");
+    }
 
-                            updateItem.setFont(0, groupHeaderFont);
-                            updateItem.setFont(1, groupHeaderFont);
-						}
-
-                        // 그룹(SELECT/INSERT/DELETE/UPDATE) 경계선만 별도 스타일로 강조(기본 Grid 라인 굵기/색상은 행별로 제어 불가)
-                        // - Paint에서 원하는 위치에만 "덧그리기" 방식으로 구현
-                        // - RowSpan을 쓰고 있으므로, "그룹의 마지막 행 아래"에만 그리는 게 가장 안전함
-                        Rectangle area = grid.getClientArea();
-                        Color separatorColor =
-                                Display.getDefault().getSystemColor(SWT.COLOR_DARK_GRAY);
-                        int[] boundaryIndices =
-                                new int[] {
-                                    (int) selectCount,
-                                    (int) (selectCount + insertCount),
-                                    (int) (selectCount + insertCount + deleteCount),
-                                    (int) (selectCount + insertCount + deleteCount + updateCount)
-                                };
-
-                        int oldLineWidth = e.gc.getLineWidth();
-                        Color oldForeground = e.gc.getForeground();
-                        e.gc.setForeground(separatorColor);
-                        e.gc.setLineWidth(2);
-
-                        for (int b : boundaryIndices) {
-                            // b는 "다음 그룹의 시작 index"이므로, 경계선을 그릴 대상은 (b-1) 행의 하단
-                            if (b <= 0) {
-                                continue;
-                            }
-                            int itemCount = grid.getItemCount();
-                            int lastIndex = Math.min(b - 1, itemCount - 1);
-                            if (lastIndex < 0 || lastIndex >= itemCount) {
-                                continue;
-                            }
-                            GridItem lastItemOfGroup = grid.getItem(lastIndex);
-                            // 첫 번째 컬럼 기준 bounds로 y를 잡고, 전체 폭으로 라인을 긋는다
-                            Rectangle cellBounds = lastItemOfGroup.getBounds(0);
-                            int y = cellBounds.y + cellBounds.height - 1;
-                            e.gc.drawLine(area.x, y, area.x + area.width, y);
-                        }
-
-                        e.gc.setLineWidth(oldLineWidth);
-                        e.gc.setForeground(oldForeground);
-					}
-				});
-//        tvOverview.setInput(null);
-//        tvObjDetails.setInput(report.getDbObjectsResult());
-//        tvObjNames.setInput(report.getOverviewResults());
-//        tvTableRecords.setInput(report.getRecMigResults());
-//        txtConfigSummary.setText(report.getConfigSummary());
-//        controller.loadNonSupportedObjectText(reporter, noSupportedAppender);
-//        controller.loadLogText(reporter, logAppender);
+    /**
+     * Set the input for a DML table and mark the first item in the group.
+     *
+     * @param viewer the TableViewer to update
+     * @param results the list of results
+     * @param type the DML type name
+     */
+    private void setupDmlTableInput(
+            TableViewer viewer, List<AnalyzerOverviewResult> results, String type) {
+        if (results != null && !results.isEmpty()) {
+            AnalyzerOverviewResult first = results.get(0);
+            first.setFirstInGroup(true);
+            first.setQueryType(type);
+        }
+        viewer.setInput(results);
     }
 
     /** Set focus event */

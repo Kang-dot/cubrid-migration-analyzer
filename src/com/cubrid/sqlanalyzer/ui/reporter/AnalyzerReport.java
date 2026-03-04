@@ -2,10 +2,12 @@ package com.cubrid.sqlanalyzer.ui.reporter;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
- * Analyzer Report model - Minimal implementation that stores only query execution results
+ * Analyzer Report model - Optimized to manage DML categories efficiently
  * 
  * @author Generated
  */
@@ -14,26 +16,45 @@ public class AnalyzerReport implements Serializable {
 	private static final long serialVersionUID = 1L;
 
 	/**
-	 * Internal class that stores query execution results
+	 * Internal class to encapsulate results and statistics for each DML type
 	 */
+	private static class DMLCategory implements Serializable {
+		private static final long serialVersionUID = 1L;
+		private final String typeName;
+		private final List<AnalyzerOverviewResult> results = new ArrayList<>();
+		private long totalCount = 0;
+		private long errorCount = 0;
 
-	private List<AnalyzerOverviewResult> selectResultList = new ArrayList<>();
-	private List<AnalyzerOverviewResult> insertResultList = new ArrayList<>();
-	private List<AnalyzerOverviewResult> deleteResultList = new ArrayList<>();
-	private List<AnalyzerOverviewResult> updateResultList = new ArrayList<>();
-	
-	private long selectTotalCount;
-	private long insertTotalCount;
-	private long deleteTotalCount;
-	private long updateTotalCount;
+		DMLCategory(String typeName) {
+			this.typeName = typeName;
+		}
 
+		void addResult(AnalyzerOverviewResult result) {
+			results.add(result);
+			totalCount++;
+			if (!result.isSuccess()) {
+				errorCount++;
+			}
+		}
+	}
+
+	private final Map<String, DMLCategory> categoryMap = new LinkedHashMap<>();
+	private final List<AnalyzerOverviewResult> queryResults = new ArrayList<>();
 	private long totalStartTime;
 	private long totalEndTime;
-	private final List<AnalyzerOverviewResult> queryResults = new ArrayList<AnalyzerOverviewResult>();
+
+	public AnalyzerReport() {
+		// Initialize DML categories in display order
+		categoryMap.put("SELECT", new DMLCategory("SELECT"));
+		categoryMap.put("INSERT", new DMLCategory("INSERT"));
+		categoryMap.put("DELETE", new DMLCategory("DELETE"));
+		categoryMap.put("UPDATE", new DMLCategory("UPDATE"));
+	}
 
 	/**
 	 * Add query execution result
 	 * 
+	 * @param queryType    DML type (SELECT, INSERT, etc.)
 	 * @param queryId      Query ID
 	 * @param query        Query content
 	 * @param success      Success status
@@ -44,24 +65,11 @@ public class AnalyzerReport implements Serializable {
 			long executeTime) {
 		AnalyzerOverviewResult result = new AnalyzerOverviewResult(queryId, query, success, errorMessage,
 				executeTime);
+		queryResults.add(result);
 
-		switch (queryType) {
-		case "SELECT":
-			selectResultList.add(result);
-			selectTotalCount += 1;
-			break;
-		case "INSERT":
-			insertResultList.add(result);
-			insertTotalCount += 1;
-			break;
-		case "DELETE":
-			deleteResultList.add(result);
-			deleteTotalCount += 1;
-			break;
-		case "UPDATE":
-			updateResultList.add(result);
-			updateTotalCount += 1;
-			break;
+		DMLCategory category = categoryMap.get(queryType);
+		if (category != null) {
+			category.addResult(result);
 		}
 	}
 
@@ -139,41 +147,84 @@ public class AnalyzerReport implements Serializable {
 	}
 
 	public long getSelectTotalCount() {
-		return selectTotalCount;
+		return getCategoryTotalCount("SELECT");
 	}
 
 	public long getInsertTotalCount() {
-		return insertTotalCount;
+		return getCategoryTotalCount("INSERT");
 	}
 
 	public long getDeleteTotalCount() {
-		return deleteTotalCount;
+		return getCategoryTotalCount("DELETE");
 	}
 
 	public long getUpdateTotalCount() {
-		return updateTotalCount;
+		return getCategoryTotalCount("UPDATE");
+	}
+	
+	public long getSelectErrorCount() {
+		return getCategoryErrorCount("SELECT");
 	}
 
+	public long getInsertErrorCount() {
+		return getCategoryErrorCount("INSERT");
+	}
+
+	public long getDeleteErrorCount() {
+		return getCategoryErrorCount("DELETE");
+	}
+
+	public long getUpdateErrorCount() {
+		return getCategoryErrorCount("UPDATE");
+	}
+
+	public List<AnalyzerOverviewResult> getSelectResults() {
+		return getCategoryResults("SELECT");
+	}
+	
+	public List<AnalyzerOverviewResult> getInsertResults() {
+		return getCategoryResults("INSERT");
+	}
+	
+	public List<AnalyzerOverviewResult> getDeleteResults() {
+		return getCategoryResults("DELETE");
+	}
+
+	public List<AnalyzerOverviewResult> getUpdateResults() {
+		return getCategoryResults("UPDATE");
+	}
+
+	/**
+	 * Aggregates all category results for overview
+	 * 
+	 * @return Combined list of results
+	 */
 	public List<AnalyzerOverviewResult> getOverviewResults() {
-		selectResultList.get(0).setQueryType("SELECT");
-		selectResultList.get(0).setTotalCount(selectTotalCount);
-		
-		insertResultList.get(0).setQueryType("INSERT");
-		insertResultList.get(0).setTotalCount(insertTotalCount);
-
-		deleteResultList.get(0).setQueryType("DELETE");
-		deleteResultList.get(0).setTotalCount(deleteTotalCount);
-
-		updateResultList.get(0).setQueryType("UPDATE");
-		updateResultList.get(0).setTotalCount(updateTotalCount);
-
 		ArrayList<AnalyzerOverviewResult> totalResultList = new ArrayList<>();
-		
-		totalResultList.addAll(selectResultList);
-		totalResultList.addAll(insertResultList);
-		totalResultList.addAll(deleteResultList);
-		totalResultList.addAll(updateResultList);
-
+		for (DMLCategory category : categoryMap.values()) {
+			if (!category.results.isEmpty()) {
+				// Set grouping metadata on the first item of each category
+				AnalyzerOverviewResult first = category.results.get(0);
+				first.setQueryType(category.typeName);
+				first.setTotalCount(category.totalCount);
+			}
+			totalResultList.addAll(category.results);
+		}
 		return totalResultList;
+	}
+
+	private long getCategoryTotalCount(String type) {
+		DMLCategory cat = categoryMap.get(type);
+		return cat != null ? cat.totalCount : 0;
+	}
+
+	private long getCategoryErrorCount(String type) {
+		DMLCategory cat = categoryMap.get(type);
+		return cat != null ? cat.errorCount : 0;
+	}
+
+	private List<AnalyzerOverviewResult> getCategoryResults(String type) {
+		DMLCategory cat = categoryMap.get(type);
+		return cat != null ? cat.results : new ArrayList<>();
 	}
 }
