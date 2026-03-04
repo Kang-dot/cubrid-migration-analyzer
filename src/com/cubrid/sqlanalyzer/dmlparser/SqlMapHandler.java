@@ -582,7 +582,7 @@ public class SqlMapHandler extends DefaultHandler2 implements LexicalHandler {
 			query = matcher.replaceAll("?");
 		}
 
-		return query;
+		return query.strip();
 	}
 
 	public QueryDictionary getQueryDictionary() {
