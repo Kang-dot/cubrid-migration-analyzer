@@ -77,4 +77,3 @@ public class AnalyzerConfirmTextBuilder implements IAnalyzerConfirmTextBuilder {
         sb.append("DDL query: TODO");
 	}
 }
-

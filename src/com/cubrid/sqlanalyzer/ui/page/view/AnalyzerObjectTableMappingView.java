@@ -33,13 +33,6 @@ public class AnalyzerObjectTableMappingView extends AbstractMappingView {
     private static final String CT_UPDATE = "update";
     private static final String CT_DELETE = "delete";
 
-//    private enum DMLType {
-//        SELECT,
-//        INSERT,
-//        UPDATE,
-//        DELETE
-//    }
-
     private CTabFolder dmlFolder;
     private TableViewer tvSelect;
     private TableViewer tvInsert;
@@ -275,7 +268,7 @@ public class AnalyzerObjectTableMappingView extends AbstractMappingView {
 
     private String extractQuery(IAnalyzerNode node) {
         if (node instanceof SelectNode) {
-            return safe(((SelectNode) node).getQuery());
+            return safe(((SelectNode) node).getSelectQuery());
         }
         if (node instanceof InsertNode) {
             return safe(((InsertNode) node).getInsertQuery());
@@ -295,12 +288,12 @@ public class AnalyzerObjectTableMappingView extends AbstractMappingView {
 
     public static class DmlRow {
         private final IAnalyzerNode node;
-        private final String name;
+        private final String id;
         private final String sql;
 
         private DmlRow(IAnalyzerNode node, String name, String sql) {
             this.node = node;
-            this.name = name;
+            this.id = name;
             this.sql = sql;
         }
 
@@ -309,7 +302,7 @@ public class AnalyzerObjectTableMappingView extends AbstractMappingView {
         }
 
         public String getName() {
-            return name;
+            return id;
         }
 
         public String getSql() {

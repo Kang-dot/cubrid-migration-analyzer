@@ -607,36 +607,6 @@ public class AnalyzerObjectMappingPage extends AnalyzerWizardPage implements IRe
         if (!saveCurrentView()) {
             return false;
         }
-//        VerifyResultMessages result = util.checkAll(getMigrationWizard().getMigrationConfig());
-//        if (result.hasError()) {
-//            setErrorMessage(result.getErrorMessage());
-//            MessageDialog.openError(getShell(), Messages.msgError, result.getErrorMessage());
-//            return false;
-//        }
-        // Clear error message of UI.
-//        setErrorMessage(null);
-//        // Show confirm dialog.
-//        StringBuffer detailMsg = new StringBuffer();
-//        if (result.hasPKConfirm()) {
-//            detailMsg.append(result.getPKConfirmMessage()).append("\r\n");
-//        }
-//        if (result.hasConfirm()) {
-//            detailMsg.append(result.getConfirmMessage()).append("\r\n");
-//        }
-//        if (result.hasWarning()) {
-//            detailMsg.append(result.getWarningMessage()).append("\r\n");
-//        }
-//        if (detailMsg.length() > 0) {
-//            boolean confirm =
-//                    DetailMessageDialog.openConfirm(
-//                            getShell(),
-//                            Messages.msgConfirmation,
-//                            Messages.msgConfirmWithDetail,
-//                            detailMsg.toString());
-//            if (!confirm) {
-//                return false;
-//            }
-//        }
         return true;
     }
 

@@ -88,7 +88,7 @@ public class AnalyzerSelectSrcTarTypePageView {
         btnOnlineOracleSrc.setData(AnalyzerConfiguration.SOURCE_TYPE_DB);
         srcButtons.add(btnOnlineOracleSrc);
         
-//        btnOnlineOracleSrc.setEnabled(false);
+        btnOnlineOracleSrc.setEnabled(true);
 
         Label comSep = new Label(grpSrc, SWT.SEPARATOR | SWT.HORIZONTAL);
         {
@@ -183,7 +183,6 @@ public class AnalyzerSelectSrcTarTypePageView {
     }
     
     private void setupDefault() {
-    	btnOnlineOracleSrc.setEnabled(false);
     	btnXMLSrc.setSelection(true);
     	btnParserTar.setSelection(true);
     }
