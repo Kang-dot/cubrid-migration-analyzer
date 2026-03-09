@@ -11,7 +11,7 @@ public class SelectNode extends DefaultNode {
 		this.selectQuery = selectQuery;
 	}
 	
-	public String getQuery() {
+	public String getSelectQuery() {
 		return selectQuery;
 	}
 }
