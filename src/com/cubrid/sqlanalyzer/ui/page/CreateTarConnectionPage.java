@@ -42,12 +42,12 @@ public class CreateTarConnectionPage extends AnalyzerWizardPage {
 	 * @author Kevin Cao
 	 * @version 1.0 - 2012-10-9 created by Kevin Cao
 	 */
-	private class XMLDirSelectView implements AbstractSelectView {
+	private class tarCUBRIDSelectView implements AbstractSelectView {
 		private final JDBCConnectionMgrView conMgrView;
 		
 		private Button btnCreateConstrainsNow;
 
-		private XMLDirSelectView() {
+		private tarCUBRIDSelectView() {
 			conMgrView =
 					new JDBCConnectionMgrView(
 							MigrationWizard.getSupportedTarDBTypes(),
@@ -240,7 +240,7 @@ public class CreateTarConnectionPage extends AnalyzerWizardPage {
 		}
 	}
 
-	private XMLDirSelectView XMLDirSelectView = new XMLDirSelectView();
+	private tarCUBRIDSelectView XMLDirSelectView = new tarCUBRIDSelectView();
 	private ParserSelectView parserSelectView = new ParserSelectView();
 	
 	private Composite container;
@@ -298,7 +298,7 @@ public class CreateTarConnectionPage extends AnalyzerWizardPage {
 		container.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
 		setControl(container);
 
-		XMLDirSelectView = new XMLDirSelectView();
+		XMLDirSelectView = new tarCUBRIDSelectView();
 		parserSelectView = new ParserSelectView();
 	}
 	
