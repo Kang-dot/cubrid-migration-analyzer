@@ -159,7 +159,7 @@ public class AnalyzerWizard extends MigrationWizard {
         }
     }
 
-        public boolean updateSrcTarType(int srcType, int tarType) {
+    public boolean updateSrcTarType(int srcType, int tarType) {
         // Warning message : type changing will cause settings reset
         AnalyzerConfiguration cfg = analyzerConfig;
 

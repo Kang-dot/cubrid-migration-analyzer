@@ -8,13 +8,14 @@ public class AnalyzerConfiguration extends MigrationConfiguration {
 //    private static final Logger LOG = LogUtil.getLogger(MigrationConfiguration.class);
 
 	// TODO: ora2cubrid
-    public static int SOURCE_TYPE_DB = 1;
+	// TODO: need to change oracle ID
+    public static int SOURCE_TYPE_DB = 3;
     
     // TODO: mybatis xml
     public static int SOURCE_TYPE_XML = 2;
     
-    public static int TARGET_TYPE_CUBRID = 3;
-    public static int TARGET_TYPE_PARSER = 4;
+    public static int TARGET_TYPE_CUBRID = 4;
+    public static int TARGET_TYPE_PARSER = 5;
 	
 	private QueryDictionary queryDict = null;
     
