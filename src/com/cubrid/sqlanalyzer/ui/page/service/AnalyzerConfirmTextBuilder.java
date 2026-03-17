@@ -24,7 +24,7 @@ public class AnalyzerConfirmTextBuilder implements IAnalyzerConfirmTextBuilder {
 			return "";
 		}
 		
-		AnalyzerCatalog analyzerCatalog = (AnalyzerCatalog) wizard.getOriginalSourceCatalog();
+		AnalyzerCatalog analyzerCatalog = (AnalyzerCatalog) wizard.getTempCatalog();
 		if (analyzerCatalog == null) {
 			return "";
 		}

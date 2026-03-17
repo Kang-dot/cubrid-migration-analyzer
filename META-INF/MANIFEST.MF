@@ -14,7 +14,8 @@ Require-Bundle: org.eclipse.ui,
  org.eclipse.e4.core.services,
  org.eclipse.e4.tools.compat,
  org.eclipse.e4.ui.workbench,
- org.eclipse.nebula.widgets.grid
+ org.eclipse.nebula.widgets.grid,
+ com.cubrid.common.log
 Automatic-Module-Name: SQLAnalyzer
 Bundle-RequiredExecutionEnvironment: JavaSE-21
 Bundle-ClassPath: .,

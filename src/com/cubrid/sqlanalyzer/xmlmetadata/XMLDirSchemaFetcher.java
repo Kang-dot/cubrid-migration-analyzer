@@ -15,6 +15,8 @@ import javax.xml.parsers.SAXParserFactory;
 import com.cubrid.cubridmigration.core.dbmetadata.IBuildSchemaFilter;
 import com.cubrid.cubridmigration.core.dbmetadata.IDBSchemaInfoFetcher;
 import com.cubrid.cubridmigration.core.dbmetadata.IDBSource;
+import com.cubrid.cubridmigration.core.dbobject.Catalog;
+import com.cubrid.cubridmigration.core.dbobject.SchemaCatalog;
 //import com.cubrid.cubridmigration.core.dbobject.Catalog;
 import com.cubrid.sqlanalyzer.core.dbobject.AnalyzerCatalog;
 import com.cubrid.sqlanalyzer.dmlparser.DatabaseManager;
@@ -110,4 +112,16 @@ public class XMLDirSchemaFetcher implements IDBSchemaInfoFetcher {
             cancelRunnable = null;
         }
     }
+
+	@Override
+	public SchemaCatalog fetchSchemaNames(IDBSource ds) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public Catalog fetchSchemaObjects(IDBSource ds, SchemaCatalog sc, List<String> schemas) {
+		// TODO Auto-generated method stub
+		return null;
+	}
 }

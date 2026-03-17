@@ -5,6 +5,7 @@ import java.beans.XMLEncoder;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.util.List;
 
 import com.cubrid.cubridmigration.core.common.DBUtils;
 import com.cubrid.cubridmigration.core.common.PathUtils;
@@ -15,6 +16,7 @@ import com.cubrid.cubridmigration.core.dbmetadata.IDBSource;
 import com.cubrid.cubridmigration.core.dbobject.Catalog;
 import com.cubrid.cubridmigration.core.dbobject.Column;
 import com.cubrid.cubridmigration.core.dbobject.Schema;
+import com.cubrid.cubridmigration.core.dbobject.SchemaCatalog;
 import com.cubrid.cubridmigration.core.dbobject.Table;
 import com.cubrid.cubridmigration.core.dbtype.DatabaseType;
 import com.cubrid.cubridmigration.mysql.MysqlXmlDumpSource;
@@ -133,4 +135,16 @@ public class XMLDirDumpSchemaWithHistoryFetcher implements IDBSchemaInfoFetcher 
             throw new RuntimeException(ex);
         }
     }
+
+	@Override
+	public SchemaCatalog fetchSchemaNames(IDBSource ds) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public Catalog fetchSchemaObjects(IDBSource ds, SchemaCatalog sc, List<String> schemas) {
+		// TODO Auto-generated method stub
+		return null;
+	}
 }

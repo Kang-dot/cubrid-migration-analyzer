@@ -257,7 +257,7 @@ public class AnalyzerComfirmPage extends AnalyzerWizardPage {
 	
 	private void saveDictionaryInConfig() {
 		AnalyzerCatalog analyzerCatalog =
-				((AnalyzerCatalog) getMigrationWizard().getOriginalSourceCatalog());
+				((AnalyzerCatalog) getMigrationWizard().getTempCatalog());
 		
 		AnalyzerConfiguration analyzerConfig = getMigrationWizard().getAnalyzerConfig();
 		

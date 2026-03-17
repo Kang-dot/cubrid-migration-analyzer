@@ -292,7 +292,7 @@ public class AnalyzerSrcFileSelectView implements AbstractSourceView {
 		// // If it is a new migration, initialize the configuration
 		// wzd.resetBySourceDBChanged();
 		// }
-		wzd.setOriginalSourceCatalog(catalog);
+		wzd.setTempCatalog(catalog);
 		// MigrationConfiguration cfg = wzd.getMigrationConfig();
 		MigrationConfiguration cfg = wzd.getMigrationConfig();
 

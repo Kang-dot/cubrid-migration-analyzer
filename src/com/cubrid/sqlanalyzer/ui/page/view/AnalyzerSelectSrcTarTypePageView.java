@@ -183,7 +183,7 @@ public class AnalyzerSelectSrcTarTypePageView {
     }
     
     private void setupDefault() {
-    	btnXMLSrc.setSelection(true);
+    	btnOnlineOracleSrc.setSelection(true);
     	btnParserTar.setSelection(true);
     }
 

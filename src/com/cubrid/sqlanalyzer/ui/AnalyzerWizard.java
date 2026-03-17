@@ -10,6 +10,7 @@ import org.eclipse.ui.PlatformUI;
 import com.cubrid.cubridmigration.core.dbobject.Catalog;
 import com.cubrid.cubridmigration.core.engine.config.MigrationConfiguration;
 import com.cubrid.cubridmigration.cubrid.CUBRIDTimeUtil;
+import com.cubrid.cubridmigration.ui.message.Messages;
 import com.cubrid.cubridmigration.ui.wizard.MigrationWizard;
 import com.cubrid.sqlanalyzer.core.AnalyzerConfiguration;
 import com.cubrid.sqlanalyzer.core.dbobject.AnalyzerCatalog;
@@ -19,6 +20,7 @@ import com.cubrid.sqlanalyzer.ui.editor.AnalyzerProgressEditorInput;
 import com.cubrid.sqlanalyzer.ui.editor.AnalyzerProgressEditorPart;
 import com.cubrid.sqlanalyzer.ui.page.AnalyzerComfirmPage;
 import com.cubrid.sqlanalyzer.ui.page.AnalyzerObjectMappingPage;
+import com.cubrid.sqlanalyzer.ui.page.AnalyzerSchemaMappingPage;
 import com.cubrid.sqlanalyzer.ui.page.AnalyzerSelectSrcTarTypePage;
 import com.cubrid.sqlanalyzer.ui.page.CreateSrcConnectionPage;
 import com.cubrid.sqlanalyzer.ui.page.CreateTarConnectionPage;
@@ -26,11 +28,13 @@ import com.cubrid.sqlanalyzer.ui.page.CreateTarConnectionPage;
 public class AnalyzerWizard extends MigrationWizard {
 
 	private static final int[] IDX_ONLINE = new int[] {0, 1, 2, 3, 4};
-	private static final int[] IDX_PARSER = new int[] {0, 1, 3, 4};
+	private static final int[] IDX_PARSER = new int[] {0, 1, 5, 3, 4};
+//	private static final int[] IDX_PARSER = new int[] {0, 1, 2, 3, 4};
 	
 	DefaultNode defaultTreeNode;
 	AnalyzerConfiguration analyzerConfig;
     private Catalog targetCatalog;
+    private Catalog tempSourceCatalog;
 	
     public AnalyzerWizard() {
         setWindowTitle("Analyzer wizard");
@@ -43,7 +47,7 @@ public class AnalyzerWizard extends MigrationWizard {
 	
 	@Override
 	public boolean performFinish() {
-		AnalyzerCatalog analyzerCatalog = ((AnalyzerCatalog) getOriginalSourceCatalog());
+		AnalyzerCatalog analyzerCatalog = ((AnalyzerCatalog) getTempCatalog());
 		analyzerConfig.setQueryDict(analyzerCatalog.getQueryDictionary());
         
 		startAnalyze();
@@ -69,6 +73,7 @@ public class AnalyzerWizard extends MigrationWizard {
         addPage(new CreateTarConnectionPage("2"));
         addPage(new AnalyzerObjectMappingPage("3"));
         addPage(new AnalyzerComfirmPage("4"));
+        addPage(new AnalyzerSchemaMappingPage("5"));
 //		addPage(new SelectDestinationPage("1"));
 	}
 	
@@ -110,6 +115,18 @@ public class AnalyzerWizard extends MigrationWizard {
             }
         }
         return nextPage;
+    }
+    
+    public String getStepNoMsg(IWizardPage currentPage) {
+        int[] pns = getPageNOs();
+        for (int i = 0; i < pns.length; i++) {
+            if (currentPage == getPage(String.valueOf(pns[i]))) {
+                return Messages.bind(
+                        Messages.msgWizardStep,
+                        new String[] {String.valueOf(i + 1), String.valueOf(pns.length)});
+            }
+        }
+        throw new IllegalArgumentException("Invalid wizard page.");
     }
     
     protected void startAnalyze() {
@@ -168,8 +185,13 @@ public class AnalyzerWizard extends MigrationWizard {
         return true;
     }
     
-
-        
+    @Override
+    public void resetBySourceDBChanged() {
+        if (migrationConfig != null) {
+            migrationConfig.clearSelectedSrcSchemas();
+        }
+    }
+    
     public DefaultNode getSourceDBNode() {
     	return defaultTreeNode;
     }
@@ -180,5 +202,15 @@ public class AnalyzerWizard extends MigrationWizard {
 
     public Catalog getTargetCatalog() {
         return targetCatalog;
+    }
+    
+    // TODO: this methods is temp method. this method will remove after getting DDL from oracle function is finish
+    public void setTempCatalog(Catalog tempSourceCatalog) {
+    	this.tempSourceCatalog = tempSourceCatalog;
+    }
+    
+    // TODO: this methods is temp method. this method will remove after getting DDL from oracle function is finish
+    public Catalog getTempCatalog() {
+    	return this.tempSourceCatalog;
     }
 }

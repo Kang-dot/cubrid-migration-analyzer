@@ -27,7 +27,8 @@ import com.cubrid.cubridmigration.core.engine.report.DataFileImportResult;
 import com.cubrid.cubridmigration.core.engine.report.MigrationReport;
 import com.cubrid.cubridmigration.core.engine.report.MigrationReportFileUtils;
 import com.cubrid.cubridmigration.core.engine.report.RecordMigrationResult;
-import com.cubrid.cubridmigration.core.engine.template.MigrationTemplateParser;
+import com.cubrid.cubridmigration.core.engine.template.reader.MigrationTemplateReader;
+import com.cubrid.cubridmigration.core.engine.template.writer.MigrationTemplateWriter;
 import com.cubrid.cubridmigration.ui.common.UICommonTool;
 import com.cubrid.cubridmigration.ui.history.CSVImportReportEditorPart;
 import com.cubrid.cubridmigration.ui.history.MigrationReportEditorPart;
@@ -216,7 +217,7 @@ public class AnalyzerWizardFactory {
             }
         }
         final String fileName = PathUtils.getBaseTempDir() + System.currentTimeMillis() + ".xml";
-        MigrationTemplateParser.save(config, fileName, false);
+        MigrationTemplateWriter.save(config, fileName, false);
         openMigrationScript(fileName);
         new File(fileName).deleteOnExit();
     }
@@ -279,7 +280,7 @@ public class AnalyzerWizardFactory {
             }
         }
         final String fileName = PathUtils.getBaseTempDir() + System.currentTimeMillis() + ".xml";
-        MigrationTemplateParser.save(config, fileName, false);
+        MigrationTemplateWriter.save(config, fileName, false);
         openMigrationScript(fileName);
         new File(fileName).deleteOnExit();
     }
@@ -333,7 +334,7 @@ public class AnalyzerWizardFactory {
         } catch (IOException e) {
             throw new RuntimeException(Messages.msgErrMigrationHistoryTooOld);
         }
-        MigrationConfiguration config = MigrationTemplateParser.parse(scriptFile);
+        MigrationConfiguration config = MigrationTemplateReader.parse(scriptFile);
         // Get open mode
         int handlingMode = 0;
         if (rpt.hasError()) {
@@ -376,7 +377,7 @@ public class AnalyzerWizardFactory {
                     Messages.errErrorFileNotFound);
         }
         final String fileName = PathUtils.getBaseTempDir() + System.currentTimeMillis() + ".xml";
-        MigrationTemplateParser.save(config, fileName, false);
+        MigrationTemplateWriter.save(config, fileName, false);
         openMigrationScript(fileName);
         new File(fileName).deleteOnExit();
     }
