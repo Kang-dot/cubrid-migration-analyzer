@@ -3,11 +3,9 @@ package com.cubrid.sqlanalyzer.ui.page.view;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.Optional;
 
 import org.eclipse.jface.viewers.CellEditor;
 import org.eclipse.jface.viewers.ColumnWeightData;
-import org.eclipse.jface.viewers.ComboBoxCellEditor;
 import org.eclipse.jface.viewers.ICellModifier;
 import org.eclipse.jface.viewers.ILabelProviderListener;
 import org.eclipse.jface.viewers.IStructuredContentProvider;
@@ -27,7 +25,6 @@ import org.eclipse.swt.widgets.TableItem;
 
 import com.cubrid.common.ui.swt.table.celleditor.CheckboxCellEditorFactory;
 import com.cubrid.common.ui.swt.table.listener.CheckBoxColumnSelectionListener;
-import com.cubrid.cubridmigration.core.dbobject.Catalog;
 import com.cubrid.cubridmigration.core.dbobject.SchemaCatalog;
 import com.cubrid.cubridmigration.core.engine.config.MigrationConfiguration;
 import com.cubrid.cubridmigration.ui.common.CompositeUtils;
@@ -48,10 +45,8 @@ public class AnalyzerSchemaTableView {
         Messages.targetSchema,
         Messages.msgTarType
     };
-    private String[] tarSchemaNameArray;
     private final MigrationConfiguration config;
     private SchemaCatalog srcSchemaCatalog;
-    private Catalog tarCatalog;
     private SchemaLabelProvider labelProvider;
 
     public static class SrcTable {
@@ -212,14 +207,6 @@ public class AnalyzerSchemaTableView {
         public Object getValue(Object element, String property) {
             final SrcTable srcTable = (SrcTable) element;
             if (propertyList[4].equals(property)) {
-                if (config.targetIsOnline()) {
-                    for (int i = 0; i < tarSchemaNameArray.length; i++) {
-                        if (tarSchemaNameArray[i].equalsIgnoreCase(srcTable.getTarSchema())) {
-                            return i;
-                        }
-                    }
-                    return 0; // Default to first item if not found
-                }
                 return srcTable.getTarSchema().toUpperCase(Locale.US);
             } else if (propertyList[0].equals(property)) {
                 return srcTable.isSelected();
@@ -233,11 +220,7 @@ public class AnalyzerSchemaTableView {
             final SrcTable srcTable = (SrcTable) tabItem.getData();
 
             if (propertyList[4].equals(property)) {
-                if (config.targetIsOnline()) {
-                    srcTable.setTarSchema(tarSchemaNameArray[(Integer) value]);
-                } else {
-                    srcTable.setTarSchema(((String) value).toUpperCase(Locale.US));
-                }
+                srcTable.setTarSchema(((String) value).toUpperCase(Locale.US));
                 srcTableViewer.refresh();
             } else if (propertyList[0].equals(property)) {
                 final boolean newSelectedState = !srcTable.isSelected();
@@ -290,71 +273,21 @@ public class AnalyzerSchemaTableView {
     }
 
     public void updateCellEditors() {
-        if (config.targetIsOnline()) {
-            tarSchemaNameArray = getDropdownSchemaNames();
-            final CellEditor[] editors =
-                    new CellEditor[] {
-                        new CheckboxCellEditorFactory().getCellEditor(srcTableViewer.getTable()),
-                        null,
-                        null,
-                        null,
-                        new ComboBoxCellEditor(
-                                srcTableViewer.getTable(), tarSchemaNameArray, SWT.READ_ONLY),
-                        null
-                    };
-            srcTableViewer.setCellEditors(editors);
-        } else {
-            final CellEditor[] editors =
-                    new CellEditor[] {
-                        new CheckboxCellEditorFactory().getCellEditor(srcTableViewer.getTable()),
-                        null,
-                        null,
-                        null,
-                        config.isAddUserSchema()
-                                ? new TextCellEditor(srcTableViewer.getTable())
-                                : null,
-                        null
-                    };
-            srcTableViewer.setCellEditors(editors);
-        }
+        final CellEditor[] editors =
+                new CellEditor[] {
+                    new CheckboxCellEditorFactory().getCellEditor(srcTableViewer.getTable()),
+                    null,
+                    null,
+                    null,
+                    new TextCellEditor(srcTableViewer.getTable()),
+                    null
+                };
+        srcTableViewer.setCellEditors(editors);
         srcTableViewer.setCellModifier(new SchemaCellModifier());
-    }
-
-    private String[] getDropdownSchemaNames() {
-        final List<String> dropDownSchemaList = new ArrayList<>();
-        final Optional<Catalog> targetCatalogOptional = Optional.ofNullable(this.tarCatalog);
-        targetCatalogOptional.ifPresent(
-                targetCatalog ->
-                        targetCatalog
-                                .getSchemas()
-                                .forEach(schema -> dropDownSchemaList.add(schema.getName())));
-
-        final Optional<SchemaCatalog> srcCatalogOptional =
-                Optional.ofNullable(this.srcSchemaCatalog);
-        srcCatalogOptional.ifPresent(
-                srcCatalog ->
-                        srcCatalog
-                                .getSchemas()
-                                .forEach(
-                                        schema -> {
-                                            final String schemaName =
-                                                    schema.name().toUpperCase(Locale.US);
-                                            if (!dropDownSchemaList.contains(schemaName)) {
-                                                dropDownSchemaList.add(schemaName);
-                                            }
-                                        }));
-
-        return config.isTargetDBAGroup()
-                ? dropDownSchemaList.toArray(String[]::new)
-                : new String[] {config.getTargetConParams().getConUser().toUpperCase(Locale.US)};
     }
 
     public void setSrcSchemaCatalog(SchemaCatalog srcSchemaCatalog) {
         this.srcSchemaCatalog = srcSchemaCatalog;
-    }
-
-    public void setTarCatalog(Catalog tarCatalog) {
-        this.tarCatalog = tarCatalog;
     }
 
     public void setInput(List<SrcTable> input) {

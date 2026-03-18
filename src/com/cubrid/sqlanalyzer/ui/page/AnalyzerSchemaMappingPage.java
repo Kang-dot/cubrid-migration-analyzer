@@ -30,11 +30,11 @@ import com.cubrid.cubridmigration.ui.database.SchemaFetcherWithProgress;
 import com.cubrid.cubridmigration.ui.message.Messages;
 import com.cubrid.cubridmigration.ui.wizard.MigrationWizard;
 import com.cubrid.cubridmigration.ui.wizard.page.SchemaMappingPage;
-import com.cubrid.cubridmigration.ui.wizard.page.view.SchemaTableView;
-import com.cubrid.cubridmigration.ui.wizard.page.view.SchemaTableView.SrcTable;
 import com.cubrid.sqlanalyzer.core.AnalyzerConfiguration;
 import com.cubrid.sqlanalyzer.ui.AnalyzerWizard;
 import com.cubrid.sqlanalyzer.ui.AnalyzerWizardPage;
+import com.cubrid.sqlanalyzer.ui.page.view.AnalyzerSchemaTableView;
+import com.cubrid.sqlanalyzer.ui.page.view.AnalyzerSchemaTableView.SrcTable;
 
 public class AnalyzerSchemaMappingPage extends AnalyzerWizardPage {
 
@@ -42,7 +42,7 @@ public class AnalyzerSchemaMappingPage extends AnalyzerWizardPage {
 
     private AnalyzerWizard wizard;
     private AnalyzerConfiguration config;
-    private SchemaTableView schemaTableView;
+    private AnalyzerSchemaTableView schemaTableView;
     private final List<SrcTable> srcTableList = new ArrayList<>();
     private Catalog srcCatalog;
     private Button btnUpdateObjects;
@@ -78,7 +78,7 @@ public class AnalyzerSchemaMappingPage extends AnalyzerWizardPage {
                     }
                 });
 
-        schemaTableView = new SchemaTableView(container, getMigrationWizard().getMigrationConfig());
+        schemaTableView = new AnalyzerSchemaTableView(container, getMigrationWizard().getMigrationConfig());
 
         schemaTableView
                 .getViewer()
@@ -102,7 +102,6 @@ public class AnalyzerSchemaMappingPage extends AnalyzerWizardPage {
         updateDescription();
 
         schemaTableView.setSrcSchemaCatalog(wizard.getSourceSchemaCatalog());
-        schemaTableView.setTarCatalog(wizard.getTargetCatalog());
         schemaTableView.updateCellEditors();
 
         if (btnUpdateObjects != null && !btnUpdateObjects.isDisposed()) {
@@ -120,12 +119,7 @@ public class AnalyzerSchemaMappingPage extends AnalyzerWizardPage {
     }
 
     private void updateDescription() {
-        if ((config.targetIsOnline() && !wizard.getTargetCatalog().isDBAGroup())
-                /* || (!config.targetIsOnline() && !config.isAddUserSchema()) */) {
-            setDescription(Messages.schemaMappingPageDescriptionUncorrectable);
-        } else {
-            setDescription(Messages.schemaMappingPageDescription);
-        }
+        setDescription(Messages.schemaMappingPageDescription);
     }
 
     @Override
@@ -312,7 +306,6 @@ public class AnalyzerSchemaMappingPage extends AnalyzerWizardPage {
 
     private void setOnlineData() {
         final SchemaCatalog sourceSchemaCatalog = wizard.getSourceSchemaCatalog();
-        final Catalog tarCatalog = wizard.getTargetCatalog();
 
         Set<String> selected = config.getSelectedSrcSchemas();
         for (SchemaEntry schemaEntry : sourceSchemaCatalog.getSchemas()) {
@@ -325,11 +318,11 @@ public class AnalyzerSchemaMappingPage extends AnalyzerWizardPage {
                 isSelected = !schemaEntry.grantorSchema();
             }
             srcTable.setSelected(isSelected);
-            setOnlineTargetSchema(srcTable, tarCatalog);
+            setOnlineTargetSchema(srcTable);
         }
     }
 
-    private void setOnlineTargetSchema(SrcTable srcTable, Catalog tarCatalog) {
+    private void setOnlineTargetSchema(SrcTable srcTable) {
         final Map<String, Schema> scriptSchemaMap = config.getScriptSchemaMapping();
         if (!scriptSchemaMap.isEmpty()) {
             LOG.info("script schema");
@@ -364,7 +357,6 @@ public class AnalyzerSchemaMappingPage extends AnalyzerWizardPage {
 
     private boolean saveOnlineData(
             final List<SrcTable> currentSrcTables, final List<String> selectedSchemas) {
-        final Catalog tarCatalog = wizard.getTargetCatalog();
 
         if (!ensureDetailedSrcCatalog(selectedSchemas)) {
             return false;
@@ -377,7 +369,7 @@ public class AnalyzerSchemaMappingPage extends AnalyzerWizardPage {
             if (!srcTable.isSelected()) {
                 continue;
             }
-            if (!processOnlineTableMapping(srcTable, tarCatalog, checkNewSchemaDuplicate)) {
+            if (!processOnlineTableMapping(srcTable, checkNewSchemaDuplicate)) {
                 return false;
             }
         }
@@ -386,26 +378,17 @@ public class AnalyzerSchemaMappingPage extends AnalyzerWizardPage {
     }
 
     private boolean processOnlineTableMapping(
-            SrcTable srcTable, Catalog tarCatalog, List<String> checkNewSchemaDuplicate) {
-        if (!(tarCatalog.isDbHasUserSchema())) {
-            srcTable.setTarSchema(null);
-            return true;
-        }
+            SrcTable srcTable, List<String> checkNewSchemaDuplicate) {
 
         if (StringUtils.isEmpty(srcTable.getTarSchema())) {
             MessageDialog.openError(getShell(), Messages.msgError, Messages.msgErrEmptySchemaName);
             return false;
         }
 
-        Schema targetSchema = tarCatalog.getSchemaByName(srcTable.getTarSchema());
         final Schema srcSchema = srcCatalog.getSchemaByName(srcTable.getSrcSchema());
         if (srcSchema == null) return true;
 
-        if (targetSchema != null) {
-            srcSchema.setTargetSchemaName(targetSchema.getName());
-        } else {
-            configureNewTargetSchema(srcSchema, srcTable.getTarSchema(), checkNewSchemaDuplicate);
-        }
+        configureNewTargetSchema(srcSchema, srcTable.getTarSchema(), checkNewSchemaDuplicate);
         return true;
     }
 
