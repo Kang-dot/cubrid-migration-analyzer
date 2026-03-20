@@ -27,6 +27,10 @@ public class AnalyzerConfiguration extends MigrationConfiguration {
 		this.queryDict = queryDict;
 	}
 	
+	public boolean isSourceXML() {
+		return getSourceType() == AnalyzerConfiguration.SOURCE_TYPE_XML;
+	}
+	
     public boolean isTargetParser() {
     	return getDestType() == AnalyzerConfiguration.TARGET_TYPE_PARSER;
     }

@@ -1,93 +1,14 @@
-/*
- * Copyright (C) 2008 Search Solution Corporation.
- * Copyright (C) 2016 CUBRID Corporation.
- *
- * Redistribution and use in source and binary forms, with or without modification,
- * are permitted provided that the following conditions are met:
- *
- * - Redistributions of source code must retain the above copyright notice,
- *   this list of conditions and the following disclaimer.
- *
- * - Redistributions in binary form must reproduce the above copyright notice,
- *   this list of conditions and the following disclaimer in the documentation
- *   and/or other materials provided with the distribution.
- *
- * - Neither the name of the <ORGANIZATION> nor the names of its contributors
- *   may be used to endorse or promote products derived from this software without
- *   specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
- * INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
- * OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY
- * OF SUCH DAMAGE.
- *
- */
 package com.cubrid.sqlanalyzer.ui.page;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import org.apache.commons.collections4.CollectionUtils;
-import org.eclipse.jface.dialogs.Dialog;
-import org.eclipse.jface.dialogs.IMessageProvider;
-import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.jface.dialogs.PageChangedEvent;
 import org.eclipse.jface.dialogs.PageChangingEvent;
-import org.eclipse.jface.viewers.DoubleClickEvent;
-import org.eclipse.jface.viewers.IDoubleClickListener;
-import org.eclipse.jface.viewers.ISelectionChangedListener;
-import org.eclipse.jface.viewers.IStructuredSelection;
-import org.eclipse.jface.viewers.SelectionChangedEvent;
-import org.eclipse.jface.viewers.StructuredSelection;
-import org.eclipse.jface.viewers.TableViewer;
 import org.eclipse.swt.SWT;
-import org.eclipse.swt.custom.SashForm;
-import org.eclipse.swt.events.SelectionAdapter;
-import org.eclipse.swt.events.SelectionEvent;
-import org.eclipse.swt.layout.FillLayout;
-import org.eclipse.swt.layout.GridData;
-import org.eclipse.swt.layout.GridLayout;
+import org.eclipse.swt.custom.StackLayout;
 import org.eclipse.swt.widgets.Composite;
-import org.eclipse.swt.widgets.Group;
-import org.eclipse.swt.widgets.ToolBar;
-import org.eclipse.swt.widgets.ToolItem;
 
-import com.cubrid.common.ui.navigator.ICUBRIDNode;
-import com.cubrid.cubridmigration.core.dbobject.Catalog;
-import com.cubrid.cubridmigration.core.dbobject.DBObject;
-import com.cubrid.cubridmigration.core.dbobject.Table;
-import com.cubrid.cubridmigration.core.engine.config.MigrationConfiguration;
-import com.cubrid.cubridmigration.ui.common.dialog.DetailMessageDialog;
-import com.cubrid.cubridmigration.ui.common.navigator.node.ColumnsNode;
-import com.cubrid.cubridmigration.ui.common.navigator.node.FKsNode;
-import com.cubrid.cubridmigration.ui.common.navigator.node.IndexesNode;
-import com.cubrid.cubridmigration.ui.common.navigator.node.TableNode;
-import com.cubrid.cubridmigration.ui.message.Messages;
-import com.cubrid.cubridmigration.ui.wizard.MigrationWizard;
-import com.cubrid.cubridmigration.ui.wizard.dialog.AdjustCharColumnDialog;
-import com.cubrid.cubridmigration.ui.wizard.dialog.TableIndexSelectorDialog;
-import com.cubrid.cubridmigration.ui.wizard.page.view.AbstractMappingView;
-import com.cubrid.cubridmigration.ui.wizard.page.view.IRefreshableView;
-import com.cubrid.cubridmigration.ui.wizard.page.view.TableMappingView;
-import com.cubrid.cubridmigration.ui.wizard.utils.MigrationCfgUtils;
-import com.cubrid.cubridmigration.ui.wizard.utils.VerifyResultMessages;
-import com.cubrid.sqlanalyzer.core.dbobject.treenode.DefaultNode;
-import com.cubrid.sqlanalyzer.core.dbobject.treenode.DeleteNode;
-import com.cubrid.sqlanalyzer.core.dbobject.treenode.IAnalyzerNode;
-import com.cubrid.sqlanalyzer.core.dbobject.treenode.InsertNode;
-import com.cubrid.sqlanalyzer.core.dbobject.treenode.SelectNode;
-import com.cubrid.sqlanalyzer.core.dbobject.treenode.UpdateNode;
+import com.cubrid.sqlanalyzer.core.AnalyzerConfiguration;
 import com.cubrid.sqlanalyzer.ui.AnalyzerWizard;
 import com.cubrid.sqlanalyzer.ui.AnalyzerWizardPage;
-import com.cubrid.sqlanalyzer.ui.page.view.AnalyzerDMLTreeNodeView;
-import com.cubrid.sqlanalyzer.ui.page.view.AnalyzerObjectTableMappingView;
 
 /**
  * Page to set up mapping from source DB objects to target DB objects
@@ -95,14 +16,14 @@ import com.cubrid.sqlanalyzer.ui.page.view.AnalyzerObjectTableMappingView;
  * @author caoyilin
  * @version 1.0 - 2012-07-20
  */
-public class AnalyzerObjectMappingPage extends AnalyzerWizardPage implements IRefreshableView {
-    private AnalyzerDMLTreeNodeView tvSourceDBObjects;
-    private final Map<String, AbstractMappingView> node2ViewMapping =
-            new HashMap<String, AbstractMappingView>();
-
-    private AbstractMappingView currentView;
-
-    private final MigrationCfgUtils util = new MigrationCfgUtils();
+public class AnalyzerObjectMappingPage extends AnalyzerWizardPage {
+    
+    private Composite mainContainer;
+    private StackLayout stackLayout;
+    
+    private IObjectMappingStrategy analyzerStrategy;
+    private IObjectMappingStrategy cmtStrategy;
+    private IObjectMappingStrategy currentStrategy;
 
     /** Create the wizard constructor */
     public AnalyzerObjectMappingPage(String pageName) {
@@ -110,516 +31,57 @@ public class AnalyzerObjectMappingPage extends AnalyzerWizardPage implements IRe
     }
 
     /**
-     * Initialize page
-     *
-     * @param event PageChangedEvent
-     */
-    protected void afterShowCurrentPage(PageChangedEvent event) {
-//        final MigrationWizard mw = getMigrationWizard();
-    	final AnalyzerWizard mw = getMigrationWizard();
-        setTitle(mw.getStepNoMsg(AnalyzerObjectMappingPage.this) + Messages.objectMapPageTitle);
-        setDescription(Messages.objectMapPageDescription);
-        setSourceTableNoPKWarningMessage();
-        // Clear error messages.
-        setErrorMessage(null);
-        // Refresh some status of current wizard.
-        mw.refreshWizardStatus();
-        util.setTargetCatalog(mw.getTargetCatalog(), mw);
-        try {
-            // Update migration source database schema
-            Catalog sourceCatalog = mw.getSourceCatalog();
-            Catalog targetCatalog = mw.getTargetCatalog();
-
-            final MigrationConfiguration cfg = mw.getMigrationConfig();
-
-            // Reset migration configuration
-            for (AbstractMappingView amv : node2ViewMapping.values()) {
-                amv.setMigrationConfig(cfg);
-                amv.setWizardStatus(mw);
-            }
-            util.setMigrationConfiguration(cfg);
-
-            refreshTreeView();
-            this.getShell().setMaximized(true);
-            isFirstVisible = false;
-
-            // select all if there have no selected tables to migrate
-            if (!cfg.hasObjects2Export()) {
-                cfg.setAll(true);
-                refreshCurrentView();
-            }
-        } catch (RuntimeException ex) {
-//            LOG.error(LogUtil.getExceptionString(ex));
-            throw ex;
-        }
-    }
-
-    private void showDetailMessageDialog(Catalog sourceCatalog) {
-        String detailMessage = getDetailMessage(sourceCatalog, 1);
-        DetailMessageDialog.openInfo(
-                getShell(),
-                Messages.titleDuplicateObjects,
-                Messages.msgDuplicateObjects,
-                detailMessage);
-    }
-
-    /**
-     * message type 0 -> target cubrid have multiple schema, and have duplicate table 1 -> target
-     * cubrid didn't have multiple schema, and have duplicate table
-     *
-     * @param sourceCatalog
-     * @param messageType
-     * @return
-     */
-    private String getDetailMessage(Catalog sourceCatalog, int messageType) {
-        StringBuffer sb = new StringBuffer();
-        util.createDetailMessage(sb, sourceCatalog, DBObject.OBJ_TYPE_TABLE, messageType);
-        util.createDetailMessage(sb, sourceCatalog, DBObject.OBJ_TYPE_VIEW, messageType);
-        util.createDetailMessage(sb, sourceCatalog, DBObject.OBJ_TYPE_SEQUENCE, messageType);
-        util.createDetailMessage(sb, sourceCatalog, DBObject.OBJ_TYPE_SYNONYM, messageType);
-        return sb.toString();
-    }
-
-    /** setNoPKWarnings */
-    private void setSourceTableNoPKWarningMessage() {
-        final MigrationWizard mw = getMigrationWizard();
-        Catalog sourceCatalog = mw.getSourceCatalog();
-        final MigrationConfiguration cfg = mw.getMigrationConfig();
-        if (cfg.isCreateConstrainsBeforeData()) {
-            StringBuffer descriptionMessage = new StringBuffer();
-            List<String> noPKTables = util.getNoPKTables(sourceCatalog);
-            if (CollectionUtils.isNotEmpty(noPKTables)) {
-                descriptionMessage.append(" Source tables without primary key: ");
-                for (String noPKTableName : noPKTables) {
-                    descriptionMessage.append(noPKTableName).append(", ");
-                }
-                descriptionMessage.deleteCharAt(descriptionMessage.length() - 1);
-                descriptionMessage.deleteCharAt(descriptionMessage.length() - 1);
-            }
-            setMessage(descriptionMessage.toString(), IMessageProvider.WARNING);
-        }
-    }
-
-    /**
      * Create contents of the wizard
      *
      * @param parent Composite
      */
+    @Override
     public void createControl(Composite parent) {
-        Composite container = new Composite(parent, SWT.NONE);
-        container.setLayout(new GridLayout());
-        container.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
-        setControl(container);
+        mainContainer = new Composite(parent, SWT.NONE);
+        stackLayout = new StackLayout();
+        mainContainer.setLayout(stackLayout);
+        setControl(mainContainer);
 
-        SashForm container2 = new SashForm(container, SWT.HORIZONTAL);
-        container2.setLayout(new FillLayout());
-        container2.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
-        createTreeView(container2);
-        createDetailPanel(container2);
-        container2.setWeights(new int[] {1, 3});
-//        container2.setWeights(new int[] {1});
-        createToolButtons(container);
+        // 1. Create instances of each strategy
+        analyzerStrategy = new AnalyzerObjectMappingStrategy(this);
+        cmtStrategy = new CMTObjectMappingStrategy(this);
+
+        // 2. Create UI components for each strategy (inside StackLayout)
+        analyzerStrategy.createControl(mainContainer);
+        cmtStrategy.createControl(mainContainer);
     }
 
-    /**
-     * Create right panel
-     *
-     * @param parent Composite
-     */
-    protected void createDetailPanel(Composite parent) {
-        Group detailContainer = new Group(parent, SWT.NONE);
-        detailContainer.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
-        detailContainer.setLayout(new GridLayout());
-        detailContainer.setText(Messages.dbObjectSelectMapping);
+    @Override
+    protected void afterShowCurrentPage(PageChangedEvent event) {
+        AnalyzerWizard mw = getMigrationWizard();
+        AnalyzerConfiguration config = mw.getAnalyzerConfig();
 
-        AnalyzerObjectTableMappingView analyzerObjMappingView =
-                new AnalyzerObjectTableMappingView(detailContainer);
-        analyzerObjMappingView.addTabSelectionListener(
-                new AnalyzerObjectTableMappingView.ITabSelectionListener() {
-                    @Override
-                    public void tabChanged(IAnalyzerNode node) {
-                        tvSourceDBObjects.setSelection(node);
-                    }
-                });
-        analyzerObjMappingView.addDoubleClickListener(
-                new IDoubleClickListener() {
+        // Strategy switching (branching)
+        if (config.isSourceXML()) {
+            currentStrategy = analyzerStrategy;
+        } else {
+            currentStrategy = cmtStrategy;
+        }
 
-                    public void doubleClick(DoubleClickEvent event) {
-                        if (event.getSelection().isEmpty()) {
-                            return;
-                        }
-                        Object first =
-                                ((StructuredSelection) event.getSelection()).getFirstElement();
-                        if (!(first instanceof AnalyzerObjectTableMappingView.DmlRow)) {
-                            return;
-                        }
-                        AnalyzerObjectTableMappingView.DmlRow row =
-                                (AnalyzerObjectTableMappingView.DmlRow) first;
-                        IAnalyzerNode targetNode = row.getNode();
-                        if (targetNode == null) {
-                            return;
-                        }
-                        tvSourceDBObjects.setSelection(targetNode);
-                        showRightView(targetNode, true);
-                    }
-                });
-        // analyzerObjMappingView.addDoubleClickListener(new IDoubleClickListener() { ... });
+        // Display the selected strategy view
+        stackLayout.topControl = currentStrategy.getContainer();
+        mainContainer.layout();
 
-        TableMappingView tableMappingView = new TableMappingView(detailContainer);
-        // Double click to show detail information
-        tableMappingView.addDoubleClickListener(
-                new IDoubleClickListener() {
-
-                    public void doubleClick(DoubleClickEvent event) {
-                        if (event.getSource() == null || event.getSelection().isEmpty()) {
-                            return;
-                        }
-                        // The last element of the array is the source configuration object
-                        Object[] obj =
-                                (Object[])
-                                        ((StructuredSelection) event.getSelection())
-                                                .getFirstElement();
-                        TableViewer tv = (TableViewer) event.getSource();
-                        String ct = tv.getData(AbstractMappingView.CONTENT_TYPE).toString();
-                        ICUBRIDNode cn = (ICUBRIDNode) currentView.getModel();
-                        while (cn != null) {
-                            if (cn instanceof TableNode) {
-                                break;
-                            }
-                            cn = cn.getParent();
-                        }
-                        // For klocwork
-                        if (cn == null) {
-                            return;
-                        }
-                        ICUBRIDNode selectionParent = cn;
-                        if (AbstractMappingView.CT_COLUMN.equals(ct)) {
-                            for (ICUBRIDNode chn : cn.getChildren()) {
-                                if (chn instanceof ColumnsNode) {
-                                    selectionParent = chn;
-                                    break;
-                                }
-                            }
-                        } else if (AbstractMappingView.CT_FK.equals(ct)) {
-                            for (ICUBRIDNode chn : cn.getChildren()) {
-                                if (chn instanceof FKsNode) {
-                                    selectionParent = chn;
-                                    break;
-                                }
-                            }
-                        } else if (AbstractMappingView.CT_INDEX.equals(ct)) {
-                            for (ICUBRIDNode chn : cn.getChildren()) {
-                                if (chn instanceof IndexesNode) {
-                                    selectionParent = chn;
-                                    break;
-                                }
-                            }
-                        }
-                        for (ICUBRIDNode col : selectionParent.getChildren()) {
-                            if (col.getName().equals((String) obj[1])) {
-                                tvSourceDBObjects.setSelection(col);
-                                showRightView(col, true);
-                                return;
-                            }
-                        }
-                    }
-                });
-
-        node2ViewMapping.put(DefaultNode.class.getName(), analyzerObjMappingView);
-        node2ViewMapping.put(SelectNode.class.getName(), analyzerObjMappingView);
-        node2ViewMapping.put(InsertNode.class.getName(), analyzerObjMappingView);
-        node2ViewMapping.put(UpdateNode.class.getName(), analyzerObjMappingView);
-        node2ViewMapping.put(DeleteNode.class.getName(), analyzerObjMappingView);
+        // Delegate data binding
+        currentStrategy.afterShowCurrentPage();
     }
 
-    /**
-     * Create tool buttons
-     *
-     * @param parent Composite
-     */
-    private void createToolButtons(Composite parent) {
-        // ***********************************************************************
-        final Composite bottomComposite = new Composite(parent, SWT.NONE);
-        bottomComposite.setLayoutData(new GridData(SWT.RIGHT, SWT.CENTER, true, false, 2, 1));
-        final GridLayout gridLayout = new GridLayout();
-        bottomComposite.setLayout(gridLayout);
-
-        // ***********************************************************************
-        Composite grpChangeSize = new Composite(bottomComposite, SWT.BORDER);
-        grpChangeSize.setLayout(new GridLayout());
-        grpChangeSize.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, true));
-        // grpChangeSize.setText(Messages.mappingColSizeOptTitle);
-
-        ToolBar tbTools = new ToolBar(grpChangeSize, SWT.WRAP | SWT.RIGHT | SWT.FLAT);
-        tbTools.setLayout(new GridLayout());
-        tbTools.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
-
-        final ToolItem btnReuseOID = new ToolItem(tbTools, SWT.CHECK);
-        // btnConstaintSelector.setVisible(false);
-        //		btnReuseOID.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true,
-        //				false));
-        btnReuseOID.setText(Messages.lblReuseOID);
-        btnReuseOID.addSelectionListener(
-                new SelectionAdapter() {
-                    public void widgetSelected(SelectionEvent ev) {
-                        if (!saveCurrentView()) {
-                            return;
-                        }
-                        final MigrationWizard mw = getMigrationWizard();
-                        // Update migration source database schema
-                        final MigrationConfiguration cfg = mw.getMigrationConfig();
-                        final List<Table> targetTableSchema = cfg.getTargetTableSchema();
-                        for (Table tt : targetTableSchema) {
-                            tt.setReuseOID(btnReuseOID.getSelection());
-                        }
-                        refreshCurrentView();
-                    }
-                });
-        new ToolItem(tbTools, SWT.SEPARATOR);
-        //		Group grpSelect = new Group(bottomComposite, SWT.LEFT_TO_RIGHT);
-        //		grpSelect.setLayout(new GridLayout(4, false));
-
-        ToolItem btnSelectAll = new ToolItem(tbTools, SWT.PUSH);
-        //		btnSelectAll.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true,
-        //				false));
-        btnSelectAll.setText(Messages.lblSelectAll);
-        btnSelectAll.addSelectionListener(
-                new SelectionAdapter() {
-                    public void widgetSelected(SelectionEvent ev) {
-                        if (!saveCurrentView()) {
-                            return;
-                        }
-                        getMigrationWizard().getMigrationConfig().setAll(true);
-                        refreshCurrentView();
-                        setErrorMessage(null);
-                    }
-                });
-        new ToolItem(tbTools, SWT.SEPARATOR);
-        ToolItem btnClearAll = new ToolItem(tbTools, SWT.PUSH);
-        //		btnClearAll.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true,
-        //				false));
-        btnClearAll.setText(Messages.lblClearAll);
-        btnClearAll.addSelectionListener(
-                new SelectionAdapter() {
-                    public void widgetSelected(SelectionEvent ev) {
-                        if (MessageDialog.openConfirm(
-                                null, Messages.lblClearAll, Messages.msgCfmClearALL)) {
-                            final MigrationWizard mw = getMigrationWizard();
-                            // Update migration source database schema
-                            final MigrationConfiguration cfg = mw.getMigrationConfig();
-                            cfg.setAll(false);
-                            // Fill Tree View
-                            refreshTreeView();
-                            if (cfg.getExpSQLCfg().isEmpty()) {
-                                setErrorMessage(Messages.errNoDBObject);
-                            }
-                        }
-                    }
-                });
-        new ToolItem(tbTools, SWT.SEPARATOR);
-        ToolItem btnConstaintSelector = new ToolItem(tbTools, SWT.PUSH);
-        // btnConstaintSelector.setVisible(false);
-        //		btnConstaintSelector.setLayoutData(new GridData(SWT.FILL, SWT.CENTER,
-        //				true, false));
-        btnConstaintSelector.setText(Messages.lblIndexQuickSetting);
-        btnConstaintSelector.addSelectionListener(
-                new SelectionAdapter() {
-                    public void widgetSelected(SelectionEvent ev) {
-                        if (!saveCurrentView()) {
-                            return;
-                        }
-                        final MigrationWizard mw = getMigrationWizard();
-                        // Update migration source database schema
-                        final MigrationConfiguration cfg = mw.getMigrationConfig();
-
-                        TableIndexSelectorDialog dialog =
-                                new TableIndexSelectorDialog(getShell(), cfg);
-                        if (dialog.open() != Dialog.OK) {
-                            return;
-                        }
-                        refreshCurrentView();
-                    }
-                });
-
-        new ToolItem(tbTools, SWT.SEPARATOR);
-        ToolItem btnChangeCharColumns = new ToolItem(tbTools, SWT.NONE);
-        btnChangeCharColumns.setText(Messages.btnChangeCharColumns);
-
-        btnChangeCharColumns.addSelectionListener(
-                new SelectionAdapter() {
-
-                    public void widgetSelected(SelectionEvent event) {
-                        if (!saveCurrentView()) {
-                            return;
-                        }
-                        openAdjustCharColumnDialog();
-                    }
-                });
-    }
-
-    /**
-     * Create source database Tree Viewer
-     *
-     * @param parent SashForm
-     */
-    protected void createTreeView(SashForm parent) {
-        Group srcDBContainer = new Group(parent, SWT.NONE);
-        GridData gdTV = new GridData(SWT.LEFT, SWT.FILL, false, true);
-        srcDBContainer.setLayoutData(gdTV);
-        srcDBContainer.setLayout(new GridLayout());
-        srcDBContainer.setText(Messages.lblSourceDBPart);
-
-        tvSourceDBObjects = new AnalyzerDMLTreeNodeView(srcDBContainer, SWT.BORDER);
-        tvSourceDBObjects.setRefreshableView(this);
-        tvSourceDBObjects.addSelectionChangedListener(
-                new ISelectionChangedListener() {
-
-                    public void selectionChanged(SelectionChangedEvent event) {
-                        if (event.getSelection().isEmpty()) {
-                            return;
-                        }
-                        IStructuredSelection ss = (IStructuredSelection) event.getSelection();
-                        showRightView(ss.getFirstElement(), true);
-                    }
-                });
-    }
-
-    /**
-     * When migration wizard will show next page or previous page.
-     *
-     * @param event PageChangingEvent
-     */
+    @Override
     protected void handlePageLeaving(PageChangingEvent event) {
         if (!isGotoNextPage(event)) {
             return;
         }
-        event.doit = validateConfig();
-    }
-
-    /** Open adjust char column dialog. */
-    private void openAdjustCharColumnDialog() {
-        AdjustCharColumnDialog dialog =
-                new AdjustCharColumnDialog(AnalyzerObjectMappingPage.this.getShell(), util);
-        dialog.open();
-        refreshCurrentView();
-    }
-
-    /** Refresh current view */
-    public void refreshCurrentView() {
-        if (currentView != null) {
-            currentView.showData(currentView.getModel());
+        if (currentStrategy != null) {
+            event.doit = currentStrategy.handlePageLeaving(event);
         }
     }
-
-    /**
-     * Refresh the source tree viewer.
-     *
-     * @param mw
-     * @param cfg
-     */
-    private void refreshTreeView() {
-        final AnalyzerWizard mw = getMigrationWizard();
-        final MigrationConfiguration cfg = mw.getMigrationConfig();
-
-//        if (cfg.targetIsOnline() && !cfg.isTargetDBAGroup()) {
-//            CubridNodeManager.getInstance().changeGrantsNodeLabel();
-//        }
-
-        // Fill Tree View
-        tvSourceDBObjects.setInput(mw.getSourceDBNode());
-        // If Source DB is changed, clear the last view UI.
-        if (currentView != null) {
-            currentView.hide();
-            currentView = null;
-        }
-
-        // Database node will not be selected.
-        IAnalyzerNode node = mw.getSourceDBNode();
-        List<IAnalyzerNode> schemaNodes = node.getChildren();
-        if (schemaNodes.size() == 1) {
-            node = schemaNodes.get(0).getChildren().get(0);
-        } else if (schemaNodes.size() > 1) {
-            node = schemaNodes.get(0);
-        }
-        showRightView(node, true);
-        tvSourceDBObjects.setFocus();
-    }
-
-    /**
-     * Set the page is first show
-     *
-     * @param isFirstVisible boolean
-     */
-    public void setFirstVisible(boolean isFirstVisible) {
-        this.isFirstVisible = isFirstVisible;
-    }
-
-    /**
-     * The selection is ICubridNode or SourceSQLConfig
-     *
-     * @param selection Object
-     * @param autoSave If save current view before show next view
-     */
-    private void showRightView(Object selection, boolean autoSave) {
-        if (selection == null) {
-            return;
-        }
-        AbstractMappingView view = node2ViewMapping.get(selection.getClass().getName());
-        if (view == null) {
-            // Show it's parent
-            showRightView(((ICUBRIDNode) selection).getParent(), autoSave);
-            return;
-        }
-        // If old view is not null, save it firstly.
-        if (autoSave && currentView != null) {
-            try {
-                VerifyResultMessages msg = currentView.save();
-                if (msg.hasError()) {
-                    tvSourceDBObjects.setSelection(currentView.getModel());
-                    this.setErrorMessage(msg.getErrorMessage());
-                    return;
-                }
-            } catch (Exception ex) {
-//                LOG.error("", ex);
-                ex.printStackTrace();
-                if (!MessageDialog.openConfirm(
-                        getShell(), Messages.lblSaveConfig, Messages.msgCfmErrorSave)) {
-                    tvSourceDBObjects.setSelection(currentView.getModel());
-                    return;
-                }
-            }
-        }
-        if (currentView != null && !currentView.equals(view)) {
-            currentView.hide();
-        }
-        this.setErrorMessage(null);
-        currentView = view;
-        currentView.show();
-        currentView.showData(selection);
-    }
-
-    /**
-     * Save current view's data and validate the migration configuration
-     *
-     * @return true if it can go to next step
-     */
-    private boolean validateConfig() {
-        if (!saveCurrentView()) {
-            return false;
-        }
-        return true;
-    }
-
-    /** @return save current view result */
-    protected boolean saveCurrentView() {
-        if (currentView != null) {
-            VerifyResultMessages msg = currentView.save();
-            if (msg.hasError()) {
-                setErrorMessage(msg.getErrorMessage());
-                MessageDialog.openError(getShell(), Messages.msgError, msg.getErrorMessage());
-                return false;
-            }
-        }
-        return true;
+    
+    public AnalyzerWizard getMigrationWizard() {
+        return (AnalyzerWizard) super.getWizard();
     }
 }

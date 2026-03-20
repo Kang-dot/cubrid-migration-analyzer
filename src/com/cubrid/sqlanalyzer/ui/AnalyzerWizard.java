@@ -176,6 +176,10 @@ public class AnalyzerWizard extends MigrationWizard {
         }
     }
 
+    public void setMigrationSourceDBNode(Catalog sourceCatalog) {
+        super.setSourceDBNode(sourceCatalog);
+    }
+
     public boolean updateSrcTarType(int srcType, int tarType) {
         // Warning message : type changing will cause settings reset
         AnalyzerConfiguration cfg = analyzerConfig;

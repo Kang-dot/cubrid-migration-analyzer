@@ -1,8 +1,6 @@
 package com.cubrid.sqlanalyzer.core.engine.schedular;
 
-import com.cubrid.cubridmigration.core.dbobject.Catalog;
 import com.cubrid.sqlanalyzer.core.AnalyzerConfiguration;
-import com.cubrid.sqlanalyzer.core.dbobject.AnalyzerCatalog;
 import com.cubrid.sqlanalyzer.core.dbobject.QueryDictionary;
 import com.cubrid.sqlanalyzer.core.engine.AnalyzerContext;
 import com.cubrid.sqlanalyzer.core.engine.task.AnalyzeTask;

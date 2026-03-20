@@ -373,7 +373,7 @@ public class AnalyzerSchemaMappingPage extends AnalyzerWizardPage {
                 return false;
             }
         }
-        wizard.setSourceDBNode(srcCatalog);
+        wizard.setMigrationSourceDBNode(srcCatalog);
         return true;
     }
 
