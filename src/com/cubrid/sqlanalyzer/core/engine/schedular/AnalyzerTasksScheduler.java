@@ -5,6 +5,11 @@ import com.cubrid.sqlanalyzer.core.dbobject.QueryDictionary;
 import com.cubrid.sqlanalyzer.core.engine.AnalyzerContext;
 import com.cubrid.sqlanalyzer.core.engine.task.AnalyzeTask;
 import com.cubrid.sqlanalyzer.core.engine.task.AnalyzerTaskFactory;
+import com.cubrid.sqlanalyzer.core.plan.AnalyzerExecutionPlan;
+import com.cubrid.sqlanalyzer.core.plan.AnalyzerExecutionPlanBuilder;
+import com.cubrid.sqlanalyzer.core.plan.AnalyzerStatement;
+import com.cubrid.sqlanalyzer.core.plan.CatalogDDLPlanBuilder;
+import com.cubrid.sqlanalyzer.core.plan.QueryDictionaryPlanBuilder;
 
 public class AnalyzerTasksScheduler {
 	
@@ -18,9 +23,28 @@ public class AnalyzerTasksScheduler {
 	
 	public void schedule() {
 		// TODO: schedule
-		setQueryDictionary();
-		executeDDL();
-		executeDML();
+		AnalyzerExecutionPlan plan = buildExecutionPlan();
+		
+		for (AnalyzerStatement stmt : plan.getStatements()) {
+			executeTask(taskFactory.executeQuery(stmt.getType(), stmt.getId(), stmt.getSQL()));
+		}
+		
+//		setQueryDictionary();
+//		executeDDL();
+//		executeDML();
+	}
+	
+	public AnalyzerExecutionPlan buildExecutionPlan() {
+	    AnalyzerConfiguration config = context.getConfig();
+	    AnalyzerExecutionPlanBuilder builder;
+
+	    if (config.isSourceXML()) {
+	        builder = new QueryDictionaryPlanBuilder();
+	    } else {
+	    	builder = new CatalogDDLPlanBuilder();
+	    }
+
+	    return builder.build(config);
 	}
 	
 	public void setQueryDictionary() {

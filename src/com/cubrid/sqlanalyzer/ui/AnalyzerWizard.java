@@ -28,8 +28,8 @@ import com.cubrid.sqlanalyzer.ui.page.CreateTarConnectionPage;
 public class AnalyzerWizard extends MigrationWizard {
 
 	private static final int[] IDX_ONLINE = new int[] {0, 1, 2, 3, 4};
-	private static final int[] IDX_PARSER = new int[] {0, 1, 5, 3, 4};
-//	private static final int[] IDX_PARSER = new int[] {0, 1, 2, 3, 4};
+//	private static final int[] IDX_PARSER = new int[] {0, 1, 5, 3, 4};
+	private static final int[] IDX_PARSER = new int[] {0, 1, 3, 4};
 	
 	DefaultNode defaultTreeNode;
 	AnalyzerConfiguration analyzerConfig;
@@ -41,6 +41,8 @@ public class AnalyzerWizard extends MigrationWizard {
         setNeedsProgressMonitor(true);
         setDialogSettings(new DialogSettings("migration information"));
         analyzerConfig = new AnalyzerConfiguration();
+        this.migrationConfig = analyzerConfig;
+        
         analyzerConfig.setWizardStartDateTime(
                 CUBRIDTimeUtil.wizardStarDateTimeFormat(new Date(System.currentTimeMillis())));
     }
@@ -149,7 +151,7 @@ public class AnalyzerWizard extends MigrationWizard {
     }
     
     public MigrationConfiguration getMigrationConfig() {
-    	return super.getMigrationConfig();
+    	return analyzerConfig;
     }
     
     private int[] getPageNOs() {
@@ -182,7 +184,7 @@ public class AnalyzerWizard extends MigrationWizard {
 
     public boolean updateSrcTarType(int srcType, int tarType) {
         // Warning message : type changing will cause settings reset
-        AnalyzerConfiguration cfg = analyzerConfig;
+        AnalyzerConfiguration cfg = getAnalyzerConfig();
 
         cfg.setSourceType(srcType);
         cfg.setDestType(tarType);
@@ -212,6 +214,7 @@ public class AnalyzerWizard extends MigrationWizard {
     public void setTempCatalog(Catalog tempSourceCatalog) {
     	this.tempSourceCatalog = tempSourceCatalog;
     }
+    
     
     // TODO: this methods is temp method. this method will remove after getting DDL from oracle function is finish
     public Catalog getTempCatalog() {

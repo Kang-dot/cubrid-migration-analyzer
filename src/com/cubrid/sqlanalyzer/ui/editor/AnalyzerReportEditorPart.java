@@ -49,6 +49,8 @@ public class AnalyzerReportEditorPart extends EditorPart {
     public static final String EMPTY_CELL_VALUE = "-";
 
     private TableViewer tvOverview;
+    private TableViewer tvTable;
+    private TableViewer tvView;
     private TableViewer tvSelect;
     private TableViewer tvInsert;
     private TableViewer tvDelete;
@@ -67,7 +69,7 @@ public class AnalyzerReportEditorPart extends EditorPart {
 
     private AnalyzerReportUIController controller = new AnalyzerReportUIController();
 
-    /** Summary data for each DML type */
+    /** Summary data for each statement type */
     private static class DMLSummary {
         String type;
         long total;
@@ -87,7 +89,7 @@ public class AnalyzerReportEditorPart extends EditorPart {
         }
     }
 
-    /** Label provider for DML summary table */
+    /** Label provider for statement summary table */
     private static class DMLSummaryLabelProvider extends LabelProvider
             implements ITableLabelProvider {
 
@@ -243,10 +245,45 @@ public class AnalyzerReportEditorPart extends EditorPart {
                         if (index < 0) {
                             return;
                         }
-                        // Index mapping: 0: SELECT, 1: INSERT, 2: DELETE, 3: UPDATE
                         tfReport.setSelection(index + 1);
                     }
                 });
+    }
+
+    private void createTablePage(TabFolder tfReport) {
+        TabItem tiTable = new TabItem(tfReport, SWT.NONE);
+        tiTable.setText("TABLE");
+
+        Composite comTable = new Composite(tfReport, SWT.NONE);
+        tiTable.setControl(comTable);
+        comTable.setLayout(new GridLayout());
+        comTable.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
+
+        DetailTableBuilder tvBuilder = new DetailTableBuilder();
+        tvBuilder.setContentProvider(new ArrayContentProvider());
+        tvBuilder.setLabelProvider(new DetailTableLabelProvider());
+        tvTable =
+                tvBuilder.buildTable(
+                        comTable, SWT.BORDER | SWT.FULL_SELECTION | SWT.H_SCROLL | SWT.V_SCROLL);
+        addDMLTableDoubleClickListener(tvTable);
+    }
+
+    private void createViewPage(TabFolder tfReport) {
+        TabItem tiView = new TabItem(tfReport, SWT.NONE);
+        tiView.setText("VIEW");
+
+        Composite comView = new Composite(tfReport, SWT.NONE);
+        tiView.setControl(comView);
+        comView.setLayout(new GridLayout());
+        comView.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
+
+        DetailTableBuilder tvBuilder = new DetailTableBuilder();
+        tvBuilder.setContentProvider(new ArrayContentProvider());
+        tvBuilder.setLabelProvider(new DetailTableLabelProvider());
+        tvView =
+                tvBuilder.buildTable(
+                        comView, SWT.BORDER | SWT.FULL_SELECTION | SWT.H_SCROLL | SWT.V_SCROLL);
+        addDMLTableDoubleClickListener(tvView);
     }
 
     public void createPartControl(Composite parent) {
@@ -259,6 +296,8 @@ public class AnalyzerReportEditorPart extends EditorPart {
         tfReport.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
 
         createOverviewPage(tfReport);
+        createTablePage(tfReport);
+        createViewPage(tfReport);
         createSelectPage(tfReport);
         createInsertPage(tfReport);
         createDeletePage(tfReport);
@@ -464,6 +503,12 @@ public class AnalyzerReportEditorPart extends EditorPart {
         List<DMLSummary> summaryList = new ArrayList<>();
         summaryList.add(
                 new DMLSummary(
+                        "TABLE", report.getTableTotalCount(), report.getTableErrorCount()));
+        summaryList.add(
+                new DMLSummary(
+                        "VIEW", report.getViewTotalCount(), report.getViewErrorCount()));
+        summaryList.add(
+                new DMLSummary(
                         "SELECT", report.getSelectTotalCount(), report.getSelectErrorCount()));
         summaryList.add(
                 new DMLSummary(
@@ -477,6 +522,8 @@ public class AnalyzerReportEditorPart extends EditorPart {
 
         tvOverview.setInput(summaryList);
 
+        setupDmlTableInput(tvTable, report.getTableResults(), "TABLE");
+        setupDmlTableInput(tvView, report.getViewResults(), "VIEW");
         setupDmlTableInput(tvSelect, report.getSelectResults(), "SELECT");
         setupDmlTableInput(tvInsert, report.getInsertResults(), "INSERT");
         setupDmlTableInput(tvDelete, report.getDeleteResults(), "DELETE");

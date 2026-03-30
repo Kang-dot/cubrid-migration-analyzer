@@ -252,8 +252,7 @@ public class AnalyzerProgressEditorPart extends EditorPart implements ISaveableP
     /** @param pnlBackTop Composite */
     protected void createProgressTableViewer(final Composite pnlBackTop) {
         TableViewerBuilder tvBuilder = new TableViewerBuilder();
-        // column: DML type, total count, finish count, percent
-        tvBuilder.setColumnNames(new String[] {"DML Type", "Total", "Finished", "Percent"});
+        tvBuilder.setColumnNames(new String[] {"Statement Type", "Total", "Finished", "Percent"});
         int[] columnWidths = new int[] {150, 100, 100, 100};
         tvBuilder.setColumnWidths(columnWidths);
         tvBuilder.setColumnStyles(

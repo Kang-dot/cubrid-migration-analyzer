@@ -40,6 +40,7 @@ public class JDBCQueryRunner implements IAnalyzerRunner {
 			ex.printStackTrace();
 			runFailed(queryType, id, query, ex);
 		} finally {
+			Closer.close(stmt);
 			Closer.close(conn);
 		}
 	}

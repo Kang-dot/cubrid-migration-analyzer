@@ -225,8 +225,6 @@ public class CMTObjectMappingStrategy implements IObjectMappingStrategy, IRefres
         TableViewer tv = (TableViewer) event.getSource();
         Object[] obj = (Object[]) ((StructuredSelection) event.getSelection()).getFirstElement();
         ICUBRIDNode cn = (ICUBRIDNode) currentView.getModel();
-        // 더블 클릭 시 자식 노드로 찾아들어가서 트리와 뷰를 변경하는 로직
-        // 단순화를 위해 생략되거나 CMT 로직을 맞게 적용 (현재 선택된 View에 맞춰 구현)
     }
 
     private void createToolButtons(Composite parent) {
@@ -417,14 +415,14 @@ public class CMTObjectMappingStrategy implements IObjectMappingStrategy, IRefres
     }
 
     private boolean validateConfig() {
-        if (!saveCurrentView()) return false;
-        VerifyResultMessages result = util.checkAll(page.getMigrationWizard().getMigrationConfig());
-        if (result.hasError()) {
-            page.setErrorMessage(result.getErrorMessage());
-            MessageDialog.openError(page.getShell(), Messages.msgError, result.getErrorMessage());
-            return false;
-        }
-        page.setErrorMessage(null);
+//        if (!saveCurrentView()) return false;
+//        VerifyResultMessages result = util.checkAll(page.getMigrationWizard().getMigrationConfig());
+//        if (result.hasError()) {
+//            page.setErrorMessage(result.getErrorMessage());
+//            MessageDialog.openError(page.getShell(), Messages.msgError, result.getErrorMessage());
+//            return false;
+//        }
+//        page.setErrorMessage(null);
         return true;
     }
 

@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Analyzer Report model - Optimized to manage DML categories efficiently
+ * Analyzer Report model - manages statement categories efficiently
  * 
  * @author Generated
  */
@@ -16,7 +16,7 @@ public class AnalyzerReport implements Serializable {
 	private static final long serialVersionUID = 1L;
 
 	/**
-	 * Internal class to encapsulate results and statistics for each DML type
+	 * Internal class to encapsulate results and statistics for each statement type
 	 */
 	private static class DMLCategory implements Serializable {
 		private static final long serialVersionUID = 1L;
@@ -44,7 +44,9 @@ public class AnalyzerReport implements Serializable {
 	private long totalEndTime;
 
 	public AnalyzerReport() {
-		// Initialize DML categories in display order
+		// Initialize categories in display order
+		categoryMap.put("DDL_TABLE", new DMLCategory("DDL_TABLE"));
+		categoryMap.put("DDL_VIEW", new DMLCategory("DDL_VIEW"));
 		categoryMap.put("SELECT", new DMLCategory("SELECT"));
 		categoryMap.put("INSERT", new DMLCategory("INSERT"));
 		categoryMap.put("DELETE", new DMLCategory("DELETE"));
@@ -150,6 +152,14 @@ public class AnalyzerReport implements Serializable {
 		return getCategoryTotalCount("SELECT");
 	}
 
+	public long getTableTotalCount() {
+		return getCategoryTotalCount("DDL_TABLE");
+	}
+
+	public long getViewTotalCount() {
+		return getCategoryTotalCount("DDL_VIEW");
+	}
+
 	public long getInsertTotalCount() {
 		return getCategoryTotalCount("INSERT");
 	}
@@ -166,6 +176,14 @@ public class AnalyzerReport implements Serializable {
 		return getCategoryErrorCount("SELECT");
 	}
 
+	public long getTableErrorCount() {
+		return getCategoryErrorCount("DDL_TABLE");
+	}
+
+	public long getViewErrorCount() {
+		return getCategoryErrorCount("DDL_VIEW");
+	}
+
 	public long getInsertErrorCount() {
 		return getCategoryErrorCount("INSERT");
 	}
@@ -180,6 +198,14 @@ public class AnalyzerReport implements Serializable {
 
 	public List<AnalyzerOverviewResult> getSelectResults() {
 		return getCategoryResults("SELECT");
+	}
+
+	public List<AnalyzerOverviewResult> getTableResults() {
+		return getCategoryResults("DDL_TABLE");
+	}
+
+	public List<AnalyzerOverviewResult> getViewResults() {
+		return getCategoryResults("DDL_VIEW");
 	}
 	
 	public List<AnalyzerOverviewResult> getInsertResults() {

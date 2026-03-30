@@ -300,7 +300,7 @@ public class AnalyzerSrcFileSelectView implements AbstractSourceView {
 			cfg.setName(catalog.getDatabaseType().getName() + "-XML", catalog.getName(), cfg.getWizardStartDateTime());
 		}
 
-		cfg.setSourceType(MigrationConfiguration.XML);
+//		cfg.setSourceType(MigrationConfiguration.XML);
 		cfg.setSourceFileName(txtXMLFileDir.getText());
 		cfg.setSourceFileEncoding(cboFileCharset.getItem(cboFileCharset.getSelectionIndex()));
 		cfg.setSourceFileTimeZone(cobTimezone.getItem(cobTimezone.getSelectionIndex()));

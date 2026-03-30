@@ -2,6 +2,8 @@ package com.cubrid.sqlanalyzer.ui.editor;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.Date;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import org.apache.commons.lang3.StringUtils;
 import org.eclipse.core.runtime.IProgressMonitor;
@@ -45,6 +47,15 @@ import com.cubrid.sqlanalyzer.ui.swt.ProgressMonitorDialogRunner;
 
 public class AnalyzerProgressUIController {
     protected static final String NA_STRING = "--";
+    private static final String TYPE_DDL_TABLE = "DDL_TABLE";
+    private static final String TYPE_DDL_VIEW = "DDL_VIEW";
+    private static final String TYPE_SELECT = "SELECT";
+    private static final String TYPE_INSERT = "INSERT";
+    private static final String TYPE_UPDATE = "UPDATE";
+    private static final String TYPE_DELETE = "DELETE";
+    private static final String[] STATEMENT_TYPES = {
+        TYPE_DDL_TABLE, TYPE_DDL_VIEW, TYPE_SELECT, TYPE_INSERT, TYPE_UPDATE, TYPE_DELETE
+    };
 //    protected static final Logger LOG = LogUtil.getLogger(MigrationProgressUIController.class);
 
     protected ProgressMonitorDialogRunner progressMonitorDialogRunner =
@@ -55,17 +66,9 @@ public class AnalyzerProgressUIController {
     protected AnalyzerProcessManager mpm;
 
     protected String[][] tableItems;
-    // DML total/finished counters for analyzer progress
-    protected int selectTotal;
-    protected int insertTotal;
-    protected int updateTotal;
-    protected int deleteTotal;
+    protected final Map<String, Integer> totalCountMap = new LinkedHashMap<String, Integer>();
+    protected final Map<String, Integer> finishedCountMap = new LinkedHashMap<String, Integer>();
     protected int totalQueries;
-
-    protected int selectFinished;
-    protected int insertFinished;
-    protected int updateFinished;
-    protected int deleteFinished;
     protected int finishedQueries;
 
     protected int expCountCache = 0;
@@ -200,13 +203,13 @@ public class AnalyzerProgressUIController {
         }
         AnalyzerExecuteEvent aev = (AnalyzerExecuteEvent) event;
 
-        //count will be update even result is failed
-        String dmlType = resolveDmlType(aev.getId());
-        if (dmlType == null) {
+        // Count is updated even if the execution failed.
+        String statementType = normalizeStatementType(aev.getQueryType());
+        if (statementType == null) {
             return 0;
         }
 
-        incrementFinished(dmlType);
+        incrementFinished(statementType);
 
         return 1;
     }
@@ -218,69 +221,39 @@ public class AnalyzerProgressUIController {
 
     /** @return the progress table viewer's input data */
     public String[][] getProgressTableInput() {
-        tableItems = new String[4][4];
-
-        int row = 0;
-        selectTotal = 0;
-        insertTotal = 0;
-        updateTotal = 0;
-        deleteTotal = 0;
+        tableItems = new String[STATEMENT_TYPES.length][4];
+        totalCountMap.clear();
+        finishedCountMap.clear();
 
         QueryDictionary dict = config.getQueryDict();
-        if (dict != null) {
-            if (dict.getSelectQueryMap() != null) {
-                selectTotal = dict.getSelectQueryMap().size();
-            }
-            if (dict.getInsertQueryMap() != null) {
-                insertTotal = dict.getInsertQueryMap().size();
-            }
-            if (dict.getUpdateQueryMap() != null) {
-                updateTotal = dict.getUpdateQueryMap().size();
-            }
-            if (dict.getDeleteQueryMap() != null) {
-                deleteTotal = dict.getDeleteQueryMap().size();
-            }
-        }
+        totalCountMap.put(TYPE_DDL_TABLE, config.getTargetTableSchema().size());
+        totalCountMap.put(TYPE_DDL_VIEW, config.getTargetViewSchema().size());
+        totalCountMap.put(
+                TYPE_SELECT,
+                dict != null && dict.getSelectQueryMap() != null ? dict.getSelectQueryMap().size() : 0);
+        totalCountMap.put(
+                TYPE_INSERT,
+                dict != null && dict.getInsertQueryMap() != null ? dict.getInsertQueryMap().size() : 0);
+        totalCountMap.put(
+                TYPE_UPDATE,
+                dict != null && dict.getUpdateQueryMap() != null ? dict.getUpdateQueryMap().size() : 0);
+        totalCountMap.put(
+                TYPE_DELETE,
+                dict != null && dict.getDeleteQueryMap() != null ? dict.getDeleteQueryMap().size() : 0);
 
-        totalQueries = selectTotal + insertTotal + updateTotal + deleteTotal;
-        selectFinished = insertFinished = updateFinished = deleteFinished = 0;
+        totalQueries = 0;
+        for (String type : STATEMENT_TYPES) {
+            finishedCountMap.put(type, 0);
+            totalQueries += totalCountMap.get(type);
+        }
         finishedQueries = 0;
 
-        // SELECT
-        tableItems[row++] =
-                new String[] {
-                    "SELECT",
-                    String.valueOf(selectTotal),
-                    "0",
-                    selectTotal == 0 ? "0%" : "0%"
-                };
-
-        // INSERT
-        tableItems[row++] =
-                new String[] {
-                    "INSERT",
-                    String.valueOf(insertTotal),
-                    "0",
-                    insertTotal == 0 ? "0%" : "0%"
-                };
-
-        // UPDATE
-        tableItems[row++] =
-                new String[] {
-                    "UPDATE",
-                    String.valueOf(updateTotal),
-                    "0",
-                    updateTotal == 0 ? "0%" : "0%"
-                };
-
-        // DELETE
-        tableItems[row++] =
-                new String[] {
-                    "DELETE",
-                    String.valueOf(deleteTotal),
-                    "0",
-                    deleteTotal == 0 ? "0%" : "0%"
-                };
+        int row = 0;
+        for (String type : STATEMENT_TYPES) {
+            int total = totalCountMap.get(type);
+            tableItems[row++] =
+                    new String[] {getDisplayType(type), String.valueOf(total), "0", "0%"};
+        }
 
         return tableItems;
     }
@@ -578,70 +551,53 @@ public class AnalyzerProgressUIController {
                 });
     }
 
-    /**
-     * receive dml type from query id
-     * 
-     * @param id query ID
-     * @return DML type (SELECT, INSERT, UPDATE, DELETE) or null
-     */
-    private String resolveDmlType(String id) {
-        if (id == null) {
+    private String normalizeStatementType(String queryType) {
+        if (queryType == null) {
             return null;
         }
-        
-        QueryDictionary dict = config.getQueryDict();
-        
-        if (dict == null) {
-            return null;
-        }
-        if (dict.getSelectQueryMap() != null && dict.getSelectQueryMap().containsKey(id)) {
-            return "SELECT";
-        }
-        if (dict.getInsertQueryMap() != null && dict.getInsertQueryMap().containsKey(id)) {
-            return "INSERT";
-        }
-        if (dict.getUpdateQueryMap() != null && dict.getUpdateQueryMap().containsKey(id)) {
-            return "UPDATE";
-        }
-        if (dict.getDeleteQueryMap() != null && dict.getDeleteQueryMap().containsKey(id)) {
-            return "DELETE";
+        for (String type : STATEMENT_TYPES) {
+            if (type.equals(queryType)) {
+                return type;
+            }
         }
         return null;
+    }
+
+    private String getDisplayType(String statementType) {
+        if (TYPE_DDL_TABLE.equals(statementType)) {
+            return "TABLE";
+        }
+        if (TYPE_DDL_VIEW.equals(statementType)) {
+            return "VIEW";
+        }
+        return statementType;
+    }
+
+    private int getRowIndex(String statementType) {
+        for (int i = 0; i < STATEMENT_TYPES.length; i++) {
+            if (STATEMENT_TYPES[i].equals(statementType)) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     /**
      * update table finish count
      * 
-     * @param dmlType DML type (SELECT, INSERT, UPDATE, DELETE)
+     * @param statementType statement type
      */
-    private void incrementFinished(String dmlType) {
-        int rowIndex = -1;
-        int total = 0;
-        int finished = 0;
-
-        if ("SELECT".equals(dmlType)) {
-            rowIndex = 0;
-            selectFinished++;
-            finished = selectFinished;
-            total = selectTotal;
-        } else if ("INSERT".equals(dmlType)) {
-            rowIndex = 1;
-            insertFinished++;
-            finished = insertFinished;
-            total = insertTotal;
-        } else if ("UPDATE".equals(dmlType)) {
-            rowIndex = 2;
-            updateFinished++;
-            finished = updateFinished;
-            total = updateTotal;
-        } else if ("DELETE".equals(dmlType)) {
-            rowIndex = 3;
-            deleteFinished++;
-            finished = deleteFinished;
-            total = deleteTotal;
+    private void incrementFinished(String statementType) {
+        int rowIndex = getRowIndex(statementType);
+        if (rowIndex < 0) {
+            return;
         }
 
-        if (rowIndex >= 0 && tableItems != null && rowIndex < tableItems.length) {
+        int finished = finishedCountMap.get(statementType) + 1;
+        finishedCountMap.put(statementType, finished);
+        int total = totalCountMap.containsKey(statementType) ? totalCountMap.get(statementType) : 0;
+
+        if (tableItems != null && rowIndex < tableItems.length) {
             tableItems[rowIndex][2] = String.valueOf(finished);
             String percent = (total <= 0) ? "0%" : (Math.round(100.0 * finished / total) + "%");
             tableItems[rowIndex][3] = percent;
