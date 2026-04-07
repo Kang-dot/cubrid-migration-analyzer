@@ -1,12 +1,23 @@
 package com.cubrid.sqlanalyzer.command;
 
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
+
 import com.cubrid.sqlanalyzer.core.plan.AnalyzerExecutionPlan;
 import com.cubrid.sqlanalyzer.core.plan.AnalyzerStatement;
 import com.cubrid.sqlanalyzer.core.plan.CatalogDDLPlanBuilder;
 import com.cubrid.sqlanalyzer.core.plan.QueryDictionaryPlanBuilder;
+import com.cubrid.cubridmigration.core.common.Closer;
 import com.cubrid.cubridmigration.core.dbmetadata.JDBCDBSchemaFetcherFacade;
 import com.cubrid.cubridmigration.core.dbobject.Catalog;
+import com.cubrid.cubridmigration.core.dbobject.Table;
+import com.cubrid.cubridmigration.core.dbobject.View;
 import com.cubrid.cubridmigration.core.dbtype.DatabaseType;
+import com.cubrid.cubridmigration.cubrid.CUBRIDSQLHelper;
 import com.cubrid.sqlanalyzer.core.AnalyzerConfiguration;
 import com.cubrid.sqlanalyzer.core.dbobject.AnalyzerCatalog;
 import com.cubrid.sqlanalyzer.core.dbobject.QueryDictionary;
@@ -302,11 +313,6 @@ public class AnalyzerConsoleRunner {
         io.println("");
         io.println("[5/5] Analysis progress");
 
-        if (session.getTargetType() != AnalyzerTargetType.PARSER) {
-            throw new UnsupportedOperationException(
-                    "Console analysis currently supports parser execution only.");
-        }
-
         AnalyzerExecutionPlan executionPlan = buildExecutionPlan(session);
         if (executionPlan.isEmpty()) {
             session.setAnalyzedStatementCount(0);
@@ -317,6 +323,21 @@ public class AnalyzerConsoleRunner {
             return;
         }
 
+        if (session.getTargetType() == AnalyzerTargetType.PARSER) {
+            runParserAnalysis(session, executionPlan);
+            return;
+        }
+
+        if (session.getTargetType() == AnalyzerTargetType.JDBC) {
+            runJdbcAnalysis(session, executionPlan);
+            return;
+        }
+
+        throw new IllegalStateException("Unsupported target type: " + session.getTargetType());
+    }
+
+    private void runParserAnalysis(
+            AnalyzerConsoleSession session, AnalyzerExecutionPlan executionPlan) {
         QueryParser queryParser = new QueryParser();
         int analyzed = 0;
         int succeeded = 0;
@@ -343,6 +364,65 @@ public class AnalyzerConsoleRunner {
                 session.addFailureMessage(failureMessage);
                 io.println("[FAIL] " + failureMessage);
             }
+        }
+
+        session.setAnalyzedStatementCount(analyzed);
+        session.setSucceededStatementCount(succeeded);
+        session.setFailedStatementCount(failed);
+
+        io.println(
+                "Analysis completed. Total="
+                        + analyzed
+                        + ", Success="
+                        + succeeded
+                        + ", Failed="
+                        + failed);
+    }
+
+    private void runJdbcAnalysis(
+            AnalyzerConsoleSession session, AnalyzerExecutionPlan executionPlan) {
+        Connection connection = null;
+        List<String> cleanupQueries = new ArrayList<String>();
+        int analyzed = 0;
+        int succeeded = 0;
+        int failed = 0;
+
+        session.clearFailures();
+
+        try {
+            connection = session.getConfig().getTargetConParams().createConnection();
+            for (AnalyzerStatement statement : executionPlan.getStatements()) {
+                analyzed++;
+                try {
+                    String resultSummary = executeJdbcStatement(connection, statement);
+                    succeeded++;
+                    io.println(
+                            "[OK] "
+                                    + statement.getType()
+                                    + " "
+                                    + statement.getId()
+                                    + " : "
+                                    + resultSummary);
+
+                    String cleanupQuery = buildCleanupQuery(session, statement);
+                    if (cleanupQuery != null) {
+                        cleanupQueries.add(cleanupQuery);
+                    }
+                } catch (Exception ex) {
+                    failed++;
+                    String failureMessage =
+                            buildFailureMessage(statement.getType(), statement.getId(), ex.toString());
+                    session.addFailureMessage(failureMessage);
+                    io.println("[FAIL] " + failureMessage);
+                }
+            }
+        } catch (Exception ex) {
+            throw new RuntimeException("JDBC execution failed to start: " + ex.getMessage(), ex);
+        } finally {
+            if (!cleanupQueries.isEmpty()) {
+                runJdbcCleanup(connection, cleanupQueries, session);
+            }
+            Closer.close(connection);
         }
 
         session.setAnalyzedStatementCount(analyzed);
@@ -403,5 +483,103 @@ public class AnalyzerConsoleRunner {
 
     private String buildFailureMessage(String type, String id, String reason) {
         return type + " " + id + " : " + reason;
+    }
+
+    private String executeJdbcStatement(Connection connection, AnalyzerStatement statement)
+            throws SQLException {
+        Statement jdbcStatement = null;
+        ResultSet resultSet = null;
+
+        try {
+            jdbcStatement = connection.createStatement();
+            boolean hasResultSet = jdbcStatement.execute(statement.getSQL());
+
+            if (hasResultSet) {
+                resultSet = jdbcStatement.getResultSet();
+                int rowCount = 0;
+                while (resultSet.next()) {
+                    rowCount++;
+                }
+                return "rows=" + rowCount;
+            }
+
+            int updateCount = jdbcStatement.getUpdateCount();
+            if (shouldCommit(statement)) {
+                connection.commit();
+            }
+
+            if (isDDL(statement)) {
+                return "ddl executed";
+            }
+
+            return "updated=" + updateCount;
+        } finally {
+            Closer.close(resultSet);
+            Closer.close(jdbcStatement);
+        }
+    }
+
+    private void runJdbcCleanup(
+            Connection connection, List<String> cleanupQueries, AnalyzerConsoleSession session) {
+        for (int i = cleanupQueries.size() - 1; i >= 0; i--) {
+            String cleanupQuery = cleanupQueries.get(i);
+            Statement statement = null;
+            try {
+                statement = connection.createStatement();
+                statement.execute(cleanupQuery);
+                connection.commit();
+                io.println("[CLEANUP OK] " + cleanupQuery);
+            } catch (Exception ex) {
+                String failureMessage = "CLEANUP : " + cleanupQuery + " : " + ex.toString();
+                session.addFailureMessage(failureMessage);
+                io.println("[CLEANUP FAIL] " + failureMessage);
+            } finally {
+                Closer.close(statement);
+            }
+        }
+    }
+
+    private boolean shouldCommit(AnalyzerStatement statement) {
+        return isDDL(statement)
+                || "INSERT".equals(statement.getType())
+                || "UPDATE".equals(statement.getType())
+                || "DELETE".equals(statement.getType());
+    }
+
+    private boolean isDDL(AnalyzerStatement statement) {
+        return "DDL_TABLE".equals(statement.getType()) || "DDL_VIEW".equals(statement.getType());
+    }
+
+    private String buildCleanupQuery(AnalyzerConsoleSession session, AnalyzerStatement statement) {
+        if (!isDDL(statement)) {
+            return null;
+        }
+
+        AnalyzerConfiguration config = session.getConfig();
+        CUBRIDSQLHelper helper = CUBRIDSQLHelper.getInstance(null);
+
+        if ("DDL_TABLE".equals(statement.getType())) {
+            int tableIndex = parseStatementIndex(statement.getId(), "TABLE_");
+            Table table = config.getTargetTableSchema().get(tableIndex);
+            return "DROP TABLE "
+                    + helper.getOwnerNameWithDot(table.getOwner(), config.isAddUserSchema())
+                    + helper.getQuotedObjName(table.getName())
+                    + ";";
+        }
+
+        int viewIndex = parseStatementIndex(statement.getId(), "VIEW_");
+        View view = config.getTargetViewSchema().get(viewIndex);
+        return "DROP VIEW "
+                + helper.getOwnerNameWithDot(view.getOwner(), config.isAddUserSchema())
+                + helper.getQuotedObjName(view.getName())
+                + ";";
+    }
+
+    private int parseStatementIndex(String id, String prefix) {
+        if (id == null || !id.startsWith(prefix)) {
+            throw new IllegalArgumentException("Unexpected statement id: " + id);
+        }
+
+        return Integer.parseInt(id.substring(prefix.length())) - 1;
     }
 }

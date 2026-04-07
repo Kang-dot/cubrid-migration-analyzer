@@ -40,10 +40,13 @@ public class AnalyzerConsoleIOController implements ConsoleIO {
         while (true) {
             print(prompt);
             String line = readLine();
-            if (!line.isEmpty()) {
-                return line;
-            }
-            println("Input is required.");
+//            temp code
+//            if (line.isEmpty()) {
+//                return line;
+//            }
+//            println("Input is required.");
+            
+            return line;
         }
     }
 
