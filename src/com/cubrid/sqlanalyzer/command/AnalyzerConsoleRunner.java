@@ -14,11 +14,18 @@ import com.cubrid.sqlanalyzer.core.plan.QueryDictionaryPlanBuilder;
 import com.cubrid.cubridmigration.core.common.Closer;
 import com.cubrid.cubridmigration.core.dbmetadata.JDBCDBSchemaFetcherFacade;
 import com.cubrid.cubridmigration.core.dbobject.Catalog;
+import com.cubrid.cubridmigration.core.dbobject.PlcsqlFunction;
+import com.cubrid.cubridmigration.core.dbobject.PlcsqlProcedure;
+import com.cubrid.cubridmigration.core.dbobject.Sequence;
+import com.cubrid.cubridmigration.core.dbobject.Synonym;
 import com.cubrid.cubridmigration.core.dbobject.Table;
 import com.cubrid.cubridmigration.core.dbobject.View;
+import com.cubrid.cubridmigration.core.engine.config.SourceGrantConfig;
 import com.cubrid.cubridmigration.core.dbtype.DatabaseType;
 import com.cubrid.cubridmigration.cubrid.CUBRIDSQLHelper;
 import com.cubrid.sqlanalyzer.core.AnalyzerConfiguration;
+import com.cubrid.sqlanalyzer.core.cost.AnalyzerCostAnalyzer;
+import com.cubrid.sqlanalyzer.core.cost.FailureOnlyCostAnalyzer;
 import com.cubrid.sqlanalyzer.core.dbobject.AnalyzerCatalog;
 import com.cubrid.sqlanalyzer.core.dbobject.QueryDictionary;
 import com.cubrid.sqlanalyzer.core.runner.QueryParser;
@@ -27,6 +34,20 @@ import com.cubrid.sqlanalyzer.xmlmetadata.XMLDirSchemaFetcher;
 import com.cubrid.sqlanalyzer.xmlmetadata.XMLDirSource;
 
 public class AnalyzerConsoleRunner {
+    private static final String TYPE_DDL_TABLE = "DDL_TABLE";
+    private static final String TYPE_DDL_PK = "DDL_PK";
+    private static final String TYPE_DDL_FK = "DDL_FK";
+    private static final String TYPE_DDL_INDEX = "DDL_INDEX";
+    private static final String TYPE_DDL_SEQUENCE = "DDL_SEQUENCE";
+    private static final String TYPE_DDL_VIEW = "DDL_VIEW";
+    private static final String TYPE_DDL_VIEW_CREATE = "DDL_VIEW_CREATE";
+    private static final String TYPE_DDL_VIEW_ALTER = "DDL_VIEW_ALTER";
+    private static final String TYPE_DDL_SYNONYM = "DDL_SYNONYM";
+    private static final String TYPE_DDL_GRANT = "DDL_GRANT";
+    private static final String TYPE_DDL_PROC_HEADER = "DDL_PROC_HEADER";
+    private static final String TYPE_DDL_PROC_BODY = "DDL_PROC_BODY";
+    private static final String TYPE_DDL_FUNC_HEADER = "DDL_FUNC_HEADER";
+    private static final String TYPE_DDL_FUNC_BODY = "DDL_FUNC_BODY";
     private static final String DEFAULT_XML_CHARSET = "UTF-8";
     private static final String SOURCE_CONNECTION_NAME = "console-source";
     private static final String TARGET_CONNECTION_NAME = "console-target";
@@ -36,6 +57,7 @@ public class AnalyzerConsoleRunner {
             AnalyzerJdbcConnectionSupport.createFactory(DatabaseType.CUBRID);
 
     private final ConsoleIO io;
+    private final AnalyzerCostAnalyzer costAnalyzer = new FailureOnlyCostAnalyzer();
 
     public AnalyzerConsoleRunner(ConsoleIO io) {
         this.io = io;
@@ -300,6 +322,11 @@ public class AnalyzerConsoleRunner {
             io.println("Catalog schemas : " + session.getSourceCatalog().getSchemas().size());
             io.println("Target tables   : " + config.getTargetTableSchema().size());
             io.println("Target views    : " + config.getTargetViewSchema().size());
+            io.println("Target serials  : " + config.getTargetSerialSchema().size());
+            io.println("Target synonyms : " + config.getTargetSynonymSchema().size());
+            io.println("Target grants   : " + config.getExpGrantCfg().size());
+            io.println("Target procs    : " + config.getTargetPlcsqlProcedureSchema().size());
+            io.println("Target funcs    : " + config.getTargetPlcsqlFunctionSchema().size());
         } else {
             QueryDictionary dict = config.getQueryDict();
             io.println("SELECT count    : " + dict.getSelectQueryMap().size());
@@ -314,6 +341,7 @@ public class AnalyzerConsoleRunner {
         io.println("[5/5] Analysis progress");
 
         AnalyzerExecutionPlan executionPlan = buildExecutionPlan(session);
+        costAnalyzer.analyzeBeforeExecution(executionPlan, session.getConsoleReport());
         if (executionPlan.isEmpty()) {
             session.setAnalyzedStatementCount(0);
             session.setSucceededStatementCount(0);
@@ -356,12 +384,16 @@ public class AnalyzerConsoleRunner {
                 String failureMessage =
                         buildFailureMessage(statement.getType(), statement.getId(), ex.getMessage());
                 session.addFailureMessage(failureMessage);
+                session.addFailure(
+                        buildFailure(statement, ex.getMessage(), AnalyzerFailureStage.PARSER));
                 io.println("[FAIL] " + failureMessage);
             } catch (Exception ex) {
                 failed++;
                 String failureMessage =
                         buildFailureMessage(statement.getType(), statement.getId(), ex.toString());
                 session.addFailureMessage(failureMessage);
+                session.addFailure(
+                        buildFailure(statement, ex.toString(), AnalyzerFailureStage.PARSER));
                 io.println("[FAIL] " + failureMessage);
             }
         }
@@ -369,6 +401,7 @@ public class AnalyzerConsoleRunner {
         session.setAnalyzedStatementCount(analyzed);
         session.setSucceededStatementCount(succeeded);
         session.setFailedStatementCount(failed);
+        costAnalyzer.analyzeAfterExecution(session.getConsoleReport());
 
         io.println(
                 "Analysis completed. Total="
@@ -413,6 +446,8 @@ public class AnalyzerConsoleRunner {
                     String failureMessage =
                             buildFailureMessage(statement.getType(), statement.getId(), ex.toString());
                     session.addFailureMessage(failureMessage);
+                    session.addFailure(
+                            buildFailure(statement, ex.toString(), AnalyzerFailureStage.JDBC));
                     io.println("[FAIL] " + failureMessage);
                 }
             }
@@ -428,6 +463,7 @@ public class AnalyzerConsoleRunner {
         session.setAnalyzedStatementCount(analyzed);
         session.setSucceededStatementCount(succeeded);
         session.setFailedStatementCount(failed);
+        costAnalyzer.analyzeAfterExecution(session.getConsoleReport());
 
         io.println(
                 "Analysis completed. Total="
@@ -439,19 +475,21 @@ public class AnalyzerConsoleRunner {
     }
 
     private void printResult(AnalyzerConsoleSession session) {
+        AnalyzerConsoleReport report = session.getConsoleReport();
+
         io.println("");
         io.println("Result summary");
-        io.println("Source : " + session.getSourceType());
-        io.println("Target : " + session.getTargetType());
-        io.println("Mode   : " + session.getExecutionMode());
-        io.println("Total  : " + session.getAnalyzedStatementCount());
-        io.println("OK     : " + session.getSucceededStatementCount());
-        io.println("FAIL   : " + session.getFailedStatementCount());
+        io.println("Source : " + report.getSourceType());
+        io.println("Target : " + report.getTargetType());
+        io.println("Mode   : " + report.getExecutionMode());
+        io.println("Total  : " + report.getAnalyzedStatementCount());
+        io.println("OK     : " + report.getSucceededStatementCount());
+        io.println("FAIL   : " + report.getFailedStatementCount());
 
-        if (!session.getFailureMessages().isEmpty()) {
+        if (!report.getFailureMessages().isEmpty()) {
             io.println("");
             io.println("Failed statements");
-            for (String failureMessage : session.getFailureMessages()) {
+            for (String failureMessage : report.getFailureMessages()) {
                 io.println("- " + failureMessage);
             }
         }
@@ -483,6 +521,27 @@ public class AnalyzerConsoleRunner {
 
     private String buildFailureMessage(String type, String id, String reason) {
         return type + " " + id + " : " + reason;
+    }
+
+    private AnalyzerConsoleFailure buildFailure(
+            AnalyzerStatement statement, String reason, AnalyzerFailureStage stage) {
+        return buildFailure(
+                statement.getType(), statement.getId(), statement.getSQL(), reason, stage);
+    }
+
+    private AnalyzerConsoleFailure buildFailure(
+            String statementType,
+            String statementId,
+            String sql,
+            String reason,
+            AnalyzerFailureStage stage) {
+        AnalyzerConsoleFailure failure = new AnalyzerConsoleFailure();
+        failure.setFailureStage(stage);
+        failure.setStatementType(statementType);
+        failure.setStatementId(statementId);
+        failure.setSql(sql);
+        failure.setReason(reason);
+        return failure;
     }
 
     private String executeJdbcStatement(Connection connection, AnalyzerStatement statement)
@@ -532,6 +591,13 @@ public class AnalyzerConsoleRunner {
             } catch (Exception ex) {
                 String failureMessage = "CLEANUP : " + cleanupQuery + " : " + ex.toString();
                 session.addFailureMessage(failureMessage);
+                session.addFailure(
+                        buildFailure(
+                                "CLEANUP",
+                                "CLEANUP_" + (cleanupQueries.size() - i),
+                                cleanupQuery,
+                                ex.toString(),
+                                AnalyzerFailureStage.CLEANUP));
                 io.println("[CLEANUP FAIL] " + failureMessage);
             } finally {
                 Closer.close(statement);
@@ -547,7 +613,7 @@ public class AnalyzerConsoleRunner {
     }
 
     private boolean isDDL(AnalyzerStatement statement) {
-        return "DDL_TABLE".equals(statement.getType()) || "DDL_VIEW".equals(statement.getType());
+        return statement.getType() != null && statement.getType().startsWith("DDL_");
     }
 
     private String buildCleanupQuery(AnalyzerConsoleSession session, AnalyzerStatement statement) {
@@ -558,7 +624,7 @@ public class AnalyzerConsoleRunner {
         AnalyzerConfiguration config = session.getConfig();
         CUBRIDSQLHelper helper = CUBRIDSQLHelper.getInstance(null);
 
-        if ("DDL_TABLE".equals(statement.getType())) {
+        if (TYPE_DDL_TABLE.equals(statement.getType())) {
             int tableIndex = parseStatementIndex(statement.getId(), "TABLE_");
             Table table = config.getTargetTableSchema().get(tableIndex);
             return "DROP TABLE "
@@ -567,12 +633,69 @@ public class AnalyzerConsoleRunner {
                     + ";";
         }
 
-        int viewIndex = parseStatementIndex(statement.getId(), "VIEW_");
-        View view = config.getTargetViewSchema().get(viewIndex);
-        return "DROP VIEW "
-                + helper.getOwnerNameWithDot(view.getOwner(), config.isAddUserSchema())
-                + helper.getQuotedObjName(view.getName())
-                + ";";
+        if (TYPE_DDL_VIEW.equals(statement.getType())
+                || TYPE_DDL_VIEW_CREATE.equals(statement.getType())) {
+            int viewIndex = parseStatementIndex(statement.getId(), "VIEW_");
+            View view = config.getTargetViewSchema().get(viewIndex);
+            return "DROP VIEW "
+                    + helper.getOwnerNameWithDot(view.getOwner(), config.isAddUserSchema())
+                    + helper.getQuotedObjName(view.getName())
+                    + ";";
+        }
+
+        if (TYPE_DDL_SEQUENCE.equals(statement.getType())) {
+            int sequenceIndex = parseStatementIndex(statement.getId(), "SEQ_");
+            Sequence sequence = config.getTargetSerialSchema().get(sequenceIndex);
+            return "DROP SERIAL "
+                    + helper.getOwnerNameWithDot(sequence.getOwner(), config.isAddUserSchema())
+                    + helper.getQuotedObjName(sequence.getName())
+                    + ";";
+        }
+
+        if (TYPE_DDL_SYNONYM.equals(statement.getType())) {
+            int synonymIndex = parseStatementIndex(statement.getId(), "SYNONYM_");
+            Synonym synonym = config.getTargetSynonymSchema().get(synonymIndex);
+            return "DROP SYNONYM "
+                    + helper.getOwnerNameWithDot(synonym.getOwner(), config.isAddUserSchema())
+                    + helper.getQuotedObjName(synonym.getName())
+                    + ";";
+        }
+
+        if (TYPE_DDL_GRANT.equals(statement.getType())) {
+            int grantIndex = parseStatementIndex(statement.getId(), "GRANT_");
+            SourceGrantConfig grant = config.getExpGrantCfg().get(grantIndex);
+            return "REVOKE "
+                    + grant.getAuthType()
+                    + " ON "
+                    + helper.getOwnerNameWithDot(grant.getClassOwner(), config.isAddUserSchema())
+                    + helper.getQuotedObjName(grant.getClassName())
+                    + " FROM "
+                    + helper.getQuotedObjName(grant.getGranteeName())
+                    + ";";
+        }
+
+        if (TYPE_DDL_PROC_HEADER.equals(statement.getType())) {
+            int procIndex = parseStatementIndex(statement.getId(), "PROC_");
+            PlcsqlProcedure procedure = config.getTargetPlcsqlProcedureSchema().get(procIndex);
+            return helper.getPlcsqlProcedureDropDDL(procedure, config.isAddUserSchema());
+        }
+
+        if (TYPE_DDL_FUNC_HEADER.equals(statement.getType())) {
+            int functionIndex = parseStatementIndex(statement.getId(), "FUNC_");
+            PlcsqlFunction function = config.getTargetPlcsqlFunctionSchema().get(functionIndex);
+            return helper.getPlcsqlFunctionDropDDL(function, config.isAddUserSchema());
+        }
+
+        if (TYPE_DDL_PK.equals(statement.getType())
+                || TYPE_DDL_FK.equals(statement.getType())
+                || TYPE_DDL_INDEX.equals(statement.getType())
+                || TYPE_DDL_VIEW_ALTER.equals(statement.getType())
+                || TYPE_DDL_PROC_BODY.equals(statement.getType())
+                || TYPE_DDL_FUNC_BODY.equals(statement.getType())) {
+            return null;
+        }
+
+        return null;
     }
 
     private int parseStatementIndex(String id, String prefix) {

@@ -9,6 +9,7 @@ import com.cubrid.sqlanalyzer.core.dbobject.AnalyzerCatalog;
 
 public class AnalyzerConsoleSession {
     private final AnalyzerConfiguration config = new AnalyzerConfiguration();
+    private final AnalyzerConsoleReport consoleReport = new AnalyzerConsoleReport();
 
     private AnalyzerSourceType sourceType;
     private AnalyzerTargetType targetType;
@@ -42,6 +43,7 @@ public class AnalyzerConsoleSession {
 
     public void setSourceType(AnalyzerSourceType sourceType) {
         this.sourceType = sourceType;
+        consoleReport.setSourceType(sourceType);
     }
 
     public AnalyzerTargetType getTargetType() {
@@ -50,6 +52,7 @@ public class AnalyzerConsoleSession {
 
     public void setTargetType(AnalyzerTargetType targetType) {
         this.targetType = targetType;
+        consoleReport.setTargetType(targetType);
     }
 
     public AnalyzerExecutionMode getExecutionMode() {
@@ -58,6 +61,7 @@ public class AnalyzerConsoleSession {
 
     public void setExecutionMode(AnalyzerExecutionMode executionMode) {
         this.executionMode = executionMode;
+        consoleReport.setExecutionMode(executionMode);
     }
 
     public String getSourceJdbcUrl() {
@@ -146,6 +150,7 @@ public class AnalyzerConsoleSession {
 
     public void setAnalyzedStatementCount(int analyzedStatementCount) {
         this.analyzedStatementCount = analyzedStatementCount;
+        consoleReport.setAnalyzedStatementCount(analyzedStatementCount);
     }
 
     public int getSucceededStatementCount() {
@@ -154,6 +159,7 @@ public class AnalyzerConsoleSession {
 
     public void setSucceededStatementCount(int succeededStatementCount) {
         this.succeededStatementCount = succeededStatementCount;
+        consoleReport.setSucceededStatementCount(succeededStatementCount);
     }
 
     public int getFailedStatementCount() {
@@ -162,17 +168,28 @@ public class AnalyzerConsoleSession {
 
     public void setFailedStatementCount(int failedStatementCount) {
         this.failedStatementCount = failedStatementCount;
+        consoleReport.setFailedStatementCount(failedStatementCount);
     }
 
     public List<String> getFailureMessages() {
-        return failureMessages;
+        return consoleReport.getFailureMessages();
     }
 
     public void clearFailures() {
         failureMessages.clear();
+        consoleReport.clearFailures();
     }
 
     public void addFailureMessage(String failureMessage) {
         failureMessages.add(failureMessage);
+        consoleReport.addFailureMessage(failureMessage);
+    }
+
+    public void addFailure(AnalyzerConsoleFailure failure) {
+        consoleReport.addFailure(failure);
+    }
+
+    public AnalyzerConsoleReport getConsoleReport() {
+        return consoleReport;
     }
 }

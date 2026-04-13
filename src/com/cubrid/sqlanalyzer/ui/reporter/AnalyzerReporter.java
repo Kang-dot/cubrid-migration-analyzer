@@ -28,7 +28,6 @@ import com.cubrid.sqlanalyzer.core.event.AnalyzerStartEvent;
  * @author Generated
  */
 public class AnalyzerReporter implements IMigrationReporter, IEditorInput {
-    
 //    private static final Logger LOG = LogUtil.getLogger(AnalyzerReporter.class);
     
     protected final String fileName; // Only file name, without directory
