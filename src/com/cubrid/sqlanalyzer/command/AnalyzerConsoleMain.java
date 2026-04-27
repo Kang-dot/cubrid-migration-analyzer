@@ -8,15 +8,28 @@ public class AnalyzerConsoleMain {
         PathUtils.initPaths();
         LogInitializer.initLog(PathUtils.getLogDir());
 
-        if (args.length > 0 && args[0] != null && !args[0].isEmpty()) {
-            AnalyzerJdbcConnectionSupport.configureJdbcRepository(args[0]);
+        AnalyzerConsoleArguments arguments;
+        try {
+            arguments = AnalyzerConsoleArguments.parse(args);
+        } catch (IllegalArgumentException ex) {
+            System.err.println(ex.getMessage());
+            System.exit(1);
+            return;
+        }
+
+        if (arguments.getJdbcRepositoryDir() != null
+                && !arguments.getJdbcRepositoryDir().isEmpty()) {
+            AnalyzerJdbcConnectionSupport.configureJdbcRepository(arguments.getJdbcRepositoryDir());
         }
 
         AnalyzerJdbcConnectionSupport.initializeJdbcDrivers();
 
         ConsoleIO io = new AnalyzerConsoleIOController(System.in, System.out);
         AnalyzerConsoleRunner runner = new AnalyzerConsoleRunner(io);
-        int exitCode = runner.startAnalyzer();
+        int exitCode =
+                arguments.isInteractive()
+                        ? runner.startAnalyzer()
+                        : runner.startAnalyzer(arguments);
         System.exit(exitCode);
     }
 }

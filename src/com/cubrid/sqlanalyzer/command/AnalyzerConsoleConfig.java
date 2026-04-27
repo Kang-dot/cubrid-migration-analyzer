@@ -7,7 +7,7 @@ import com.cubrid.cubridmigration.core.dbobject.Catalog;
 import com.cubrid.sqlanalyzer.core.AnalyzerConfiguration;
 import com.cubrid.sqlanalyzer.core.dbobject.AnalyzerCatalog;
 
-public class AnalyzerConsoleSession {
+public class AnalyzerConsoleConfig {
     private final AnalyzerConfiguration config = new AnalyzerConfiguration();
     private final AnalyzerConsoleReport consoleReport = new AnalyzerConsoleReport();
 

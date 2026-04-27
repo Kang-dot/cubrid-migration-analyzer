@@ -1,6 +1,6 @@
 package com.cubrid.sqlanalyzer.command;
 
-public class AnalyzerJdbcConnectionProfile {
+public class AnalyzerJdbcConnectionInfo {
     private final String jdbcUrl;
     private final String host;
     private final int port;
@@ -10,7 +10,7 @@ public class AnalyzerJdbcConnectionProfile {
     private final String charset;
     private final String driverLocation;
 
-    public AnalyzerJdbcConnectionProfile(
+    public AnalyzerJdbcConnectionInfo(
             String jdbcUrl,
             String host,
             int port,

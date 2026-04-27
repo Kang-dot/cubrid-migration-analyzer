@@ -68,12 +68,12 @@ public class AnalyzerConsoleRunner {
         io.println("CUBRID SQL Analyzer Console");
         io.println("======================================");
 
-        AnalyzerConsoleSession session = new AnalyzerConsoleSession();
+        AnalyzerConsoleConfig session = new AnalyzerConsoleConfig();
 
         try {
             selectSource(session);
             selectTarget(session);
-            selectExecutionMode(session);
+            applyExecutionMode(session);
             prepareConfiguration(session);
             loadSourceCatalog(session);
             printObjectCountPage(session);
@@ -93,9 +93,31 @@ public class AnalyzerConsoleRunner {
         }
     }
 
-    private void selectSource(AnalyzerConsoleSession session) {
+    public int startAnalyzer(AnalyzerConsoleArguments arguments) {
+        io.println("======================================");
+        io.println("CUBRID SQL Analyzer Console");
+        io.println("======================================");
+
+        AnalyzerConsoleConfig session = new AnalyzerConsoleConfig();
+
+        try {
+            applyArguments(session, arguments);
+            prepareConfiguration(session);
+            loadSourceCatalog(session);
+            printObjectCountPage(session);
+            runAnalysis(session);
+            printResult(session);
+            return 0;
+        } catch (RuntimeException ex) {
+            io.println("Analyzer failed: " + ex.getMessage());
+            ex.printStackTrace();
+            return 1;
+        }
+    }
+
+    private void selectSource(AnalyzerConsoleConfig session) {
         io.println("");
-        io.println("[1/5] Select source");
+        io.println("[1/4] Select source");
         io.println("1. Oracle JDBC connection");
         io.println("2. XML directory");
 
@@ -115,20 +137,14 @@ public class AnalyzerConsoleRunner {
         }
     }
 
-    private void promptOracleSource(AnalyzerConsoleSession session) {
+    private void promptOracleSource(AnalyzerConsoleConfig session) {
         while (true) {
             session.setSourceJdbcUrl(io.readRequired("Oracle JDBC URL: "));
             session.setSourceUser(io.readRequired("Oracle user: "));
             session.setSourcePassword(io.readRequired("Oracle password: "));
 
             try {
-                AnalyzerJdbcConnectionProfile profile =
-                        AnalyzerJdbcConnectionSupport.parseOracleProfile(
-                                session.getSourceJdbcUrl(),
-                                session.getSourceUser(),
-                                session.getSourcePassword());
-                AnalyzerJdbcConnectionSupport.validateConnection(
-                        SOURCE_CONNECTION_NAME, profile, ORACLE_CONN_PARAMETERS_FACTORY);
+                validateOracleSourceConnection(session);
                 io.println("Oracle connection validation succeeded.");
                 return;
             } catch (RuntimeException ex) {
@@ -140,15 +156,15 @@ public class AnalyzerConsoleRunner {
         }
     }
 
-    private void promptXmlSource(AnalyzerConsoleSession session) {
+    private void promptXmlSource(AnalyzerConsoleConfig session) {
         session.setXmlDirectory(io.readRequired("XML directory path: "));
         String charset = readLineWithDefault("XML charset [UTF-8]: ", DEFAULT_XML_CHARSET);
         session.setXmlCharset(charset.isEmpty() ? DEFAULT_XML_CHARSET : charset);
     }
 
-    private void selectTarget(AnalyzerConsoleSession session) {
+    private void selectTarget(AnalyzerConsoleConfig session) {
         io.println("");
-        io.println("[2/5] Select target");
+        io.println("[2/4] Select target");
         io.println("1. CUBRID JDBC execution");
         io.println("2. Parser execution");
 
@@ -167,20 +183,14 @@ public class AnalyzerConsoleRunner {
         }
     }
 
-    private void promptJdbcTarget(AnalyzerConsoleSession session) {
+    private void promptJdbcTarget(AnalyzerConsoleConfig session) {
         while (true) {
             session.setTargetJdbcUrl(io.readRequired("Target JDBC URL: "));
             session.setTargetUser(io.readRequired("Target user: "));
             session.setTargetPassword(io.readRequired("Target password: "));
 
             try {
-                AnalyzerJdbcConnectionProfile profile =
-                        AnalyzerJdbcConnectionSupport.parseCubridProfile(
-                                session.getTargetJdbcUrl(),
-                                session.getTargetUser(),
-                                session.getTargetPassword());
-                AnalyzerJdbcConnectionSupport.validateConnection(
-                        TARGET_CONNECTION_NAME, profile, CUBRID_CONN_PARAMETERS_FACTORY);
+                validateJdbcTargetConnection(session);
                 io.println("Target connection validation succeeded.");
                 return;
             } catch (RuntimeException ex) {
@@ -192,32 +202,67 @@ public class AnalyzerConsoleRunner {
         }
     }
 
-    private void selectExecutionMode(AnalyzerConsoleSession session) {
-        io.println("");
-        io.println("[3/5] Select execution mode");
-        io.println("1. DDL only");
-        io.println("2. DML only");
-        io.println("3. DDL + DML");
-
-        while (true) {
-            String input = io.readRequired("Select mode (1-3): ");
-            if ("1".equals(input)) {
-                session.setExecutionMode(AnalyzerExecutionMode.DDL);
-                return;
-            }
-            if ("2".equals(input)) {
-                session.setExecutionMode(AnalyzerExecutionMode.DML);
-                return;
-            }
-            if ("3".equals(input)) {
-                session.setExecutionMode(AnalyzerExecutionMode.ALL);
-                return;
-            }
-            io.println("Invalid selection.");
+    private void applyExecutionMode(AnalyzerConsoleConfig session) {
+        if (AnalyzerSourceType.ORACLE.equals(session.getSourceType())) {
+            session.setExecutionMode(AnalyzerExecutionMode.DDL);
+            return;
         }
+
+        if (AnalyzerSourceType.XML.equals(session.getSourceType())) {
+            session.setExecutionMode(AnalyzerExecutionMode.DML);
+            return;
+        }
+
+        throw new IllegalStateException("Unsupported source type: " + session.getSourceType());
     }
 
-    private void prepareConfiguration(AnalyzerConsoleSession session) {
+    private void applyArguments(
+            AnalyzerConsoleConfig session, AnalyzerConsoleArguments arguments) {
+        session.setSourceType(arguments.getSourceType());
+        if (AnalyzerSourceType.ORACLE.equals(arguments.getSourceType())) {
+            session.setSourceJdbcUrl(arguments.getSourceJdbcUrl());
+            session.setSourceUser(arguments.getSourceUser());
+            session.setSourcePassword(arguments.getSourcePassword());
+            validateOracleSourceConnection(session);
+            io.println("Oracle connection validation succeeded.");
+        } else if (AnalyzerSourceType.XML.equals(arguments.getSourceType())) {
+            session.setXmlDirectory(arguments.getXmlDirectory());
+            session.setXmlCharset(arguments.getXmlCharset());
+        }
+
+        session.setTargetType(arguments.getTargetType());
+        if (AnalyzerTargetType.JDBC.equals(arguments.getTargetType())) {
+            session.setTargetJdbcUrl(arguments.getTargetJdbcUrl());
+            session.setTargetUser(arguments.getTargetUser());
+            session.setTargetPassword(arguments.getTargetPassword());
+            validateJdbcTargetConnection(session);
+            io.println("Target connection validation succeeded.");
+        }
+
+        applyExecutionMode(session);
+    }
+
+    private void validateOracleSourceConnection(AnalyzerConsoleConfig session) {
+        AnalyzerJdbcConnectionInfo profile =
+                AnalyzerJdbcConnectionSupport.parseOracleProfile(
+                        session.getSourceJdbcUrl(),
+                        session.getSourceUser(),
+                        session.getSourcePassword());
+        AnalyzerJdbcConnectionSupport.validateConnection(
+                SOURCE_CONNECTION_NAME, profile, ORACLE_CONN_PARAMETERS_FACTORY);
+    }
+
+    private void validateJdbcTargetConnection(AnalyzerConsoleConfig session) {
+        AnalyzerJdbcConnectionInfo profile =
+                AnalyzerJdbcConnectionSupport.parseCubridProfile(
+                        session.getTargetJdbcUrl(),
+                        session.getTargetUser(),
+                        session.getTargetPassword());
+        AnalyzerJdbcConnectionSupport.validateConnection(
+                TARGET_CONNECTION_NAME, profile, CUBRID_CONN_PARAMETERS_FACTORY);
+    }
+
+    private void prepareConfiguration(AnalyzerConsoleConfig session) {
         AnalyzerConfiguration config = session.getConfig();
 
         if (session.getSourceType() == AnalyzerSourceType.ORACLE) {
@@ -247,7 +292,7 @@ public class AnalyzerConsoleRunner {
         }
     }
     
-    private void loadSourceCatalog(AnalyzerConsoleSession session) {
+    private void loadSourceCatalog(AnalyzerConsoleConfig session) {
         io.println("");
         io.println("Loading source metadata...");
 
@@ -264,7 +309,7 @@ public class AnalyzerConsoleRunner {
         throw new IllegalStateException("Unsupported source type: " + session.getSourceType());
     }
 
-    private void loadOracleSourceCatalog(AnalyzerConsoleSession session) {
+    private void loadOracleSourceCatalog(AnalyzerConsoleConfig session) {
         AnalyzerConfiguration config = session.getConfig();
         JDBCDBSchemaFetcherFacade fetcher = new JDBCDBSchemaFetcherFacade();
         Catalog catalog = fetcher.fetchSchema(config.getSourceConParams(), null);
@@ -275,11 +320,12 @@ public class AnalyzerConsoleRunner {
 
         session.setSourceCatalog(catalog);
         config.setSrcCatalog(catalog, false);
+        config.parsingProcedureFunction(true);
 
         io.println("Oracle catalog loaded.");
     }
 
-    private void loadXmlQueryDictionary(AnalyzerConsoleSession session) {
+    private void loadXmlQueryDictionary(AnalyzerConsoleConfig session) {
         AnalyzerConfiguration config = session.getConfig();
         XMLDirSource source = new XMLDirSource(session.getXmlDirectory(), session.getXmlCharset());
         XMLDirSchemaFetcher fetcher = new XMLDirSchemaFetcher();
@@ -297,11 +343,11 @@ public class AnalyzerConsoleRunner {
         io.println("XML query dictionary loaded.");
     }
 
-    private void printObjectCountPage(AnalyzerConsoleSession session) {
+    private void printObjectCountPage(AnalyzerConsoleConfig session) {
         AnalyzerConfiguration config = session.getConfig();
 
         io.println("");
-        io.println("[4/5] Object count preview");
+        io.println("[3/4] Object count preview");
         io.println("Source      : " + session.getSourceType());
         io.println("Target      : " + session.getTargetType());
         io.println("Mode        : " + session.getExecutionMode());
@@ -336,9 +382,9 @@ public class AnalyzerConsoleRunner {
         }
     }
 
-    private void runAnalysis(AnalyzerConsoleSession session) {
+    private void runAnalysis(AnalyzerConsoleConfig session) {
         io.println("");
-        io.println("[5/5] Analysis progress");
+        io.println("[4/4] Analysis progress");
 
         AnalyzerExecutionPlan executionPlan = buildExecutionPlan(session);
         costAnalyzer.analyzeBeforeExecution(executionPlan, session.getConsoleReport());
@@ -365,7 +411,7 @@ public class AnalyzerConsoleRunner {
     }
 
     private void runParserAnalysis(
-            AnalyzerConsoleSession session, AnalyzerExecutionPlan executionPlan) {
+            AnalyzerConsoleConfig session, AnalyzerExecutionPlan executionPlan) {
         QueryParser queryParser = new QueryParser();
         int analyzed = 0;
         int succeeded = 0;
@@ -413,7 +459,7 @@ public class AnalyzerConsoleRunner {
     }
 
     private void runJdbcAnalysis(
-            AnalyzerConsoleSession session, AnalyzerExecutionPlan executionPlan) {
+            AnalyzerConsoleConfig session, AnalyzerExecutionPlan executionPlan) {
         Connection connection = null;
         List<String> cleanupQueries = new ArrayList<String>();
         int analyzed = 0;
@@ -474,7 +520,7 @@ public class AnalyzerConsoleRunner {
                         + failed);
     }
 
-    private void printResult(AnalyzerConsoleSession session) {
+    private void printResult(AnalyzerConsoleConfig session) {
         AnalyzerConsoleReport report = session.getConsoleReport();
 
         io.println("");
@@ -485,6 +531,24 @@ public class AnalyzerConsoleRunner {
         io.println("Total  : " + report.getAnalyzedStatementCount());
         io.println("OK     : " + report.getSucceededStatementCount());
         io.println("FAIL   : " + report.getFailedStatementCount());
+
+        if (!report.getFailures().isEmpty()) {
+            io.println("");
+            io.println("Failed statements");
+            for (AnalyzerConsoleFailure failure : report.getFailures()) {
+                io.println(
+                        "- "
+                                + failure.getStatementType()
+                                + " "
+                                + failure.getStatementId()
+                                + " ["
+                                + failure.getFailureStage()
+                                + "]");
+                io.println("  Reason: " + failure.getReason());
+                io.println("  SQL   : " + String.valueOf(failure.getSql()));
+            }
+            return;
+        }
 
         if (!report.getFailureMessages().isEmpty()) {
             io.println("");
@@ -501,7 +565,7 @@ public class AnalyzerConsoleRunner {
         return input.isEmpty() ? defaultValue : input;
     }
 
-    private AnalyzerExecutionPlan buildExecutionPlan(AnalyzerConsoleSession session) {
+    private AnalyzerExecutionPlan buildExecutionPlan(AnalyzerConsoleConfig session) {
         if (session.getSourceType() == AnalyzerSourceType.XML) {
             if (session.getExecutionMode() == AnalyzerExecutionMode.DDL) {
                 return new AnalyzerExecutionPlan();
@@ -579,7 +643,7 @@ public class AnalyzerConsoleRunner {
     }
 
     private void runJdbcCleanup(
-            Connection connection, List<String> cleanupQueries, AnalyzerConsoleSession session) {
+            Connection connection, List<String> cleanupQueries, AnalyzerConsoleConfig session) {
         for (int i = cleanupQueries.size() - 1; i >= 0; i--) {
             String cleanupQuery = cleanupQueries.get(i);
             Statement statement = null;
@@ -616,7 +680,7 @@ public class AnalyzerConsoleRunner {
         return statement.getType() != null && statement.getType().startsWith("DDL_");
     }
 
-    private String buildCleanupQuery(AnalyzerConsoleSession session, AnalyzerStatement statement) {
+    private String buildCleanupQuery(AnalyzerConsoleConfig session, AnalyzerStatement statement) {
         if (!isDDL(statement)) {
             return null;
         }

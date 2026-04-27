@@ -13,7 +13,7 @@ public class AnalyzerDbTypeConnParametersFactory implements AnalyzerConnParamete
     }
 
     @Override
-    public ConnParameters create(String connectionName, AnalyzerJdbcConnectionProfile profile) {
+    public ConnParameters create(String connectionName, AnalyzerJdbcConnectionInfo profile) {
         String charset = profile.getCharset();
         if (charset == null || charset.isEmpty()) {
             charset = defaultCharset;

@@ -43,7 +43,7 @@ public final class AnalyzerJdbcConnectionSupport {
 
     public static void validateConnection(
             String connectionName,
-            AnalyzerJdbcConnectionProfile profile,
+            AnalyzerJdbcConnectionInfo profile,
             AnalyzerConnParametersFactory factory) {
         ConnParameters connectionParameters = factory.create(connectionName, profile);
         try (Connection conn = connectionParameters.createConnection()) {
@@ -55,12 +55,12 @@ public final class AnalyzerJdbcConnectionSupport {
         }
     }
 
-    public static AnalyzerJdbcConnectionProfile parseOracleProfile(
+    public static AnalyzerJdbcConnectionInfo parseOracleProfile(
             String jdbcUrl, String user, String password) {
         String driverLocation = resolveAndLoadDriver(DatabaseType.ORACLE);
         Matcher sidMatcher = ORACLE_SID_URL.matcher(jdbcUrl);
         if (sidMatcher.matches()) {
-            return new AnalyzerJdbcConnectionProfile(
+            return new AnalyzerJdbcConnectionInfo(
                     jdbcUrl,
                     sidMatcher.group(1),
                     Integer.parseInt(sidMatcher.group(2)),
@@ -73,7 +73,7 @@ public final class AnalyzerJdbcConnectionSupport {
 
         Matcher serviceMatcher = ORACLE_SERVICE_URL.matcher(jdbcUrl);
         if (serviceMatcher.matches()) {
-            return new AnalyzerJdbcConnectionProfile(
+            return new AnalyzerJdbcConnectionInfo(
                     jdbcUrl,
                     serviceMatcher.group(1),
                     Integer.parseInt(serviceMatcher.group(2)),
@@ -87,7 +87,7 @@ public final class AnalyzerJdbcConnectionSupport {
         throw new IllegalArgumentException("Unsupported Oracle JDBC URL format: " + jdbcUrl);
     }
 
-    public static AnalyzerJdbcConnectionProfile parseCubridProfile(
+    public static AnalyzerJdbcConnectionInfo parseCubridProfile(
             String jdbcUrl, String user, String password) {
         String driverLocation = resolveAndLoadDriver(DatabaseType.CUBRID);
         Matcher matcher = CUBRID_URL.matcher(jdbcUrl);
@@ -95,7 +95,7 @@ public final class AnalyzerJdbcConnectionSupport {
             throw new IllegalArgumentException("Unsupported CUBRID JDBC URL format: " + jdbcUrl);
         }
 
-        return new AnalyzerJdbcConnectionProfile(
+        return new AnalyzerJdbcConnectionInfo(
                 jdbcUrl,
                 matcher.group(1),
                 Integer.parseInt(matcher.group(2)),
