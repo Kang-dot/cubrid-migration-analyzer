@@ -1,5 +1,20 @@
 package com.cubrid.sqlanalyzer.command;
 
+import static com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes.TYPE_DDL_FK;
+import static com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes.TYPE_DDL_FUNC_BODY;
+import static com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes.TYPE_DDL_FUNC_HEADER;
+import static com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes.TYPE_DDL_GRANT;
+import static com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes.TYPE_DDL_INDEX;
+import static com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes.TYPE_DDL_PK;
+import static com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes.TYPE_DDL_PROC_BODY;
+import static com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes.TYPE_DDL_PROC_HEADER;
+import static com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes.TYPE_DDL_SEQUENCE;
+import static com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes.TYPE_DDL_SYNONYM;
+import static com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes.TYPE_DDL_TABLE;
+import static com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes.TYPE_DDL_VIEW;
+import static com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes.TYPE_DDL_VIEW_ALTER;
+import static com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes.TYPE_DDL_VIEW_CREATE;
+
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -24,8 +39,8 @@ import com.cubrid.cubridmigration.core.engine.config.SourceGrantConfig;
 import com.cubrid.cubridmigration.core.dbtype.DatabaseType;
 import com.cubrid.cubridmigration.cubrid.CUBRIDSQLHelper;
 import com.cubrid.sqlanalyzer.core.AnalyzerConfiguration;
-import com.cubrid.sqlanalyzer.core.cost.AnalyzerCostAnalyzer;
-import com.cubrid.sqlanalyzer.core.cost.FailureOnlyCostAnalyzer;
+import com.cubrid.sqlanalyzer.core.cost.AnalyzerCostCalculator;
+import com.cubrid.sqlanalyzer.core.cost.FailureCostCalculator;
 import com.cubrid.sqlanalyzer.core.dbobject.AnalyzerCatalog;
 import com.cubrid.sqlanalyzer.core.dbobject.QueryDictionary;
 import com.cubrid.sqlanalyzer.core.runner.QueryParser;
@@ -34,20 +49,6 @@ import com.cubrid.sqlanalyzer.xmlmetadata.XMLDirSchemaFetcher;
 import com.cubrid.sqlanalyzer.xmlmetadata.XMLDirSource;
 
 public class AnalyzerConsoleRunner {
-    private static final String TYPE_DDL_TABLE = "DDL_TABLE";
-    private static final String TYPE_DDL_PK = "DDL_PK";
-    private static final String TYPE_DDL_FK = "DDL_FK";
-    private static final String TYPE_DDL_INDEX = "DDL_INDEX";
-    private static final String TYPE_DDL_SEQUENCE = "DDL_SEQUENCE";
-    private static final String TYPE_DDL_VIEW = "DDL_VIEW";
-    private static final String TYPE_DDL_VIEW_CREATE = "DDL_VIEW_CREATE";
-    private static final String TYPE_DDL_VIEW_ALTER = "DDL_VIEW_ALTER";
-    private static final String TYPE_DDL_SYNONYM = "DDL_SYNONYM";
-    private static final String TYPE_DDL_GRANT = "DDL_GRANT";
-    private static final String TYPE_DDL_PROC_HEADER = "DDL_PROC_HEADER";
-    private static final String TYPE_DDL_PROC_BODY = "DDL_PROC_BODY";
-    private static final String TYPE_DDL_FUNC_HEADER = "DDL_FUNC_HEADER";
-    private static final String TYPE_DDL_FUNC_BODY = "DDL_FUNC_BODY";
     private static final String DEFAULT_XML_CHARSET = "UTF-8";
     private static final String SOURCE_CONNECTION_NAME = "console-source";
     private static final String TARGET_CONNECTION_NAME = "console-target";
@@ -57,7 +58,7 @@ public class AnalyzerConsoleRunner {
             AnalyzerJdbcConnectionSupport.createFactory(DatabaseType.CUBRID);
 
     private final ConsoleIO io;
-    private final AnalyzerCostAnalyzer costAnalyzer = new FailureOnlyCostAnalyzer();
+    private final AnalyzerCostCalculator costCalculator = new FailureCostCalculator();
 
     public AnalyzerConsoleRunner(ConsoleIO io) {
         this.io = io;
@@ -365,8 +366,13 @@ public class AnalyzerConsoleRunner {
 
         io.println("");
         if (session.getSourceType() == AnalyzerSourceType.ORACLE) {
+            long targetPkCount = countTargetPrimaryKeys(config.getTargetTableSchema());
+            long targetFkCount = countTargetForeignKeys(config.getTargetTableSchema());
+
             io.println("Catalog schemas : " + session.getSourceCatalog().getSchemas().size());
             io.println("Target tables   : " + config.getTargetTableSchema().size());
+            io.println("Target PKs      : " + targetPkCount);
+            io.println("Target FKs      : " + targetFkCount);
             io.println("Target views    : " + config.getTargetViewSchema().size());
             io.println("Target serials  : " + config.getTargetSerialSchema().size());
             io.println("Target synonyms : " + config.getTargetSynonymSchema().size());
@@ -387,7 +393,7 @@ public class AnalyzerConsoleRunner {
         io.println("[4/4] Analysis progress");
 
         AnalyzerExecutionPlan executionPlan = buildExecutionPlan(session);
-        costAnalyzer.analyzeBeforeExecution(executionPlan, session.getConsoleReport());
+        costCalculator.analyzeBeforeExecution(executionPlan, session.getConsoleReport());
         if (executionPlan.isEmpty()) {
             session.setAnalyzedStatementCount(0);
             session.setSucceededStatementCount(0);
@@ -447,7 +453,7 @@ public class AnalyzerConsoleRunner {
         session.setAnalyzedStatementCount(analyzed);
         session.setSucceededStatementCount(succeeded);
         session.setFailedStatementCount(failed);
-        costAnalyzer.analyzeAfterExecution(session.getConsoleReport());
+        costCalculator.analyzeAfterExecution(session.getConsoleReport());
 
         io.println(
                 "Analysis completed. Total="
@@ -509,7 +515,7 @@ public class AnalyzerConsoleRunner {
         session.setAnalyzedStatementCount(analyzed);
         session.setSucceededStatementCount(succeeded);
         session.setFailedStatementCount(failed);
-        costAnalyzer.analyzeAfterExecution(session.getConsoleReport());
+        costCalculator.analyzeAfterExecution(session.getConsoleReport());
 
         io.println(
                 "Analysis completed. Total="
@@ -768,5 +774,27 @@ public class AnalyzerConsoleRunner {
         }
 
         return Integer.parseInt(id.substring(prefix.length())) - 1;
+    }
+
+    private long countTargetPrimaryKeys(List<Table> tables) {
+        long count = 0;
+
+        for (Table table : tables) {
+            if (table.getPk() != null && !table.getPk().getPkColumns().isEmpty()) {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    private long countTargetForeignKeys(List<Table> tables) {
+        long count = 0;
+
+        for (Table table : tables) {
+            count += table.getFks().size();
+        }
+
+        return count;
     }
 }

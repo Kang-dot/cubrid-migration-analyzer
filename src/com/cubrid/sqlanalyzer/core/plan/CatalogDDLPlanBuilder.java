@@ -1,5 +1,19 @@
 package com.cubrid.sqlanalyzer.core.plan;
 
+import static com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes.TYPE_DDL_FK;
+import static com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes.TYPE_DDL_FUNC_BODY;
+import static com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes.TYPE_DDL_FUNC_HEADER;
+import static com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes.TYPE_DDL_GRANT;
+import static com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes.TYPE_DDL_INDEX;
+import static com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes.TYPE_DDL_PK;
+import static com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes.TYPE_DDL_PROC_BODY;
+import static com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes.TYPE_DDL_PROC_HEADER;
+import static com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes.TYPE_DDL_SEQUENCE;
+import static com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes.TYPE_DDL_SYNONYM;
+import static com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes.TYPE_DDL_TABLE;
+import static com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes.TYPE_DDL_VIEW_ALTER;
+import static com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes.TYPE_DDL_VIEW_CREATE;
+
 import com.cubrid.cubridmigration.core.dbobject.FK;
 import com.cubrid.cubridmigration.core.dbobject.Grant;
 import com.cubrid.cubridmigration.core.dbobject.Index;
@@ -15,20 +29,6 @@ import com.cubrid.cubridmigration.cubrid.CUBRIDSQLHelper;
 import com.cubrid.sqlanalyzer.core.AnalyzerConfiguration;
 
 public class CatalogDDLPlanBuilder implements AnalyzerExecutionPlanBuilder {
-    private static final String TYPE_DDL_TABLE = "DDL_TABLE";
-    private static final String TYPE_DDL_PK = "DDL_PK";
-    private static final String TYPE_DDL_FK = "DDL_FK";
-    private static final String TYPE_DDL_INDEX = "DDL_INDEX";
-    private static final String TYPE_DDL_SEQUENCE = "DDL_SEQUENCE";
-    private static final String TYPE_DDL_VIEW_CREATE = "DDL_VIEW_CREATE";
-    private static final String TYPE_DDL_VIEW_ALTER = "DDL_VIEW_ALTER";
-    private static final String TYPE_DDL_SYNONYM = "DDL_SYNONYM";
-    private static final String TYPE_DDL_GRANT = "DDL_GRANT";
-    private static final String TYPE_DDL_PROC_HEADER = "DDL_PROC_HEADER";
-    private static final String TYPE_DDL_PROC_BODY = "DDL_PROC_BODY";
-    private static final String TYPE_DDL_FUNC_HEADER = "DDL_FUNC_HEADER";
-    private static final String TYPE_DDL_FUNC_BODY = "DDL_FUNC_BODY";
-
     @Override
     public AnalyzerExecutionPlan build(AnalyzerConfiguration config) {
         AnalyzerExecutionPlan plan = new AnalyzerExecutionPlan();

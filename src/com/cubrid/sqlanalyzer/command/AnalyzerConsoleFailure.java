@@ -6,6 +6,7 @@ public class AnalyzerConsoleFailure {
     private String statementId;
     private String sql;
     private String reason;
+    private float estimatedCost;
 
     public AnalyzerFailureStage getFailureStage() {
         return failureStage;
@@ -45,5 +46,13 @@ public class AnalyzerConsoleFailure {
 
     public void setReason(String reason) {
         this.reason = reason;
+    }
+
+    public float getEstimatedCost() {
+        return estimatedCost;
+    }
+
+    public void setEstimatedCost(float estimatedCost) {
+        this.estimatedCost = estimatedCost;
     }
 }
