@@ -69,10 +69,8 @@ public class AnalyzerReport implements Serializable {
 				executeTime);
 		queryResults.add(result);
 
-		DMLCategory category = categoryMap.get(queryType);
-		if (category != null) {
-			category.addResult(result);
-		}
+		DMLCategory category = getOrCreateCategory(queryType);
+		category.addResult(result);
 	}
 
 	/**
@@ -239,18 +237,53 @@ public class AnalyzerReport implements Serializable {
 		return totalResultList;
 	}
 
+	public List<String> getCategoryTypes() {
+		return new ArrayList<String>(categoryMap.keySet());
+	}
+
+	public List<AnalyzerOverviewResult> getResultsByType(String type) {
+		return new ArrayList<AnalyzerOverviewResult>(getCategoryResults(type));
+	}
+
+	public long getTotalCountByType(String type) {
+		return getCategoryTotalCount(type);
+	}
+
+	public long getErrorCountByType(String type) {
+		return getCategoryErrorCount(type);
+	}
+
+	private DMLCategory getOrCreateCategory(String type) {
+		String normalizedType = normalizeType(type);
+		DMLCategory category = categoryMap.get(normalizedType);
+		if (category == null) {
+			category = new DMLCategory(normalizedType);
+			categoryMap.put(normalizedType, category);
+		}
+		return category;
+	}
+
 	private long getCategoryTotalCount(String type) {
-		DMLCategory cat = categoryMap.get(type);
+		DMLCategory cat = categoryMap.get(normalizeType(type));
 		return cat != null ? cat.totalCount : 0;
 	}
 
 	private long getCategoryErrorCount(String type) {
-		DMLCategory cat = categoryMap.get(type);
+		DMLCategory cat = categoryMap.get(normalizeType(type));
 		return cat != null ? cat.errorCount : 0;
 	}
 
 	private List<AnalyzerOverviewResult> getCategoryResults(String type) {
-		DMLCategory cat = categoryMap.get(type);
+		DMLCategory cat = categoryMap.get(normalizeType(type));
 		return cat != null ? cat.results : new ArrayList<>();
+	}
+
+	private String normalizeType(String type) {
+		if (type == null) {
+			return "UNKNOWN";
+		}
+
+		String trimmedType = type.trim();
+		return trimmedType.isEmpty() ? "UNKNOWN" : trimmedType;
 	}
 }

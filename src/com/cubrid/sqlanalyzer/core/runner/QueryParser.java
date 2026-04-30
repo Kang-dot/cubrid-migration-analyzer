@@ -5,7 +5,7 @@ public class QueryParser {
 	static {
 		try {
 			String osName = System.getProperty("os.name").toLowerCase();
-			if (osName.contains("win")) {
+			if (osName.contains("win") || osName.contains("linux")) {
 				System.loadLibrary("sqlvalidator");
 			}
 		} catch (UnsatisfiedLinkError e) {

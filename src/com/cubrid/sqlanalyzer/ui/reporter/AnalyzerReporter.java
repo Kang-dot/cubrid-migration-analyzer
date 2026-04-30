@@ -133,7 +133,7 @@ public class AnalyzerReporter implements IMigrationReporter, IEditorInput {
             if (pwLog != null) {
                 Closer.close(pwLog);
             }
-            
+
             // Save report file
             if (reportFile != null && report != null) {
                 saveReportToFile(reportFile.getCanonicalPath());

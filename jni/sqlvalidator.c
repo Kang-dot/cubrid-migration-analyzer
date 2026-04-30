@@ -3,9 +3,14 @@
 
 #include <jni.h>
 #include <limits.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#ifdef _WIN32
 #include <windows.h>
+#else
+#include <dlfcn.h>
+#endif
 
 #include "dbi.h"
 /* Header for class com_cubrid_sqlanalyzer_core_runner_QueryParser */
@@ -18,7 +23,11 @@
 #define NO_ERROR   0
 #define ER_FAILED -1
 
+#ifdef _WIN32
 #define DEFAULT_LIBRARY_PATH "C:/CUBRID/bin/cubridcs.dll"
+#else
+#define DEFAULT_LIBRARY_PATH_SUFFIX "/lib/libcubridcs.so.11.4"
+#endif
 #define DEFAULT_LANG_CHARSET "ko_KR.utf8"
 #define DEFAULT_BUF_LENGTH   1024
 
@@ -47,6 +56,12 @@ typedef void (*fn_db_set_connect_status)(int status);
 typedef DB_SESSION * (*fn_db_open_buffer)(char * query);
 typedef void (*fn_db_close_session)(DB_SESSION * session);
 
+#ifdef _WIN32
+typedef HINSTANCE LIB_HANDLE;
+#else
+typedef void * LIB_HANDLE;
+#endif
+
 static fn_er_init cub_er_init = NULL;
 static fn_er_errid cub_er_errid = NULL;
 static fn_er_msg cub_er_msg = NULL;
@@ -58,11 +73,15 @@ static fn_db_set_connect_status cub_db_set_connect_status = NULL;
 static fn_db_open_buffer cub_db_open_buffer = NULL;
 static fn_db_close_session cub_db_close_session = NULL;
 
-static int load(HINSTANCE hDLL, const char * libraryPath);
+static int load(LIB_HANDLE *hDLL, const char * libraryPath);
 static int init(const char *lang_charset);
 static int set_error(char ** error_buf, const char *er_msg);
 static char * jstring_to_char(JNIEnv *env, jstring j_str);
 static jstring char_to_jstring(JNIEnv *env, const char *str);
+#ifndef _WIN32
+static void * load_symbol_with_fallback(LIB_HANDLE hDLL, const char *symbol,
+		const char *fallback_symbol);
+#endif
 
 /*
  * Class:     com_cubrid_sqlanalyzer_core_runner_QueryParser
@@ -71,8 +90,11 @@ static jstring char_to_jstring(JNIEnv *env, const char *str);
  */
 JNIEXPORT jstring JNICALL Java_com_cubrid_sqlanalyzer_core_runner_QueryParser_validateSQL(
 		JNIEnv *env, jobject j_obj, jstring j_str) {
-	HINSTANCE hDLL = NULL;
-	BOOL fFreeResult;
+	LIB_HANDLE hDLL = NULL;
+#ifndef _WIN32
+	char libraryPath[PATH_MAX];
+	const char *cubrid = NULL;
+#endif
 	char *query = NULL;
 	DB_SESSION *session = NULL;
 	DB_SESSION_ERROR *session_error = NULL;
@@ -82,9 +104,27 @@ JNIEXPORT jstring JNICALL Java_com_cubrid_sqlanalyzer_core_runner_QueryParser_va
 	int has_error = 0;
 	jstring result = NULL;
 
-	if (load(hDLL, DEFAULT_LIBRARY_PATH) != NO_ERROR) {
+#ifdef _WIN32
+	if (load(&hDLL, DEFAULT_LIBRARY_PATH) != NO_ERROR) {
 		goto exit_on_error;
 	}
+#else
+	cubrid = getenv("CUBRID");
+	if (cubrid == NULL || cubrid[0] == '\0') {
+		fprintf(stderr, "CUBRID environment variable is not set.\n");
+		goto exit_on_error;
+	}
+
+	if (snprintf(libraryPath, sizeof(libraryPath), "%s%s", cubrid,
+			DEFAULT_LIBRARY_PATH_SUFFIX) >= (int) sizeof(libraryPath)) {
+		fprintf(stderr, "CUBRID library path is too long.\n");
+		goto exit_on_error;
+	}
+
+	if (load(&hDLL, libraryPath) != NO_ERROR) {
+		goto exit_on_error;
+	}
+#endif
 
 	if (init(DEFAULT_LANG_CHARSET) != NO_ERROR) {
 		goto exit_on_error;
@@ -162,7 +202,11 @@ JNIEXPORT jstring JNICALL Java_com_cubrid_sqlanalyzer_core_runner_QueryParser_va
 	session = NULL;
 
 	if (hDLL != NULL) {
+#ifdef _WIN32
 		FreeLibrary(hDLL);
+#else
+		dlclose(hDLL);
+#endif
 		hDLL = NULL;
 	}
 
@@ -192,86 +236,137 @@ JNIEXPORT jstring JNICALL Java_com_cubrid_sqlanalyzer_core_runner_QueryParser_va
 	}
 
 	if (hDLL != NULL) {
+#ifdef _WIN32
 		FreeLibrary(hDLL);
+#else
+		dlclose(hDLL);
+#endif
 		hDLL = NULL;
 	}
 
 	return result;
 }
 
-static int load(HINSTANCE hDLL, const char * libraryPath) {
-	char *er_msg = NULL;
-
-	hDLL = LoadLibrary(libraryPath);
-	if (hDLL == NULL) {
+static int load(LIB_HANDLE *hDLL, const char * libraryPath) {
+#ifdef _WIN32
+	*hDLL = LoadLibrary(libraryPath);
+	if (*hDLL == NULL) {
 		fprintf(stderr, "Failed to LoadLibrary( %s ).\n", libraryPath);
 		return ER_FAILED;
 	}
+#else
+	*hDLL = dlopen(libraryPath, RTLD_NOW);
+	if (*hDLL == NULL) {
+		fprintf(stderr, "Failed to dlopen( %s ): %s\n", libraryPath, dlerror());
+		return ER_FAILED;
+	}
+#endif
 
-	cub_er_init = (fn_er_init) GetProcAddress(hDLL, "er_init");
+#ifdef _WIN32
+	cub_er_init = (fn_er_init) GetProcAddress(*hDLL, "er_init");
+#else
+	cub_er_init = (fn_er_init) dlsym(*hDLL, "er_init");
+#endif
 	if (cub_er_init == NULL) {
-		fprintf(stderr, "Failed to GetProcAddress(er_init).\n");
+		fprintf(stderr, "Failed to load symbol(er_init).\n");
 		return ER_FAILED;
 	}
 
-	cub_er_errid = (fn_er_errid) GetProcAddress(hDLL, "er_errid");
+#ifdef _WIN32
+	cub_er_errid = (fn_er_errid) GetProcAddress(*hDLL, "er_errid");
+#else
+	cub_er_errid = (fn_er_errid) dlsym(*hDLL, "er_errid");
+#endif
 	if (cub_er_errid == NULL) {
-		fprintf(stderr, "Failed to GetProcAddress(er_errid).\n");
+		fprintf(stderr, "Failed to load symbol(er_errid).\n");
 		return ER_FAILED;
 	}
 
-	cub_er_msg = (fn_er_msg) GetProcAddress(hDLL, "er_msg");
+#ifdef _WIN32
+	cub_er_msg = (fn_er_msg) GetProcAddress(*hDLL, "er_msg");
+#else
+	cub_er_msg = (fn_er_msg) dlsym(*hDLL, "er_msg");
+#endif
 	if (cub_er_msg == NULL) {
-		fprintf(stderr, "Failed to GetProcAddress(er_msg).\n");
+		fprintf(stderr, "Failed to load symbol(er_msg).\n");
 		return ER_FAILED;
 	}
 
-	cub_db_get_errors = (fn_db_get_errors) GetProcAddress(hDLL,
-			"db_get_errors");
+#ifdef _WIN32
+	cub_db_get_errors = (fn_db_get_errors) GetProcAddress(*hDLL, "db_get_errors");
+#else
+	cub_db_get_errors = (fn_db_get_errors) dlsym(*hDLL, "db_get_errors");
+#endif
 	if (cub_db_get_errors == NULL) {
-		fprintf(stderr, "Failed to GetProcAddress(db_get_errors).\n");
+		fprintf(stderr, "Failed to load symbol(db_get_errors).\n");
 		return ER_FAILED;
 	}
 
-	cub_db_get_next_error = (fn_db_get_next_error) GetProcAddress(hDLL,
+#ifdef _WIN32
+	cub_db_get_next_error = (fn_db_get_next_error) GetProcAddress(*hDLL,
 			"db_get_next_error");
+#else
+	cub_db_get_next_error = (fn_db_get_next_error) dlsym(*hDLL,
+			"db_get_next_error");
+#endif
 	if (cub_db_get_next_error == NULL) {
-		fprintf(stderr, "Failed to GetProcAddress(db_get_next_error).\n");
+		fprintf(stderr, "Failed to load symbol(db_get_next_error).\n");
 		return ER_FAILED;
 	}
 
-	cub_lang_init = (fn_lang_init) GetProcAddress(hDLL, "lang_init");
+#ifdef _WIN32
+	cub_lang_init = (fn_lang_init) GetProcAddress(*hDLL, "lang_init");
+#else
+	cub_lang_init = (fn_lang_init) dlsym(*hDLL, "lang_init");
+#endif
 	if (cub_lang_init == NULL) {
-		fprintf(stderr, "Failed to GetProcAddress(lang_init).\n");
+		fprintf(stderr, "Failed to load symbol(lang_init).\n");
 		return ER_FAILED;
 	}
 
-	cub_lang_set_charset_lang = (fn_lang_set_charset_lang) GetProcAddress(hDLL,
+#ifdef _WIN32
+	cub_lang_set_charset_lang = (fn_lang_set_charset_lang) GetProcAddress(*hDLL,
 			"lang_set_charset_lang");
+#else
+	cub_lang_set_charset_lang = (fn_lang_set_charset_lang) dlsym(*hDLL,
+			"lang_set_charset_lang");
+#endif
 	if (cub_lang_set_charset_lang == NULL) {
-		fprintf(stderr, "Failed to GetProcAddress(lang_set_charset_lang).\n");
+		fprintf(stderr, "Failed to load symbol(lang_set_charset_lang).\n");
 		return ER_FAILED;
 	}
 
 	/* dumpbin -exports cubridcs.dll | findstr db_open_buffer_local */
-	cub_db_set_connect_status = (fn_db_set_connect_status) GetProcAddress(hDLL,
+#ifdef _WIN32
+	cub_db_set_connect_status = (fn_db_set_connect_status) GetProcAddress(*hDLL,
 			"db_set_connect_status");
+#else
+	cub_db_set_connect_status = (fn_db_set_connect_status) load_symbol_with_fallback(
+			*hDLL, "db_set_connect_status", "_Z21db_set_connect_statusi");
+#endif
 	if (cub_db_set_connect_status == NULL) {
-		fprintf(stderr, "Failed to GetProcAddress(db_set_connect_status).\n");
-		return ER_FAILED;
+		fprintf(stderr, "Failed to load symbol(db_set_connect_status).\n");
 	}
 
-	cub_db_open_buffer = (fn_db_open_buffer) GetProcAddress(hDLL,
+#ifdef _WIN32
+	cub_db_open_buffer = (fn_db_open_buffer) GetProcAddress(*hDLL,
 			"db_open_buffer");
+#else
+	cub_db_open_buffer = (fn_db_open_buffer) dlsym(*hDLL, "db_open_buffer");
+#endif
 	if (cub_db_open_buffer == NULL) {
-		fprintf(stderr, "Failed to GetProcAddress(db_open_buffer).\n");
+		fprintf(stderr, "Failed to load symbol(db_open_buffer).\n");
 		return ER_FAILED;
 	}
 
-	cub_db_close_session = (fn_db_close_session) GetProcAddress(hDLL,
+#ifdef _WIN32
+	cub_db_close_session = (fn_db_close_session) GetProcAddress(*hDLL,
 			"db_close_session");
+#else
+	cub_db_close_session = (fn_db_close_session) dlsym(*hDLL, "db_close_session");
+#endif
 	if (cub_db_close_session == NULL) {
-		fprintf(stderr, "Failed to GetProcAddress(db_close_session).\n");
+		fprintf(stderr, "Failed to load symbol(db_close_session).\n");
 		return ER_FAILED;
 	}
 
@@ -294,10 +389,25 @@ static int init(const char *lang_charset) {
 		return ER_FAILED;
 	}
 
-	cub_db_set_connect_status(DB_CONNECTION_STATUS_CONNECTED);
+	if (cub_db_set_connect_status != NULL) {
+		cub_db_set_connect_status(DB_CONNECTION_STATUS_CONNECTED);
+	}
 
 	return NO_ERROR;
 }
+
+#ifndef _WIN32
+static void * load_symbol_with_fallback(LIB_HANDLE hDLL, const char *symbol,
+		const char *fallback_symbol) {
+	void *fn = dlsym(hDLL, symbol);
+
+	if (fn == NULL && fallback_symbol != NULL) {
+		fn = dlsym(hDLL, fallback_symbol);
+	}
+
+	return fn;
+}
+#endif
 
 static char * jstring_to_char(JNIEnv *env, jstring j_str) {
 	const char *str = NULL;
