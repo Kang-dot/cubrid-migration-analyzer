@@ -38,10 +38,10 @@ public class AnalyzerConsoleRunner {
     private static final String DEFAULT_XML_CHARSET = "UTF-8";
     private static final String SOURCE_CONNECTION_NAME = "console-source";
     private static final String TARGET_CONNECTION_NAME = "console-target";
-    private static final AnalyzerConnParametersFactory ORACLE_CONN_PARAMETERS_FACTORY =
-            AnalyzerJdbcConnectionSupport.createFactory(DatabaseType.ORACLE);
-    private static final AnalyzerConnParametersFactory CUBRID_CONN_PARAMETERS_FACTORY =
-            AnalyzerJdbcConnectionSupport.createFactory(DatabaseType.CUBRID);
+    private static final AnalyzerConnParametersFactory ORACLE_CONN_PARAMETERS_FACTORY = AnalyzerJdbcConnectionSupport
+            .createFactory(DatabaseType.ORACLE);
+    private static final AnalyzerConnParametersFactory CUBRID_CONN_PARAMETERS_FACTORY = AnalyzerJdbcConnectionSupport
+            .createFactory(DatabaseType.CUBRID);
 
     private final ConsoleIO io;
     private final AnalyzerCostCalculator costCalculator = new FailureCostCalculator();
@@ -230,21 +230,19 @@ public class AnalyzerConsoleRunner {
     }
 
     private void validateOracleSourceConnection(AnalyzerConsoleConfig session) {
-        AnalyzerJdbcConnectionInfo profile =
-                AnalyzerJdbcConnectionSupport.parseOracleProfile(
-                        session.getSourceJdbcUrl(),
-                        session.getSourceUser(),
-                        session.getSourcePassword());
+        AnalyzerJdbcConnectionInfo profile = AnalyzerJdbcConnectionSupport.parseOracleProfile(
+                session.getSourceJdbcUrl(),
+                session.getSourceUser(),
+                session.getSourcePassword());
         AnalyzerJdbcConnectionSupport.validateConnection(
                 SOURCE_CONNECTION_NAME, profile, ORACLE_CONN_PARAMETERS_FACTORY);
     }
 
     private void validateJdbcTargetConnection(AnalyzerConsoleConfig session) {
-        AnalyzerJdbcConnectionInfo profile =
-                AnalyzerJdbcConnectionSupport.parseCubridProfile(
-                        session.getTargetJdbcUrl(),
-                        session.getTargetUser(),
-                        session.getTargetPassword());
+        AnalyzerJdbcConnectionInfo profile = AnalyzerJdbcConnectionSupport.parseCubridProfile(
+                session.getTargetJdbcUrl(),
+                session.getTargetUser(),
+                session.getTargetPassword());
         AnalyzerJdbcConnectionSupport.validateConnection(
                 TARGET_CONNECTION_NAME, profile, CUBRID_CONN_PARAMETERS_FACTORY);
     }
@@ -278,7 +276,7 @@ public class AnalyzerConsoleRunner {
                                     session.getTargetPassword())));
         }
     }
-    
+
     private void loadSourceCatalog(AnalyzerConsoleConfig session) {
         io.println("");
         io.println("Loading source metadata...");
@@ -416,22 +414,44 @@ public class AnalyzerConsoleRunner {
             try {
                 queryParser.checkSQL(statement.getSQL());
                 succeeded++;
+                session.getConsoleReport()
+                        .addStatementResult(
+                                statement.getType(),
+                                statement.getId(),
+                                statement.getSQL(),
+                                true,
+                                "parsed",
+                                null);
                 io.println("[OK] " + statement.getType() + " " + statement.getId());
             } catch (SQLParserException ex) {
                 failed++;
-                String failureMessage =
-                        buildFailureMessage(statement.getType(), statement.getId(), ex.getMessage());
+                String failureMessage = buildFailureMessage(statement.getType(), statement.getId(), ex.getMessage());
                 session.addFailureMessage(failureMessage);
                 session.addFailure(
                         buildFailure(statement, ex.getMessage(), AnalyzerFailureStage.PARSER));
+                session.getConsoleReport()
+                        .addStatementResult(
+                                statement.getType(),
+                                statement.getId(),
+                                statement.getSQL(),
+                                false,
+                                ex.getMessage(),
+                                AnalyzerFailureStage.PARSER);
                 io.println("[FAIL] " + failureMessage);
             } catch (Exception ex) {
                 failed++;
-                String failureMessage =
-                        buildFailureMessage(statement.getType(), statement.getId(), ex.toString());
+                String failureMessage = buildFailureMessage(statement.getType(), statement.getId(), ex.toString());
                 session.addFailureMessage(failureMessage);
                 session.addFailure(
                         buildFailure(statement, ex.toString(), AnalyzerFailureStage.PARSER));
+                session.getConsoleReport()
+                        .addStatementResult(
+                                statement.getType(),
+                                statement.getId(),
+                                statement.getSQL(),
+                                false,
+                                ex.toString(),
+                                AnalyzerFailureStage.PARSER);
                 io.println("[FAIL] " + failureMessage);
             }
         }
@@ -467,6 +487,14 @@ public class AnalyzerConsoleRunner {
                 try {
                     String resultSummary = executeJdbcStatement(connection, statement);
                     succeeded++;
+                    session.getConsoleReport()
+                            .addStatementResult(
+                                    statement.getType(),
+                                    statement.getId(),
+                                    statement.getSQL(),
+                                    true,
+                                    resultSummary,
+                                    null);
                     io.println(
                             "[OK] "
                                     + statement.getType()
@@ -481,11 +509,18 @@ public class AnalyzerConsoleRunner {
                     }
                 } catch (Exception ex) {
                     failed++;
-                    String failureMessage =
-                            buildFailureMessage(statement.getType(), statement.getId(), ex.toString());
+                    String failureMessage = buildFailureMessage(statement.getType(), statement.getId(), ex.toString());
                     session.addFailureMessage(failureMessage);
                     session.addFailure(
                             buildFailure(statement, ex.toString(), AnalyzerFailureStage.JDBC));
+                    session.getConsoleReport()
+                            .addStatementResult(
+                                    statement.getType(),
+                                    statement.getId(),
+                                    statement.getSQL(),
+                                    false,
+                                    ex.toString(),
+                                    AnalyzerFailureStage.JDBC);
                     io.println("[FAIL] " + failureMessage);
                 }
             }
@@ -539,16 +574,17 @@ public class AnalyzerConsoleRunner {
                 io.println("  Reason: " + failure.getReason());
                 io.println("  SQL   : " + String.valueOf(failure.getSql()));
             }
-            return;
-        }
-
-        if (!report.getFailureMessages().isEmpty()) {
+        } else if (!report.getFailureMessages().isEmpty()) {
             io.println("");
             io.println("Failed statements");
             for (String failureMessage : report.getFailureMessages()) {
                 io.println("- " + failureMessage);
             }
         }
+
+        String savedReportPath = report.saveResultReport();
+        io.println("");
+        io.println("Saved result report: " + savedReportPath);
     }
 
     private String readLineWithDefault(String prompt, String defaultValue) {
@@ -638,11 +674,20 @@ public class AnalyzerConsoleRunner {
             Connection connection, List<String> cleanupQueries, AnalyzerConsoleConfig session) {
         for (int i = cleanupQueries.size() - 1; i >= 0; i--) {
             String cleanupQuery = cleanupQueries.get(i);
+            String cleanupId = "CLEANUP_" + (cleanupQueries.size() - i);
             Statement statement = null;
             try {
                 statement = connection.createStatement();
                 statement.execute(cleanupQuery);
                 connection.commit();
+                session.getConsoleReport()
+                        .addStatementResult(
+                                "CLEANUP",
+                                cleanupId,
+                                cleanupQuery,
+                                true,
+                                "cleanup executed",
+                                null);
                 io.println("[CLEANUP OK] " + cleanupQuery);
             } catch (Exception ex) {
                 String failureMessage = "CLEANUP : " + cleanupQuery + " : " + ex.toString();
@@ -650,10 +695,18 @@ public class AnalyzerConsoleRunner {
                 session.addFailure(
                         buildFailure(
                                 "CLEANUP",
-                                "CLEANUP_" + (cleanupQueries.size() - i),
+                                cleanupId,
                                 cleanupQuery,
                                 ex.toString(),
                                 AnalyzerFailureStage.CLEANUP));
+                session.getConsoleReport()
+                        .addStatementResult(
+                                "CLEANUP",
+                                cleanupId,
+                                cleanupQuery,
+                                false,
+                                ex.toString(),
+                                AnalyzerFailureStage.CLEANUP);
                 io.println("[CLEANUP FAIL] " + failureMessage);
             } finally {
                 Closer.close(statement);

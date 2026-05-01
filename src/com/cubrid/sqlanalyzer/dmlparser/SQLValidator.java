@@ -7,7 +7,7 @@ public class SQLValidator {
 			String osName = System.getProperty("os.name").toLowerCase();
 
 			/* -Djava.library.path=jni */
-			if (osName.contains("win")) {
+			if (osName.contains("win") || osName.contains("linux")) {
 				System.loadLibrary("sqlvalidator");
 			}
 		} catch (UnsatisfiedLinkError e) {
