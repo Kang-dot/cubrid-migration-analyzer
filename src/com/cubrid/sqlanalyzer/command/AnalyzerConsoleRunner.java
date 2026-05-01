@@ -1,20 +1,5 @@
 package com.cubrid.sqlanalyzer.command;
 
-import static com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes.TYPE_DDL_FK;
-import static com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes.TYPE_DDL_FUNC_BODY;
-import static com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes.TYPE_DDL_FUNC_HEADER;
-import static com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes.TYPE_DDL_GRANT;
-import static com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes.TYPE_DDL_INDEX;
-import static com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes.TYPE_DDL_PK;
-import static com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes.TYPE_DDL_PROC_BODY;
-import static com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes.TYPE_DDL_PROC_HEADER;
-import static com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes.TYPE_DDL_SEQUENCE;
-import static com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes.TYPE_DDL_SYNONYM;
-import static com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes.TYPE_DDL_TABLE;
-import static com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes.TYPE_DDL_VIEW;
-import static com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes.TYPE_DDL_VIEW_ALTER;
-import static com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes.TYPE_DDL_VIEW_CREATE;
-
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -24,6 +9,7 @@ import java.util.List;
 
 import com.cubrid.sqlanalyzer.core.plan.AnalyzerExecutionPlan;
 import com.cubrid.sqlanalyzer.core.plan.AnalyzerStatement;
+import com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes;
 import com.cubrid.sqlanalyzer.core.plan.CatalogDDLPlanBuilder;
 import com.cubrid.sqlanalyzer.core.plan.QueryDictionaryPlanBuilder;
 import com.cubrid.cubridmigration.core.common.Closer;
@@ -694,7 +680,7 @@ public class AnalyzerConsoleRunner {
         AnalyzerConfiguration config = session.getConfig();
         CUBRIDSQLHelper helper = CUBRIDSQLHelper.getInstance(null);
 
-        if (TYPE_DDL_TABLE.equals(statement.getType())) {
+        if (AnalyzerStatementTypes.TYPE_DDL_TABLE.equals(statement.getType())) {
             int tableIndex = parseStatementIndex(statement.getId(), "TABLE_");
             Table table = config.getTargetTableSchema().get(tableIndex);
             return "DROP TABLE "
@@ -703,8 +689,8 @@ public class AnalyzerConsoleRunner {
                     + ";";
         }
 
-        if (TYPE_DDL_VIEW.equals(statement.getType())
-                || TYPE_DDL_VIEW_CREATE.equals(statement.getType())) {
+        if (AnalyzerStatementTypes.TYPE_DDL_VIEW.equals(statement.getType())
+                || AnalyzerStatementTypes.TYPE_DDL_VIEW_CREATE.equals(statement.getType())) {
             int viewIndex = parseStatementIndex(statement.getId(), "VIEW_");
             View view = config.getTargetViewSchema().get(viewIndex);
             return "DROP VIEW "
@@ -713,7 +699,7 @@ public class AnalyzerConsoleRunner {
                     + ";";
         }
 
-        if (TYPE_DDL_SEQUENCE.equals(statement.getType())) {
+        if (AnalyzerStatementTypes.TYPE_DDL_SEQUENCE.equals(statement.getType())) {
             int sequenceIndex = parseStatementIndex(statement.getId(), "SEQ_");
             Sequence sequence = config.getTargetSerialSchema().get(sequenceIndex);
             return "DROP SERIAL "
@@ -722,7 +708,7 @@ public class AnalyzerConsoleRunner {
                     + ";";
         }
 
-        if (TYPE_DDL_SYNONYM.equals(statement.getType())) {
+        if (AnalyzerStatementTypes.TYPE_DDL_SYNONYM.equals(statement.getType())) {
             int synonymIndex = parseStatementIndex(statement.getId(), "SYNONYM_");
             Synonym synonym = config.getTargetSynonymSchema().get(synonymIndex);
             return "DROP SYNONYM "
@@ -731,7 +717,7 @@ public class AnalyzerConsoleRunner {
                     + ";";
         }
 
-        if (TYPE_DDL_GRANT.equals(statement.getType())) {
+        if (AnalyzerStatementTypes.TYPE_DDL_GRANT.equals(statement.getType())) {
             int grantIndex = parseStatementIndex(statement.getId(), "GRANT_");
             SourceGrantConfig grant = config.getExpGrantCfg().get(grantIndex);
             return "REVOKE "
@@ -744,24 +730,24 @@ public class AnalyzerConsoleRunner {
                     + ";";
         }
 
-        if (TYPE_DDL_PROC_HEADER.equals(statement.getType())) {
+        if (AnalyzerStatementTypes.TYPE_DDL_PROC_HEADER.equals(statement.getType())) {
             int procIndex = parseStatementIndex(statement.getId(), "PROC_");
             PlcsqlProcedure procedure = config.getTargetPlcsqlProcedureSchema().get(procIndex);
             return helper.getPlcsqlProcedureDropDDL(procedure, config.isAddUserSchema());
         }
 
-        if (TYPE_DDL_FUNC_HEADER.equals(statement.getType())) {
+        if (AnalyzerStatementTypes.TYPE_DDL_FUNC_HEADER.equals(statement.getType())) {
             int functionIndex = parseStatementIndex(statement.getId(), "FUNC_");
             PlcsqlFunction function = config.getTargetPlcsqlFunctionSchema().get(functionIndex);
             return helper.getPlcsqlFunctionDropDDL(function, config.isAddUserSchema());
         }
 
-        if (TYPE_DDL_PK.equals(statement.getType())
-                || TYPE_DDL_FK.equals(statement.getType())
-                || TYPE_DDL_INDEX.equals(statement.getType())
-                || TYPE_DDL_VIEW_ALTER.equals(statement.getType())
-                || TYPE_DDL_PROC_BODY.equals(statement.getType())
-                || TYPE_DDL_FUNC_BODY.equals(statement.getType())) {
+        if (AnalyzerStatementTypes.TYPE_DDL_PK.equals(statement.getType())
+                || AnalyzerStatementTypes.TYPE_DDL_FK.equals(statement.getType())
+                || AnalyzerStatementTypes.TYPE_DDL_INDEX.equals(statement.getType())
+                || AnalyzerStatementTypes.TYPE_DDL_VIEW_ALTER.equals(statement.getType())
+                || AnalyzerStatementTypes.TYPE_DDL_PROC_BODY.equals(statement.getType())
+                || AnalyzerStatementTypes.TYPE_DDL_FUNC_BODY.equals(statement.getType())) {
             return null;
         }
 
