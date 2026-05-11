@@ -1,11 +1,13 @@
 package com.cubrid.sqlanalyzer.core.cost;
 
+import java.util.Locale;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 import com.cubrid.sqlanalyzer.command.AnalyzerConsoleFailure;
 import com.cubrid.sqlanalyzer.command.AnalyzerConsoleReport;
 import com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes;
-
-import java.util.Locale;
-import java.util.Map;
 
 public class FailureCostCalculator implements AnalyzerCostCalculator {
     private static final float TABLE_BASE_COST = 0.1f;
@@ -106,7 +108,7 @@ public class FailureCostCalculator implements AnalyzerCostCalculator {
         if (isFunctionBasedIndex(upperNormalizedSql)) {
             totalCost += 0.2f;
         }
-        if (upperNormalizedSql.contains(" REVERSE ")) {
+        if (checkKeyword(upperNormalizedSql, "REVERSE") > 0) {
             totalCost += 1.0f;
         }
 
@@ -169,10 +171,10 @@ public class FailureCostCalculator implements AnalyzerCostCalculator {
         float totalCost = GRANT_BASE_COST;
         totalCost += countGrantPrivileges(upperNormalizedSql) * 0.1f;
 
-        if (!upperNormalizedSql.contains(" ON ")) {
+        if (!hasKeyword(upperNormalizedSql, "ON")) {
             totalCost += 1.0f;
         }
-        if (!upperNormalizedSql.contains(" TO ")) {
+        if (!hasKeyword(upperNormalizedSql, "TO")) {
             totalCost += 1.0f;
         }
 
@@ -187,7 +189,7 @@ public class FailureCostCalculator implements AnalyzerCostCalculator {
         String upperNormalizedSql = normalizeQuery(sql).toUpperCase(Locale.ENGLISH);
 
         float totalCost = FK_BASE_COST;
-        if (upperNormalizedSql.contains("ON DELETE")) {
+        if (hasKeyword(upperNormalizedSql, "ON DELETE")) {
             totalCost += 0.5f;
         }
 
@@ -200,8 +202,7 @@ public class FailureCostCalculator implements AnalyzerCostCalculator {
 
         for (Map.Entry<String, Float> entry : keywordCostMap.entrySet()) {
             String keyword = entry.getKey();
-            String keywordToFind =
-                    normalizeKeyword ? keyword.toUpperCase(Locale.ENGLISH) : keyword;
+            String keywordToFind = normalizeKeyword ? keyword.toUpperCase(Locale.ENGLISH) : keyword;
             int occurrenceCount = checkKeyword(upperSql, keywordToFind.toUpperCase(Locale.ENGLISH));
             totalCost += occurrenceCount * entry.getValue();
         }
@@ -209,11 +210,16 @@ public class FailureCostCalculator implements AnalyzerCostCalculator {
         return totalCost;
     }
 
+    /**
+     * Counts CHECK constraints that should contribute to migration cost.
+     * Simple nullability checks such as "IS NOT NULL" are ignored because they
+     * behave more like column-nullability metadata than complex business rules.
+     */
     private int countCheckConstraints(String upperNormalizedSql) {
         int count = 0;
         int fromIndex = 0;
 
-        while ((fromIndex = upperNormalizedSql.indexOf("CHECK", fromIndex)) >= 0) {
+        while ((fromIndex = findKeywordIndex(upperNormalizedSql, "CHECK", fromIndex)) >= 0) {
             int nextOpenParenIndex = upperNormalizedSql.indexOf("(", fromIndex);
             if (nextOpenParenIndex < 0) {
                 count++;
@@ -229,7 +235,7 @@ public class FailureCostCalculator implements AnalyzerCostCalculator {
             }
 
             String condition = upperNormalizedSql.substring(nextOpenParenIndex, nextCloseParenIndex + 1);
-            if (!condition.contains("IS NOT NULL")) {
+            if (!hasKeyword(condition, "IS NOT NULL")) {
                 count++;
             }
 
@@ -239,8 +245,12 @@ public class FailureCostCalculator implements AnalyzerCostCalculator {
         return count;
     }
 
+    /**
+     * Counts how many privileges appear between GRANT and ON.
+     * Example: "GRANT SELECT, INSERT ON T1 TO U1" returns 2.
+     */
     private int countGrantPrivileges(String upperNormalizedSql) {
-        int onIndex = upperNormalizedSql.indexOf(" ON ");
+        int onIndex = findKeywordIndex(upperNormalizedSql, "ON");
         if (!upperNormalizedSql.startsWith("GRANT ") || onIndex < 0) {
             return 0;
         }
@@ -258,22 +268,20 @@ public class FailureCostCalculator implements AnalyzerCostCalculator {
     }
 
     private boolean hasJoin(String upperNormalizedSql) {
-        return upperNormalizedSql.contains(" JOIN ");
+        return hasKeyword(upperNormalizedSql, "JOIN");
     }
 
     private boolean hasSubquery(String upperNormalizedSql) {
-        return upperNormalizedSql.contains("(SELECT")
-                || upperNormalizedSql.contains("( SELECT")
-                || upperNormalizedSql.contains("IN (SELECT")
-                || upperNormalizedSql.contains("IN ( SELECT")
-                || upperNormalizedSql.contains("EXISTS (SELECT")
-                || upperNormalizedSql.contains("EXISTS ( SELECT")
-                || upperNormalizedSql.contains("FROM (SELECT")
-                || upperNormalizedSql.contains("FROM ( SELECT");
+        return hasPattern(upperNormalizedSql, "\\(\\s*SELECT\\b");
     }
 
+    /**
+     * Detects a function-based index by locating the ON clause and then checking
+     * whether the indexed column list contains nested parentheses such as
+     * "UPPER(NAME)".
+     */
     private boolean isFunctionBasedIndex(String upperNormalizedSql) {
-        int onIndex = upperNormalizedSql.indexOf(" ON ");
+        int onIndex = findKeywordIndex(upperNormalizedSql, "ON");
         int openParenIndex = upperNormalizedSql.indexOf("(", onIndex);
         int closeParenIndex = upperNormalizedSql.lastIndexOf(")");
         if (onIndex < 0 || openParenIndex < 0) {
@@ -287,23 +295,122 @@ public class FailureCostCalculator implements AnalyzerCostCalculator {
         return indexColumns.contains("(");
     }
 
+    /**
+     * Counts how many times a keyword or multi-word keyword appears in the text.
+     * The generated regex enforces token boundaries, so "ON" is not counted
+     * inside "ONLY".
+     */
     private int checkKeyword(String text, String keyword) {
         if (text == null || keyword == null || keyword.isEmpty()) {
             return 0;
         }
 
-        int count = 0;
-        int fromIndex = 0;
-        int foundIndex;
+        return countPatternMatches(text, buildKeywordPattern(keyword));
+    }
 
-        while ((foundIndex = text.indexOf(keyword, fromIndex)) >= 0) {
-            count++;
-            fromIndex = foundIndex + keyword.length();
+    /** Convenience wrapper for boolean-style keyword checks. */
+    private boolean hasKeyword(String text, String keyword) {
+        return checkKeyword(text, keyword) > 0;
+    }
+
+    /** Finds the first keyword occurrence starting from the beginning of the text. */
+    private int findKeywordIndex(String text, String keyword) {
+        return findKeywordIndex(text, keyword, 0);
+    }
+
+    /**
+     * Finds the first keyword occurrence at or after the given index.
+     * This is mainly used when we need a structural anchor such as the ON clause
+     * in "CREATE INDEX ... ON ...".
+     */
+    private int findKeywordIndex(String text, String keyword, int fromIndex) {
+        if (text == null || keyword == null || keyword.isEmpty()) {
+            return -1;
         }
 
+        Matcher matcher = Pattern.compile(buildKeywordPattern(keyword)).matcher(text);
+        return matcher.find(Math.max(fromIndex, 0)) ? matcher.start() : -1;
+    }
+
+    /** Generic regex-based existence check for non-keyword structural patterns. */
+    private boolean hasPattern(String text, String regex) {
+        if (text == null || regex == null || regex.isEmpty()) {
+            return false;
+        }
+        return Pattern.compile(regex).matcher(text).find();
+    }
+
+    /** Counts regex matches for patterns that are easier to express directly. */
+    private int countPatternMatches(String text, String regex) {
+        Matcher matcher = Pattern.compile(regex).matcher(text);
+        int count = 0;
+        while (matcher.find()) {
+            count++;
+        }
         return count;
     }
 
+    /**
+     * Builds a regex for a keyword or multi-word keyword with token boundaries.
+     * Internal whitespace becomes "\\s+" so the same keyword still matches when
+     * the SQL uses spaces, tabs, or line breaks between words.
+     */
+    private String buildKeywordPattern(String keyword) {
+        String normalizedKeyword = normalizeKeywordPattern(keyword);
+        StringBuilder pattern = new StringBuilder();
+        if (startsWithWordChar(normalizedKeyword)) {
+            pattern.append("(?<![A-Z0-9_])");
+        }
+
+        pattern.append(buildLiteralKeywordPattern(normalizedKeyword));
+
+        if (endsWithWordChar(normalizedKeyword) && !normalizedKeyword.endsWith("_")) {
+            pattern.append("(?![A-Z0-9_])");
+        }
+
+        return pattern.toString();
+    }
+
+    /** Normalizes the input keyword to a stable single-space representation. */
+    private String normalizeKeywordPattern(String keyword) {
+        return keyword.trim().replaceAll("\\s+", " ");
+    }
+
+    /**
+     * Converts a normalized keyword into a regex-safe literal body.
+     * Example: "ON DELETE" becomes "ON\\s+DELETE".
+     */
+    private String buildLiteralKeywordPattern(String keyword) {
+        String[] parts = keyword.split("\\s+");
+        StringBuilder pattern = new StringBuilder();
+        for (int i = 0; i < parts.length; i++) {
+            if (i > 0) {
+                pattern.append("\\s+");
+            }
+            pattern.append(Pattern.quote(parts[i]));
+        }
+        return pattern.toString();
+    }
+
+    /** Checks whether the first character participates in token-boundary rules. */
+    private boolean startsWithWordChar(String keyword) {
+        return !keyword.isEmpty() && isWordChar(keyword.charAt(0));
+    }
+
+    /** Checks whether the last character participates in token-boundary rules. */
+    private boolean endsWithWordChar(String keyword) {
+        return !keyword.isEmpty() && isWordChar(keyword.charAt(keyword.length() - 1));
+    }
+
+    /** Defines what this class treats as a word character inside SQL tokens. */
+    private boolean isWordChar(char ch) {
+        return Character.isLetterOrDigit(ch) || ch == '_';
+    }
+
+    /**
+     * Collapses formatting differences so the later checks do not depend on
+     * tabs, newlines, or repeated spaces in the original SQL text.
+     */
     private String normalizeQuery(String sql) {
         if (sql == null) {
             return "";
@@ -312,6 +419,7 @@ public class FailureCostCalculator implements AnalyzerCostCalculator {
         return sql.trim().replaceAll("[\\r\\n\\t]+", " ").replaceAll(" +", " ");
     }
 
+    /** Applies the length-based cost tier after structural and keyword checks. */
     private float calculateLengthCost(String normalizedSql) {
         int length = normalizedSql.length();
 
