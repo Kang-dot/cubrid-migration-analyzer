@@ -1,9 +1,12 @@
 package com.cubrid.sqlanalyzer.core.cost;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import com.cubrid.sqlanalyzer.command.AnalyzerConsoleCostDetail;
+import com.cubrid.sqlanalyzer.command.AnalyzerConsoleFailure;
 import com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes;
 
 class CalculatorKeywordCostTest extends CostTestSupport {
@@ -17,6 +20,18 @@ class CalculatorKeywordCostTest extends CostTestSupport {
                                                 + "ON e.deptno = d.deptno");
 
                 assertEquals(0.7f, cost, DELTA);
+        }
+
+        @Test
+        @DisplayName("cost breakdown lists the contributing rules")
+        void shouldRecordCostBreakdownDetails() {
+                AnalyzerConsoleFailure failure = analyzeFailure(
+                                "SELECT",
+                                "SELECT * FROM emp e JOIN dept d ON e.deptno = d.deptno");
+
+                assertEquals(0.7f, failure.getEstimatedCost(), DELTA);
+                assertTrue(hasCostDetail(failure, "Base DML", 1, 0.2f, 0.2f));
+                assertTrue(hasCostDetail(failure, "JOIN detected", 1, 0.5f, 0.5f));
         }
 
         @Test
@@ -98,5 +113,22 @@ class CalculatorKeywordCostTest extends CostTestSupport {
                                                 + "TO user1");
 
                 assertEquals(0.4f, cost, DELTA);
+        }
+
+        private boolean hasCostDetail(
+                        AnalyzerConsoleFailure failure,
+                        String itemName,
+                        int count,
+                        float unitCost,
+                        float totalCost) {
+                for (AnalyzerConsoleCostDetail costDetail : failure.getCostDetails()) {
+                        if (itemName.equals(costDetail.getItemName())
+                                        && count == costDetail.getCount()
+                                        && Math.abs(unitCost - costDetail.getUnitCost()) < DELTA
+                                        && Math.abs(totalCost - costDetail.getTotalCost()) < DELTA) {
+                                return true;
+                        }
+                }
+                return false;
         }
 }

@@ -1,10 +1,13 @@
 package com.cubrid.sqlanalyzer.core.cost;
 
 import java.util.Locale;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.cubrid.sqlanalyzer.command.AnalyzerConsoleCostDetail;
 import com.cubrid.sqlanalyzer.command.AnalyzerConsoleFailure;
 import com.cubrid.sqlanalyzer.command.AnalyzerConsoleReport;
 import com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes;
@@ -22,16 +25,39 @@ public class FailureCostCalculator implements AnalyzerCostCalculator {
     private static final float PK_BASE_COST = 0.1f;
     private static final float FK_BASE_COST = 0.1f;
 
-    @Override
-    public void analyzeAfterExecution(AnalyzerConsoleReport report) {
-        for (AnalyzerConsoleFailure failure : report.getFailures()) {
-            failure.setEstimatedCost(calculateCostByType(failure.getStatementType(), failure.getSql()));
+    private static class CostComputationResult {
+        private float totalCost;
+        private final List<AnalyzerConsoleCostDetail> costDetails =
+                new ArrayList<AnalyzerConsoleCostDetail>();
+
+        void addCost(String itemName, int count, float unitCost) {
+            if (count <= 0) {
+                return;
+            }
+
+            float totalItemCost = count * unitCost;
+            totalCost += totalItemCost;
+            costDetails.add(new AnalyzerConsoleCostDetail(itemName, count, unitCost, totalItemCost));
         }
     }
 
-    private float calculateCostByType(String statementType, String sql) {
+    @Override
+    public void analyzeAfterExecution(AnalyzerConsoleReport report) {
+        for (AnalyzerConsoleFailure failure : report.getFailures()) {
+            CostComputationResult result =
+                    calculateCostByType(failure.getStatementType(), failure.getSql());
+            failure.setEstimatedCost(result.totalCost);
+            failure.clearCostDetails();
+            for (AnalyzerConsoleCostDetail costDetail : result.costDetails) {
+                failure.addCostDetail(costDetail);
+            }
+        }
+    }
+
+    private CostComputationResult calculateCostByType(String statementType, String sql) {
+        CostComputationResult result = new CostComputationResult();
         if (statementType == null) {
-            return 0.0f;
+            return result;
         }
 
         switch (statementType) {
@@ -65,149 +91,205 @@ public class FailureCostCalculator implements AnalyzerCostCalculator {
             case "DELETE":
                 return calculateDml(sql);
             default:
-                return 0.0f;
+                return result;
         }
     }
 
-    private float calculateTable(String sql) {
+    private CostComputationResult calculateTable(String sql) {
         String normalizedSql = normalizeQuery(sql);
         String upperNormalizedSql = normalizedSql.toUpperCase(Locale.ENGLISH);
 
-        float totalCost = TABLE_BASE_COST;
-        totalCost += countCheckConstraints(upperNormalizedSql) * 0.1f;
-        totalCost += checkKeyword(upperNormalizedSql, "ENCRYPT") * 20.0f;
-        totalCost += calculateKeywordCost(upperNormalizedSql, AnalyzerCostMap.ORA2PG_UNCOVERED_SCORE_MAP, true);
-        totalCost += calculateKeywordCost(upperNormalizedSql, AnalyzerCostMap.ORA2PG_ORA_FUNCTION_WEIGHT_MAP, false);
-        totalCost += calculateLengthCost(normalizedSql);
-
-        return totalCost;
+        CostComputationResult result = new CostComputationResult();
+        result.addCost("Base table DDL", 1, TABLE_BASE_COST);
+        result.addCost("CHECK constraint", countCheckConstraints(upperNormalizedSql), 0.1f);
+        result.addCost("ENCRYPT keyword", checkKeyword(upperNormalizedSql, "ENCRYPT"), 20.0f);
+        appendKeywordCosts(
+                result,
+                upperNormalizedSql,
+                AnalyzerCostMap.ORA2PG_UNCOVERED_SCORE_MAP,
+                true,
+                "Unsupported keyword");
+        appendKeywordCosts(
+                result,
+                upperNormalizedSql,
+                AnalyzerCostMap.ORA2PG_ORA_FUNCTION_WEIGHT_MAP,
+                false,
+                "Oracle function");
+        appendLengthCost(result, normalizedSql);
+        return result;
     }
 
-    private float calculateView(String sql) {
+    private CostComputationResult calculateView(String sql) {
         String normalizedSql = normalizeQuery(sql);
         String upperNormalizedSql = normalizedSql.toUpperCase(Locale.ENGLISH);
 
-        float totalCost = VIEW_BASE_COST;
-        if (hasSubquery(upperNormalizedSql)) {
-            totalCost += 1.0f;
-        }
-        if (hasJoin(upperNormalizedSql)) {
-            totalCost += 1.0f;
-        }
-        totalCost += calculateKeywordCost(upperNormalizedSql, AnalyzerCostMap.ORA2PG_UNCOVERED_SCORE_MAP, true);
-        totalCost += calculateKeywordCost(upperNormalizedSql, AnalyzerCostMap.ORA2PG_ORA_FUNCTION_WEIGHT_MAP, false);
-        totalCost += calculateLengthCost(normalizedSql);
-
-        return totalCost;
+        CostComputationResult result = new CostComputationResult();
+        result.addCost("Base view DDL", 1, VIEW_BASE_COST);
+        result.addCost("Subquery detected", hasSubquery(upperNormalizedSql) ? 1 : 0, 1.0f);
+        result.addCost("JOIN detected", hasJoin(upperNormalizedSql) ? 1 : 0, 1.0f);
+        appendKeywordCosts(
+                result,
+                upperNormalizedSql,
+                AnalyzerCostMap.ORA2PG_UNCOVERED_SCORE_MAP,
+                true,
+                "Unsupported keyword");
+        appendKeywordCosts(
+                result,
+                upperNormalizedSql,
+                AnalyzerCostMap.ORA2PG_ORA_FUNCTION_WEIGHT_MAP,
+                false,
+                "Oracle function");
+        appendLengthCost(result, normalizedSql);
+        return result;
     }
 
-    private float calculateIndex(String sql) {
+    private CostComputationResult calculateIndex(String sql) {
         String upperNormalizedSql = normalizeQuery(sql).toUpperCase(Locale.ENGLISH);
 
-        float totalCost = INDEX_BASE_COST;
-        if (isFunctionBasedIndex(upperNormalizedSql)) {
-            totalCost += 0.2f;
-        }
-        if (checkKeyword(upperNormalizedSql, "REVERSE") > 0) {
-            totalCost += 1.0f;
-        }
-
-        return totalCost;
+        CostComputationResult result = new CostComputationResult();
+        result.addCost("Base index DDL", 1, INDEX_BASE_COST);
+        result.addCost(
+                "Function-based index",
+                isFunctionBasedIndex(upperNormalizedSql) ? 1 : 0,
+                0.2f);
+        result.addCost("REVERSE keyword", checkKeyword(upperNormalizedSql, "REVERSE"), 1.0f);
+        return result;
     }
 
-    private float calculateSequence() {
-        return SEQUENCE_BASE_COST;
+    private CostComputationResult calculateSequence() {
+        CostComputationResult result = new CostComputationResult();
+        result.addCost("Base sequence DDL", 1, SEQUENCE_BASE_COST);
+        return result;
     }
 
-    private float calculateSynonym() {
-        return SYNONYM_BASE_COST;
+    private CostComputationResult calculateSynonym() {
+        CostComputationResult result = new CostComputationResult();
+        result.addCost("Base synonym DDL", 1, SYNONYM_BASE_COST);
+        return result;
     }
 
-    private float calculateFunction(String sql) {
+    private CostComputationResult calculateFunction(String sql) {
         String normalizedSql = normalizeQuery(sql);
         String upperNormalizedSql = normalizedSql.toUpperCase(Locale.ENGLISH);
 
-        float totalCost = FUNCTION_BASE_COST;
-        totalCost += calculateKeywordCost(upperNormalizedSql, AnalyzerCostMap.ORA2PG_UNCOVERED_SCORE_MAP, true);
-        totalCost += calculateKeywordCost(upperNormalizedSql, AnalyzerCostMap.ORA2PG_ORA_FUNCTION_WEIGHT_MAP, false);
-        totalCost += calculateLengthCost(normalizedSql);
-
-        return totalCost;
+        CostComputationResult result = new CostComputationResult();
+        result.addCost("Base function DDL", 1, FUNCTION_BASE_COST);
+        appendKeywordCosts(
+                result,
+                upperNormalizedSql,
+                AnalyzerCostMap.ORA2PG_UNCOVERED_SCORE_MAP,
+                true,
+                "Unsupported keyword");
+        appendKeywordCosts(
+                result,
+                upperNormalizedSql,
+                AnalyzerCostMap.ORA2PG_ORA_FUNCTION_WEIGHT_MAP,
+                false,
+                "Oracle function");
+        appendLengthCost(result, normalizedSql);
+        return result;
     }
 
-    private float calculateProcedure(String sql) {
+    private CostComputationResult calculateProcedure(String sql) {
         String normalizedSql = normalizeQuery(sql);
         String upperNormalizedSql = normalizedSql.toUpperCase(Locale.ENGLISH);
 
-        float totalCost = PROCEDURE_BASE_COST;
-        totalCost += calculateKeywordCost(upperNormalizedSql, AnalyzerCostMap.ORA2PG_UNCOVERED_SCORE_MAP, true);
-        totalCost += calculateKeywordCost(upperNormalizedSql, AnalyzerCostMap.ORA2PG_ORA_FUNCTION_WEIGHT_MAP, false);
-        totalCost += calculateLengthCost(normalizedSql);
-
-        return totalCost;
+        CostComputationResult result = new CostComputationResult();
+        result.addCost("Base procedure DDL", 1, PROCEDURE_BASE_COST);
+        appendKeywordCosts(
+                result,
+                upperNormalizedSql,
+                AnalyzerCostMap.ORA2PG_UNCOVERED_SCORE_MAP,
+                true,
+                "Unsupported keyword");
+        appendKeywordCosts(
+                result,
+                upperNormalizedSql,
+                AnalyzerCostMap.ORA2PG_ORA_FUNCTION_WEIGHT_MAP,
+                false,
+                "Oracle function");
+        appendLengthCost(result, normalizedSql);
+        return result;
     }
 
-    private float calculateDml(String sql) {
+    private CostComputationResult calculateDml(String sql) {
         String normalizedSql = normalizeQuery(sql);
         String upperNormalizedSql = normalizedSql.toUpperCase(Locale.ENGLISH);
 
-        float totalCost = DML_BASE_COST;
-        if (hasJoin(upperNormalizedSql)) {
-            totalCost += 0.5f;
-        }
-        if (hasSubquery(upperNormalizedSql)) {
-            totalCost += 0.5f;
-        }
-        totalCost += calculateKeywordCost(upperNormalizedSql, AnalyzerCostMap.ORA2PG_UNCOVERED_SCORE_MAP, true);
-        totalCost += calculateKeywordCost(upperNormalizedSql, AnalyzerCostMap.ORA2PG_ORA_FUNCTION_WEIGHT_MAP, false);
-        totalCost += calculateLengthCost(normalizedSql);
-
-        return totalCost;
+        CostComputationResult result = new CostComputationResult();
+        result.addCost("Base DML", 1, DML_BASE_COST);
+        result.addCost("JOIN detected", hasJoin(upperNormalizedSql) ? 1 : 0, 0.5f);
+        result.addCost("Subquery detected", hasSubquery(upperNormalizedSql) ? 1 : 0, 0.5f);
+        appendKeywordCosts(
+                result,
+                upperNormalizedSql,
+                AnalyzerCostMap.ORA2PG_UNCOVERED_SCORE_MAP,
+                true,
+                "Unsupported keyword");
+        appendKeywordCosts(
+                result,
+                upperNormalizedSql,
+                AnalyzerCostMap.ORA2PG_ORA_FUNCTION_WEIGHT_MAP,
+                false,
+                "Oracle function");
+        appendLengthCost(result, normalizedSql);
+        return result;
     }
 
-    private float calculateGrant(String sql) {
+    private CostComputationResult calculateGrant(String sql) {
         String upperNormalizedSql = normalizeQuery(sql).toUpperCase(Locale.ENGLISH);
 
-        float totalCost = GRANT_BASE_COST;
-        totalCost += countGrantPrivileges(upperNormalizedSql) * 0.1f;
-
-        if (!hasKeyword(upperNormalizedSql, "ON")) {
-            totalCost += 1.0f;
-        }
-        if (!hasKeyword(upperNormalizedSql, "TO")) {
-            totalCost += 1.0f;
-        }
-
-        return totalCost;
+        CostComputationResult result = new CostComputationResult();
+        result.addCost("Base grant DDL", 1, GRANT_BASE_COST);
+        result.addCost("Grant privilege", countGrantPrivileges(upperNormalizedSql), 0.1f);
+        result.addCost("Missing ON clause", hasKeyword(upperNormalizedSql, "ON") ? 0 : 1, 1.0f);
+        result.addCost("Missing TO clause", hasKeyword(upperNormalizedSql, "TO") ? 0 : 1, 1.0f);
+        return result;
     }
 
-    private float calculatePk() {
-        return PK_BASE_COST;
+    private CostComputationResult calculatePk() {
+        CostComputationResult result = new CostComputationResult();
+        result.addCost("Base primary key DDL", 1, PK_BASE_COST);
+        return result;
     }
 
-    private float calculateFk(String sql) {
+    private CostComputationResult calculateFk(String sql) {
         String upperNormalizedSql = normalizeQuery(sql).toUpperCase(Locale.ENGLISH);
 
-        float totalCost = FK_BASE_COST;
-        if (hasKeyword(upperNormalizedSql, "ON DELETE")) {
-            totalCost += 0.5f;
-        }
-
-        return totalCost;
+        CostComputationResult result = new CostComputationResult();
+        result.addCost("Base foreign key DDL", 1, FK_BASE_COST);
+        result.addCost("ON DELETE clause", hasKeyword(upperNormalizedSql, "ON DELETE") ? 1 : 0, 0.5f);
+        return result;
     }
 
-    private float calculateKeywordCost(
-            String upperSql, Map<String, Float> keywordCostMap, boolean normalizeKeyword) {
-        float totalCost = 0.0f;
-
+    private void appendKeywordCosts(
+            CostComputationResult result,
+            String upperSql,
+            Map<String, Float> keywordCostMap,
+            boolean normalizeKeyword,
+            String labelPrefix) {
         for (Map.Entry<String, Float> entry : keywordCostMap.entrySet()) {
             String keyword = entry.getKey();
             String keywordToFind = normalizeKeyword ? keyword.toUpperCase(Locale.ENGLISH) : keyword;
             int occurrenceCount = checkKeyword(upperSql, keywordToFind.toUpperCase(Locale.ENGLISH));
-            totalCost += occurrenceCount * entry.getValue();
+            result.addCost(labelPrefix + ": " + keyword, occurrenceCount, entry.getValue());
         }
+    }
 
-        return totalCost;
+    private void appendLengthCost(CostComputationResult result, String normalizedSql) {
+        int length = normalizedSql.length();
+        if (length <= 199) {
+            return;
+        }
+        if (length <= 499) {
+            result.addCost("SQL length 200-499 chars (len=" + length + ")", 1, 1.0f);
+            return;
+        }
+        if (length <= 999) {
+            result.addCost("SQL length 500-999 chars (len=" + length + ")", 1, 2.0f);
+            return;
+        }
+        result.addCost("SQL length 1000+ chars (len=" + length + ")", 1, 4.0f);
     }
 
     /**
@@ -419,19 +501,4 @@ public class FailureCostCalculator implements AnalyzerCostCalculator {
         return sql.trim().replaceAll("[\\r\\n\\t]+", " ").replaceAll(" +", " ");
     }
 
-    /** Applies the length-based cost tier after structural and keyword checks. */
-    private float calculateLengthCost(String normalizedSql) {
-        int length = normalizedSql.length();
-
-        if (length <= 199) {
-            return 0.0f;
-        }
-        if (length <= 499) {
-            return 1.0f;
-        }
-        if (length <= 999) {
-            return 2.0f;
-        }
-        return 4.0f;
-    }
 }

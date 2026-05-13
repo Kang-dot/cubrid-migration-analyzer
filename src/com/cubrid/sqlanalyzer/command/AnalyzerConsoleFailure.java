@@ -1,5 +1,9 @@
 package com.cubrid.sqlanalyzer.command;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
 public class AnalyzerConsoleFailure {
     private AnalyzerFailureStage failureStage;
     private String statementType;
@@ -7,6 +11,8 @@ public class AnalyzerConsoleFailure {
     private String sql;
     private String reason;
     private float estimatedCost;
+    private final List<AnalyzerConsoleCostDetail> costDetails =
+            new ArrayList<AnalyzerConsoleCostDetail>();
 
     public AnalyzerFailureStage getFailureStage() {
         return failureStage;
@@ -54,5 +60,19 @@ public class AnalyzerConsoleFailure {
 
     public void setEstimatedCost(float estimatedCost) {
         this.estimatedCost = estimatedCost;
+    }
+
+    public List<AnalyzerConsoleCostDetail> getCostDetails() {
+        return Collections.unmodifiableList(costDetails);
+    }
+
+    public void clearCostDetails() {
+        costDetails.clear();
+    }
+
+    public void addCostDetail(AnalyzerConsoleCostDetail costDetail) {
+        if (costDetail != null) {
+            costDetails.add(costDetail);
+        }
     }
 }

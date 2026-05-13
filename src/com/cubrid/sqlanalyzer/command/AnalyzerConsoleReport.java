@@ -143,9 +143,8 @@ public class AnalyzerConsoleReport {
 
             generatedAt = System.currentTimeMillis();
             File reportFile = new File(reportDir, buildReportFileName());
-            writer =
-                    new PrintWriter(
-                            new OutputStreamWriter(new FileOutputStream(reportFile), "UTF-8"));
+            writer = new PrintWriter(
+                    new OutputStreamWriter(new FileOutputStream(reportFile), "UTF-8"));
             writer.print(buildResultText());
             writer.flush();
             return reportFile.getAbsolutePath();
@@ -167,50 +166,25 @@ public class AnalyzerConsoleReport {
         sb.append("Total  : ").append(analyzedStatementCount).append(lineSeparator);
         sb.append("OK     : ").append(succeededStatementCount).append(lineSeparator);
         sb.append("FAIL   : ").append(failedStatementCount).append(lineSeparator);
-
-        sb.append(lineSeparator).append("Statement results").append(lineSeparator);
-        if (statementResults.isEmpty()) {
-            sb.append("(no statement results)").append(lineSeparator);
-        } else {
-            for (StatementResult result : statementResults) {
-                sb.append("- ")
-                        .append(safeText(result.statementType))
-                        .append(" ")
-                        .append(safeText(result.statementId))
-                        .append(" : ")
-                        .append(result.success ? "OK" : "FAIL");
-                if (result.failureStage != null) {
-                    sb.append(" [").append(result.failureStage).append("]");
-                }
-                sb.append(lineSeparator);
-                if (!safeText(result.detail).isEmpty()) {
-                    sb.append("  Detail: ").append(result.detail).append(lineSeparator);
-                }
-                if (!safeText(result.sql).isEmpty()) {
-                    sb.append("  SQL   : ").append(result.sql).append(lineSeparator);
-                }
-            }
-        }
+        sb.append("Cost   : ").append(formatEstimatedCost(getTotalEstimatedFailureCost()))
+                .append(lineSeparator);
 
         if (!failures.isEmpty()) {
             sb.append(lineSeparator).append("Failed statements").append(lineSeparator);
             for (AnalyzerConsoleFailure failure : failures) {
-                sb.append("- ")
-                        .append(safeText(failure.getStatementType()))
-                        .append(" ")
-                        .append(safeText(failure.getStatementId()))
-                        .append(" [")
-                        .append(failure.getFailureStage())
-                        .append("]")
-                        .append(lineSeparator);
-                sb.append("  Reason: ").append(safeText(failure.getReason())).append(lineSeparator);
-                sb.append("  SQL   : ").append(safeText(failure.getSql())).append(lineSeparator);
+                appendFailureBlock(sb, failure, lineSeparator);
             }
+            sb.append("----------------------------------------").append(lineSeparator);
         } else if (!failureMessages.isEmpty()) {
             sb.append(lineSeparator).append("Failed statements").append(lineSeparator);
             for (String failureMessage : failureMessages) {
+                sb.append("----------------------------------------").append(lineSeparator);
                 sb.append("- ").append(safeText(failureMessage)).append(lineSeparator);
             }
+            sb.append("----------------------------------------").append(lineSeparator);
+        } else {
+            sb.append(lineSeparator).append("Failed statements").append(lineSeparator);
+            sb.append("(none)").append(lineSeparator);
         }
 
         return sb.toString();
@@ -269,12 +243,64 @@ public class AnalyzerConsoleReport {
         long timeValue = generatedAt > 0 ? generatedAt : System.currentTimeMillis();
         return "analyzer_result_"
                 + CUBRIDTimeUtil.getDateFormat(
-                                "yyyy_MM_dd_HH_mm_ss_SSS", Locale.US, TimeZone.getDefault())
+                        "yyyy_MM_dd_HH_mm_ss_SSS", Locale.US, TimeZone.getDefault())
                         .format(new Date(timeValue))
                 + ".txt";
     }
 
     private String safeText(String value) {
         return value == null ? "" : value;
+    }
+
+    public float getTotalEstimatedFailureCost() {
+        float totalEstimatedFailureCost = 0.0f;
+        for (AnalyzerConsoleFailure failure : failures) {
+            totalEstimatedFailureCost += failure.getEstimatedCost();
+        }
+        return totalEstimatedFailureCost;
+    }
+
+    private void appendFailureBlock(
+            StringBuilder sb, AnalyzerConsoleFailure failure, String lineSeparator) {
+        sb.append("----------------------------------------").append(lineSeparator);
+        sb.append("- ")
+                .append(safeText(failure.getStatementType()))
+                .append(" ")
+                .append(safeText(failure.getStatementId()))
+                .append(" [")
+                .append(failure.getFailureStage())
+                .append("]")
+                .append(lineSeparator);
+        sb.append("  Reason: ").append(safeText(failure.getReason())).append(lineSeparator);
+        sb.append("  Cost  : ")
+                .append(formatEstimatedCost(failure.getEstimatedCost()))
+                .append(lineSeparator);
+        appendCostDetails(sb, failure, lineSeparator);
+        sb.append("   SQL  : ").append(safeText(failure.getSql())).append(lineSeparator);
+    }
+
+    private void appendCostDetails(
+            StringBuilder sb, AnalyzerConsoleFailure failure, String lineSeparator) {
+        sb.append("  Cost details:").append(lineSeparator);
+        if (failure.getCostDetails().isEmpty()) {
+            sb.append("    (none)").append(lineSeparator);
+            return;
+        }
+
+        for (AnalyzerConsoleCostDetail costDetail : failure.getCostDetails()) {
+            sb.append("    - ")
+                    .append(safeText(costDetail.getItemName()))
+                    .append(" : count=")
+                    .append(costDetail.getCount())
+                    .append(", unit=")
+                    .append(formatEstimatedCost(costDetail.getUnitCost()))
+                    .append(", total=")
+                    .append(formatEstimatedCost(costDetail.getTotalCost()))
+                    .append(lineSeparator);
+        }
+    }
+
+    private String formatEstimatedCost(float estimatedCost) {
+        return String.format(Locale.US, "%.1f", estimatedCost);
     }
 }

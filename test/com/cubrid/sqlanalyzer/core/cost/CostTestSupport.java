@@ -9,6 +9,10 @@ abstract class CostTestSupport {
     private final FailureCostCalculator calculator = new FailureCostCalculator();
 
     protected float estimateCost(String statementType, String sql) {
+        return analyzeFailure(statementType, sql).getEstimatedCost();
+    }
+
+    protected AnalyzerConsoleFailure analyzeFailure(String statementType, String sql) {
         AnalyzerConsoleReport report = new AnalyzerConsoleReport();
         AnalyzerConsoleFailure failure = new AnalyzerConsoleFailure();
         failure.setStatementType(statementType);
@@ -18,7 +22,7 @@ abstract class CostTestSupport {
         report.addFailure(failure);
 
         calculator.analyzeAfterExecution(report);
-        return failure.getEstimatedCost();
+        return failure;
     }
 
     protected String buildSqlWithLength(int targetLength) {

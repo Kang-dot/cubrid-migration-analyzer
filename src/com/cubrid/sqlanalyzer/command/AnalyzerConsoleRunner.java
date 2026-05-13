@@ -558,11 +558,13 @@ public class AnalyzerConsoleRunner {
         io.println("Total  : " + report.getAnalyzedStatementCount());
         io.println("OK     : " + report.getSucceededStatementCount());
         io.println("FAIL   : " + report.getFailedStatementCount());
+        io.println("Cost   : " + String.format(java.util.Locale.US, "%.1f", report.getTotalEstimatedFailureCost()));
 
         if (!report.getFailures().isEmpty()) {
             io.println("");
             io.println("Failed statements");
             for (AnalyzerConsoleFailure failure : report.getFailures()) {
+                io.println("----------------------------------------");
                 io.println(
                         "- "
                                 + failure.getStatementType()
@@ -572,14 +574,45 @@ public class AnalyzerConsoleRunner {
                                 + failure.getFailureStage()
                                 + "]");
                 io.println("  Reason: " + failure.getReason());
-                io.println("  SQL   : " + String.valueOf(failure.getSql()));
+                io.println(
+                        "  Cost  : "
+                                + String.format(
+                                        java.util.Locale.US,
+                                        "%.1f",
+                                        failure.getEstimatedCost()));
+                io.println("  Cost details:");
+                if (failure.getCostDetails().isEmpty()) {
+                    io.println("    (none)");
+                } else {
+                    for (AnalyzerConsoleCostDetail costDetail : failure.getCostDetails()) {
+                        io.println(
+                                "    - "
+                                        + costDetail.getItemName()
+                                        + " : count="
+                                        + costDetail.getCount()
+                                        + ", unit="
+                                        + String.format(
+                                                java.util.Locale.US,
+                                                "%.1f",
+                                                costDetail.getUnitCost())
+                                        + ", total="
+                                        + String.format(
+                                                java.util.Locale.US,
+                                                "%.1f",
+                                                costDetail.getTotalCost()));
+                    }
+                }
+                io.println("  SQL : " + String.valueOf(failure.getSql()));
             }
+            io.println("----------------------------------------");
         } else if (!report.getFailureMessages().isEmpty()) {
             io.println("");
             io.println("Failed statements");
             for (String failureMessage : report.getFailureMessages()) {
+                io.println("----------------------------------------");
                 io.println("- " + failureMessage);
             }
+            io.println("----------------------------------------");
         }
 
         String savedReportPath = report.saveResultReport();
