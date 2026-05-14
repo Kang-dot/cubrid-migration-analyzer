@@ -10,7 +10,9 @@ public class AnalyzerConsoleMain {
 
         AnalyzerConsoleArguments arguments;
         try {
-            arguments = AnalyzerConsoleArguments.parse(args);
+            arguments =
+                    AnalyzerConsoleArguments.parse(
+                            AnalyzerConsoleSettingsLoader.loadStartupArguments(args));
         } catch (IllegalArgumentException ex) {
             System.err.println(ex.getMessage());
             System.exit(1);
