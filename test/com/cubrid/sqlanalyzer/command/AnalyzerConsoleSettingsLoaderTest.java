@@ -48,6 +48,29 @@ class AnalyzerConsoleSettingsLoaderTest {
     }
 
     @Test
+    void shouldBuildOracleConnectionFromSeparatedProperties() throws Exception {
+        Path settingsFile = tempDir.resolve("setting.conf");
+        Files.writeString(
+                settingsFile,
+                "source.type=oracle\n"
+                        + "source.host=192.168.1.6\n"
+                        + "source.port=1521\n"
+                        + "source.sid=xe\n"
+                        + "source.username=cubrid\n"
+                        + "source.password=cubrid\n"
+                        + "target.type=parser\n");
+
+        String[] args = AnalyzerConsoleSettingsLoader.loadStartupArguments(new String[0], settingsFile);
+        AnalyzerConsoleArguments arguments = AnalyzerConsoleArguments.parse(args);
+
+        assertEquals(AnalyzerSourceType.ORACLE, arguments.getSourceType());
+        assertEquals("jdbc:oracle:thin:@//192.168.1.6:1521/xe", arguments.getSourceJdbcUrl());
+        assertEquals("cubrid", arguments.getSourceUser());
+        assertEquals("cubrid", arguments.getSourcePassword());
+        assertEquals(AnalyzerTargetType.PARSER, arguments.getTargetType());
+    }
+
+    @Test
     void shouldLoadExplicitSettingsFile() throws Exception {
         Path settingsFile = tempDir.resolve("custom.conf");
         Files.writeString(settingsFile, "arguments=-sx -xd /tmp/sqlmap -tp\n");

@@ -1,11 +1,14 @@
 package com.cubrid.sqlanalyzer.command;
 
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import com.cubrid.sqlanalyzer.core.plan.AnalyzerExecutionPlan;
 import com.cubrid.sqlanalyzer.core.plan.AnalyzerStatement;
@@ -20,6 +23,7 @@ import com.cubrid.cubridmigration.core.dbobject.PlcsqlProcedure;
 import com.cubrid.cubridmigration.core.dbobject.Sequence;
 import com.cubrid.cubridmigration.core.dbobject.Synonym;
 import com.cubrid.cubridmigration.core.dbobject.Table;
+import com.cubrid.cubridmigration.core.dbobject.Version;
 import com.cubrid.cubridmigration.core.dbobject.View;
 import com.cubrid.cubridmigration.core.engine.config.SourceGrantConfig;
 import com.cubrid.cubridmigration.core.dbtype.DatabaseType;
@@ -38,6 +42,8 @@ public class AnalyzerConsoleRunner {
     private static final String DEFAULT_XML_CHARSET = "UTF-8";
     private static final String SOURCE_CONNECTION_NAME = "console-source";
     private static final String TARGET_CONNECTION_NAME = "console-target";
+    private static final Pattern ORACLE_VERSION_NAME_PATTERN = Pattern.compile("\\b\\d+(?:ai|c|g)\\b",
+            Pattern.CASE_INSENSITIVE);
     private static final AnalyzerConnParametersFactory ORACLE_CONN_PARAMETERS_FACTORY = AnalyzerJdbcConnectionSupport
             .createFactory(DatabaseType.ORACLE);
     private static final AnalyzerConnParametersFactory CUBRID_CONN_PARAMETERS_FACTORY = AnalyzerJdbcConnectionSupport
@@ -334,19 +340,23 @@ public class AnalyzerConsoleRunner {
         io.println("");
         io.println("[3/4] Object count preview");
         io.println("Source      : " + session.getSourceType());
-        io.println("Target      : " + session.getTargetType());
-        io.println("Mode        : " + session.getExecutionMode());
-
         if (session.getSourceType() == AnalyzerSourceType.ORACLE) {
-            io.println("Oracle URL  : " + session.getSourceJdbcUrl());
+            io.println("Oracle URL  : " + session.getSourceJdbcUrl() + buildOracleVersionSuffix(session));
+            io.println("Oracle User : " + session.getSourceUser());
         } else {
             io.println("XML dir     : " + session.getXmlDirectory());
             io.println("XML charset : " + session.getXmlCharset());
         }
 
+        io.println("Target      : " + session.getTargetType());
         if (session.getTargetType() == AnalyzerTargetType.JDBC) {
-            io.println("Target URL  : " + session.getTargetJdbcUrl());
+            io.println("Target URL  : " + session.getTargetJdbcUrl() + buildTargetVersionSuffix(session));
+        } else if (session.getTargetType() == AnalyzerTargetType.PARSER
+                && session.getXmlDirectory() != null
+                && !session.getXmlDirectory().isEmpty()) {
+            io.println("XML dir     : " + session.getXmlDirectory());
         }
+        io.println("Mode        : " + session.getExecutionMode());
 
         io.println("");
         if (session.getSourceType() == AnalyzerSourceType.ORACLE) {
@@ -370,6 +380,58 @@ public class AnalyzerConsoleRunner {
             io.println("UPDATE count    : " + dict.getUpdateQueryMap().size());
             io.println("DELETE count    : " + dict.getDeleteQueryMap().size());
         }
+    }
+
+    private String buildOracleVersionSuffix(AnalyzerConsoleConfig session) {
+        Catalog catalog = session.getSourceCatalog();
+        if (catalog == null || catalog.getVersion() == null) {
+            return "";
+        }
+
+        String versionName = getOracleVersionName(catalog.getVersion());
+        return versionName == null || versionName.isEmpty() ? "" : " (" + versionName + ")";
+    }
+
+    private String getOracleVersionName(Version version) {
+        String productVersion = version.getDbProductVersion();
+        if (productVersion != null) {
+            Matcher matcher = ORACLE_VERSION_NAME_PATTERN.matcher(productVersion);
+            if (matcher.find()) {
+                return matcher.group().toLowerCase();
+            }
+        }
+
+        int majorVersion = version.getDbMajorVersion();
+        if (majorVersion <= 0) {
+            return null;
+        }
+        return majorVersion == 11 || majorVersion == 10
+                ? majorVersion + "g"
+                : majorVersion + "c";
+    }
+
+    private String buildTargetVersionSuffix(AnalyzerConsoleConfig session) {
+        if (session.getConfig().getTargetConParams() == null) {
+            return "";
+        }
+
+        try (Connection connection = session.getConfig().getTargetConParams().createConnection()) {
+            DatabaseMetaData metaData = connection.getMetaData();
+            String versionName = getCubridVersionName(metaData);
+            return versionName == null || versionName.isEmpty() ? "" : " (" + versionName + ")";
+        } catch (SQLException ex) {
+            return "";
+        }
+    }
+
+    private String getCubridVersionName(DatabaseMetaData metaData) throws SQLException {
+        int majorVersion = metaData.getDatabaseMajorVersion();
+        int minorVersion = metaData.getDatabaseMinorVersion();
+        if (majorVersion > 0 && minorVersion >= 0) {
+            return majorVersion + "." + minorVersion;
+        }
+
+        return metaData.getDatabaseProductVersion();
     }
 
     private void runAnalysis(AnalyzerConsoleConfig session) {

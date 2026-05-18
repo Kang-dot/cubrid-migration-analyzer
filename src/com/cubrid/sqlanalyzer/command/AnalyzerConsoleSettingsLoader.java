@@ -30,8 +30,7 @@ public final class AnalyzerConsoleSettingsLoader {
         Path settingsPath = startupArguments.settingsPath;
         boolean explicitSettingsPath = settingsPath != null;
         if (settingsPath == null) {
-            settingsPath =
-                    defaultSettingsPath == null ? resolveDefaultSettingsPath() : defaultSettingsPath;
+            settingsPath = defaultSettingsPath == null ? resolveDefaultSettingsPath() : defaultSettingsPath;
         }
 
         if (settingsPath == null || !Files.isRegularFile(settingsPath)) {
@@ -141,13 +140,38 @@ public final class AnalyzerConsoleSettingsLoader {
         }
 
         String url = getFirst(properties, prefix + ".jdbc.url", legacyPrefix + ".jdbc.url");
-        String user = getFirst(properties, prefix + ".user", legacyPrefix + ".user");
+        if (url == null && "source".equals(prefix)) {
+            url = buildOracleJdbcUrl(properties, prefix, legacyPrefix);
+        }
+
+        String user = getFirst(
+                properties,
+                prefix + ".username",
+                prefix + ".user",
+                legacyPrefix + ".username",
+                legacyPrefix + ".user");
         String password = getFirst(properties, prefix + ".password", legacyPrefix + ".password");
         if (url == null && user == null && password == null) {
             return null;
         }
 
         return nullToEmpty(url) + "|" + nullToEmpty(user) + "|" + nullToEmpty(password);
+    }
+
+    private static String buildOracleJdbcUrl(
+            Properties properties, String prefix, String legacyPrefix) {
+        String host = getFirst(properties, prefix + ".host", legacyPrefix + ".host");
+        String port = getFirst(properties, prefix + ".port", legacyPrefix + ".port");
+        String sid = getFirst(properties, prefix + ".sid", legacyPrefix + ".sid");
+        if (host == null && port == null && sid == null) {
+            return null;
+        }
+        if (host == null || port == null || sid == null) {
+            throw new IllegalArgumentException(
+                    "source.host, source.port, and source.sid are required for Oracle source settings.");
+        }
+
+        return "jdbc:oracle:thin:@//" + host + ":" + port + "/" + sid;
     }
 
     private static void addOption(List<String> tokens, String option, String value) {
