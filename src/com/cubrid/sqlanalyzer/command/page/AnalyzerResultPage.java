@@ -1,10 +1,9 @@
 package com.cubrid.sqlanalyzer.command.page;
 
-import com.cubrid.sqlanalyzer.command.AnalyzerConsoleConfig;
-import com.cubrid.sqlanalyzer.command.AnalyzerConsoleCostDetail;
-import com.cubrid.sqlanalyzer.command.AnalyzerConsoleFailure;
-import com.cubrid.sqlanalyzer.command.AnalyzerConsoleReport;
+import com.cubrid.sqlanalyzer.command.AnalyzerCostDetail;
+import com.cubrid.sqlanalyzer.command.AnalyzerFailure;
 import com.cubrid.sqlanalyzer.command.ConsoleIO;
+import com.cubrid.sqlanalyzer.command.dto.AnalyzerResult;
 
 public class AnalyzerResultPage {
     private final ConsoleIO io;
@@ -13,47 +12,44 @@ public class AnalyzerResultPage {
         this.io = io;
     }
 
-    public void render(AnalyzerConsoleConfig session) {
-        AnalyzerConsoleReport report = session.getConsoleReport();
-
+    public void render(AnalyzerResult result) {
         io.println("");
         io.println("Result summary");
-        io.println("Source : " + report.getSourceType());
-        io.println("Target : " + report.getTargetType());
-        io.println("Mode   : " + report.getExecutionMode());
-        io.println("Total  : " + report.getAnalyzedStatementCount());
-        io.println("OK     : " + report.getSucceededStatementCount());
-        io.println("FAIL   : " + report.getFailedStatementCount());
+        io.println("Source : " + result.sourceType());
+        io.println("Target : " + result.targetType());
+        io.println("Mode   : " + result.executionMode());
+        io.println("Total  : " + result.analyzedStatementCount());
+        io.println("OK     : " + result.succeededStatementCount());
+        io.println("FAIL   : " + result.failedStatementCount());
         io.println(
                 "Cost   : "
                         + String.format(
                                 java.util.Locale.US,
                                 "%.1f",
-                                report.getTotalEstimatedFailureCost()));
+                                result.totalEstimatedFailureCost()));
 
-        if (!report.getFailures().isEmpty()) {
+        if (!result.failures().isEmpty()) {
             io.println("");
             io.println("Failed statements");
-            for (AnalyzerConsoleFailure failure : report.getFailures()) {
+            for (AnalyzerFailure failure : result.failures()) {
                 renderFailure(failure);
             }
             io.println("----------------------------------------");
-        } else if (!report.getFailureMessages().isEmpty()) {
+        } else if (!result.failureMessages().isEmpty()) {
             io.println("");
             io.println("Failed statements");
-            for (String failureMessage : report.getFailureMessages()) {
+            for (String failureMessage : result.failureMessages()) {
                 io.println("----------------------------------------");
                 io.println("- " + failureMessage);
             }
             io.println("----------------------------------------");
         }
 
-        String savedReportPath = report.saveResultReport();
         io.println("");
-        io.println("Saved result report: " + savedReportPath);
+        io.println("Saved result report: " + result.savedReportPath());
     }
 
-    private void renderFailure(AnalyzerConsoleFailure failure) {
+    private void renderFailure(AnalyzerFailure failure) {
         io.println("----------------------------------------");
         io.println(
                 "- "
@@ -74,14 +70,14 @@ public class AnalyzerResultPage {
         if (failure.getCostDetails().isEmpty()) {
             io.println("    (none)");
         } else {
-            for (AnalyzerConsoleCostDetail costDetail : failure.getCostDetails()) {
+            for (AnalyzerCostDetail costDetail : failure.getCostDetails()) {
                 renderCostDetail(costDetail);
             }
         }
         io.println("  SQL : " + String.valueOf(failure.getSql()));
     }
 
-    private void renderCostDetail(AnalyzerConsoleCostDetail costDetail) {
+    private void renderCostDetail(AnalyzerCostDetail costDetail) {
         io.println(
                 "    - "
                         + costDetail.getItemName()

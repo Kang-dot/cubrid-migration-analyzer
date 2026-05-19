@@ -5,8 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import com.cubrid.sqlanalyzer.command.AnalyzerConsoleCostDetail;
-import com.cubrid.sqlanalyzer.command.AnalyzerConsoleFailure;
+import com.cubrid.sqlanalyzer.command.AnalyzerCostDetail;
+import com.cubrid.sqlanalyzer.command.AnalyzerFailure;
 import com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes;
 
 class CalculatorKeywordCostTest extends CostTestSupport {
@@ -25,7 +25,7 @@ class CalculatorKeywordCostTest extends CostTestSupport {
         @Test
         @DisplayName("cost breakdown lists the contributing rules")
         void shouldRecordCostBreakdownDetails() {
-                AnalyzerConsoleFailure failure = analyzeFailure(
+                AnalyzerFailure failure = analyzeFailure(
                                 "SELECT",
                                 "SELECT * FROM emp e JOIN dept d ON e.deptno = d.deptno");
 
@@ -116,12 +116,12 @@ class CalculatorKeywordCostTest extends CostTestSupport {
         }
 
         private boolean hasCostDetail(
-                        AnalyzerConsoleFailure failure,
+                        AnalyzerFailure failure,
                         String itemName,
                         int count,
                         float unitCost,
                         float totalCost) {
-                for (AnalyzerConsoleCostDetail costDetail : failure.getCostDetails()) {
+                for (AnalyzerCostDetail costDetail : failure.getCostDetails()) {
                         if (itemName.equals(costDetail.getItemName())
                                         && count == costDetail.getCount()
                                         && Math.abs(unitCost - costDetail.getUnitCost()) < DELTA

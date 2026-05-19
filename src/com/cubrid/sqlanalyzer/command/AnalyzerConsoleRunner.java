@@ -1,5 +1,7 @@
 package com.cubrid.sqlanalyzer.command;
 
+import com.cubrid.sqlanalyzer.command.dto.AnalyzerProgressEvent;
+import com.cubrid.sqlanalyzer.command.dto.AnalyzerProgressStage;
 import com.cubrid.sqlanalyzer.command.page.AnalyzerObjectCountPage;
 import com.cubrid.sqlanalyzer.command.page.AnalyzerOverviewPage;
 import com.cubrid.sqlanalyzer.command.page.AnalyzerResultPage;
@@ -17,8 +19,8 @@ public class AnalyzerConsoleRunner {
     public AnalyzerConsoleRunner(ConsoleIO io) {
         this.io = io;
         this.analyzerService = new AnalyzerService();
-        this.overviewPage = new AnalyzerOverviewPage(io, analyzerService);
-        this.objectCountPage = new AnalyzerObjectCountPage(io, analyzerService);
+        this.overviewPage = new AnalyzerOverviewPage(io);
+        this.objectCountPage = new AnalyzerObjectCountPage(io);
         this.resultPage = new AnalyzerResultPage(io);
     }
 
@@ -184,18 +186,35 @@ public class AnalyzerConsoleRunner {
     }
 
     private void renderPreviewPages(AnalyzerConsoleConfig session) {
-        overviewPage.render(session);
-        objectCountPage.render(session);
+        overviewPage.render(analyzerService.getOverview(session));
+        objectCountPage.render(analyzerService.getObjectCountPreview(session));
     }
 
     private void runAnalysis(AnalyzerConsoleConfig session) {
         io.println("");
         io.println("[4/4] Analysis progress");
-        analyzerService.runAnalysis(session, message -> io.println(message));
+        analyzerService.runAnalysis(
+                session,
+                event -> {
+                    String message = formatProgressEvent(event);
+                    if (message != null && !message.isEmpty()) {
+                        io.println(message);
+                    }
+                });
     }
 
     private void printResult(AnalyzerConsoleConfig session) {
-        resultPage.render(session);
+        resultPage.render(analyzerService.saveResult(session));
+    }
+
+    private String formatProgressEvent(AnalyzerProgressEvent event) {
+        if (event.stage() == AnalyzerProgressStage.PLANNING) {
+            return "";
+        }
+        if (event.message() != null && !event.message().isEmpty()) {
+            return event.message();
+        }
+        return String.valueOf(event.stage());
     }
 
     private String readLineWithDefault(String prompt, String defaultValue) {

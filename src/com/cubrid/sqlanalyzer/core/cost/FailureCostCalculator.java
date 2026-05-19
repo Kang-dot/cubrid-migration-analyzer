@@ -7,8 +7,8 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import com.cubrid.sqlanalyzer.command.AnalyzerConsoleCostDetail;
-import com.cubrid.sqlanalyzer.command.AnalyzerConsoleFailure;
+import com.cubrid.sqlanalyzer.command.AnalyzerCostDetail;
+import com.cubrid.sqlanalyzer.command.AnalyzerFailure;
 import com.cubrid.sqlanalyzer.command.AnalyzerConsoleReport;
 import com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes;
 
@@ -27,8 +27,8 @@ public class FailureCostCalculator implements AnalyzerCostCalculator {
 
     private static class CostComputationResult {
         private float totalCost;
-        private final List<AnalyzerConsoleCostDetail> costDetails =
-                new ArrayList<AnalyzerConsoleCostDetail>();
+        private final List<AnalyzerCostDetail> costDetails =
+                new ArrayList<AnalyzerCostDetail>();
 
         void addCost(String itemName, int count, float unitCost) {
             if (count <= 0) {
@@ -37,18 +37,18 @@ public class FailureCostCalculator implements AnalyzerCostCalculator {
 
             float totalItemCost = count * unitCost;
             totalCost += totalItemCost;
-            costDetails.add(new AnalyzerConsoleCostDetail(itemName, count, unitCost, totalItemCost));
+            costDetails.add(new AnalyzerCostDetail(itemName, count, unitCost, totalItemCost));
         }
     }
 
     @Override
     public void analyzeAfterExecution(AnalyzerConsoleReport report) {
-        for (AnalyzerConsoleFailure failure : report.getFailures()) {
+        for (AnalyzerFailure failure : report.getFailures()) {
             CostComputationResult result =
                     calculateCostByType(failure.getStatementType(), failure.getSql());
             failure.setEstimatedCost(result.totalCost);
             failure.clearCostDetails();
-            for (AnalyzerConsoleCostDetail costDetail : result.costDetails) {
+            for (AnalyzerCostDetail costDetail : result.costDetails) {
                 failure.addCostDetail(costDetail);
             }
         }

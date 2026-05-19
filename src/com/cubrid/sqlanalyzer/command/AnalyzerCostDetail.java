@@ -1,15 +1,15 @@
 package com.cubrid.sqlanalyzer.command;
 
-public class AnalyzerConsoleCostDetail {
+public class AnalyzerCostDetail {
     private String itemName;
     private int count;
     private float unitCost;
     private float totalCost;
 
-    public AnalyzerConsoleCostDetail() {
+    public AnalyzerCostDetail() {
     }
 
-    public AnalyzerConsoleCostDetail(String itemName, int count, float unitCost, float totalCost) {
+    public AnalyzerCostDetail(String itemName, int count, float unitCost, float totalCost) {
         this.itemName = itemName;
         this.count = count;
         this.unitCost = unitCost;

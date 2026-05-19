@@ -1,6 +1,6 @@
 package com.cubrid.sqlanalyzer.core.cost;
 
-import com.cubrid.sqlanalyzer.command.AnalyzerConsoleFailure;
+import com.cubrid.sqlanalyzer.command.AnalyzerFailure;
 import com.cubrid.sqlanalyzer.command.AnalyzerConsoleReport;
 
 abstract class CostTestSupport {
@@ -12,9 +12,9 @@ abstract class CostTestSupport {
         return analyzeFailure(statementType, sql).getEstimatedCost();
     }
 
-    protected AnalyzerConsoleFailure analyzeFailure(String statementType, String sql) {
+    protected AnalyzerFailure analyzeFailure(String statementType, String sql) {
         AnalyzerConsoleReport report = new AnalyzerConsoleReport();
-        AnalyzerConsoleFailure failure = new AnalyzerConsoleFailure();
+        AnalyzerFailure failure = new AnalyzerFailure();
         failure.setStatementType(statementType);
         failure.setStatementId("TEST_1");
         failure.setSql(sql);

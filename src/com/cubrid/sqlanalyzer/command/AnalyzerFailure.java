@@ -4,15 +4,15 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-public class AnalyzerConsoleFailure {
+public class AnalyzerFailure {
     private AnalyzerFailureStage failureStage;
     private String statementType;
     private String statementId;
     private String sql;
     private String reason;
     private float estimatedCost;
-    private final List<AnalyzerConsoleCostDetail> costDetails =
-            new ArrayList<AnalyzerConsoleCostDetail>();
+    private final List<AnalyzerCostDetail> costDetails =
+            new ArrayList<AnalyzerCostDetail>();
 
     public AnalyzerFailureStage getFailureStage() {
         return failureStage;
@@ -62,7 +62,7 @@ public class AnalyzerConsoleFailure {
         this.estimatedCost = estimatedCost;
     }
 
-    public List<AnalyzerConsoleCostDetail> getCostDetails() {
+    public List<AnalyzerCostDetail> getCostDetails() {
         return Collections.unmodifiableList(costDetails);
     }
 
@@ -70,7 +70,7 @@ public class AnalyzerConsoleFailure {
         costDetails.clear();
     }
 
-    public void addCostDetail(AnalyzerConsoleCostDetail costDetail) {
+    public void addCostDetail(AnalyzerCostDetail costDetail) {
         if (costDetail != null) {
             costDetails.add(costDetail);
         }

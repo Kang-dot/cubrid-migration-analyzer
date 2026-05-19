@@ -185,7 +185,7 @@ public class AnalyzerConsoleConfig {
         consoleReport.addFailureMessage(failureMessage);
     }
 
-    public void addFailure(AnalyzerConsoleFailure failure) {
+    public void addFailure(AnalyzerFailure failure) {
         consoleReport.addFailure(failure);
     }
 

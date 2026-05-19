@@ -48,7 +48,7 @@ public class AnalyzerConsoleReport {
     private int failedStatementCount;
     private long generatedAt;
     private final List<String> failureMessages = new ArrayList<String>();
-    private final List<AnalyzerConsoleFailure> failures = new ArrayList<AnalyzerConsoleFailure>();
+    private final List<AnalyzerFailure> failures = new ArrayList<AnalyzerFailure>();
     private final List<StatementResult> statementResults = new ArrayList<StatementResult>();
 
     public AnalyzerSourceType getSourceType() {
@@ -113,11 +113,11 @@ public class AnalyzerConsoleReport {
         failureMessages.add(failureMessage);
     }
 
-    public List<AnalyzerConsoleFailure> getFailures() {
+    public List<AnalyzerFailure> getFailures() {
         return failures;
     }
 
-    public void addFailure(AnalyzerConsoleFailure failure) {
+    public void addFailure(AnalyzerFailure failure) {
         failures.add(failure);
     }
 
@@ -171,7 +171,7 @@ public class AnalyzerConsoleReport {
 
         if (!failures.isEmpty()) {
             sb.append(lineSeparator).append("Failed statements").append(lineSeparator);
-            for (AnalyzerConsoleFailure failure : failures) {
+            for (AnalyzerFailure failure : failures) {
                 appendFailureBlock(sb, failure, lineSeparator);
             }
             sb.append("----------------------------------------").append(lineSeparator);
@@ -254,14 +254,14 @@ public class AnalyzerConsoleReport {
 
     public float getTotalEstimatedFailureCost() {
         float totalEstimatedFailureCost = 0.0f;
-        for (AnalyzerConsoleFailure failure : failures) {
+        for (AnalyzerFailure failure : failures) {
             totalEstimatedFailureCost += failure.getEstimatedCost();
         }
         return totalEstimatedFailureCost;
     }
 
     private void appendFailureBlock(
-            StringBuilder sb, AnalyzerConsoleFailure failure, String lineSeparator) {
+            StringBuilder sb, AnalyzerFailure failure, String lineSeparator) {
         sb.append("----------------------------------------").append(lineSeparator);
         sb.append("- ")
                 .append(safeText(failure.getStatementType()))
@@ -280,14 +280,14 @@ public class AnalyzerConsoleReport {
     }
 
     private void appendCostDetails(
-            StringBuilder sb, AnalyzerConsoleFailure failure, String lineSeparator) {
+            StringBuilder sb, AnalyzerFailure failure, String lineSeparator) {
         sb.append("  Cost details:").append(lineSeparator);
         if (failure.getCostDetails().isEmpty()) {
             sb.append("    (none)").append(lineSeparator);
             return;
         }
 
-        for (AnalyzerConsoleCostDetail costDetail : failure.getCostDetails()) {
+        for (AnalyzerCostDetail costDetail : failure.getCostDetails()) {
             sb.append("    - ")
                     .append(safeText(costDetail.getItemName()))
                     .append(" : count=")

@@ -1,5 +1,6 @@
 package com.cubrid.sqlanalyzer.command.service;
 
+import java.io.File;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
@@ -26,13 +27,21 @@ import com.cubrid.cubridmigration.cubrid.CUBRIDSQLHelper;
 import com.cubrid.sqlanalyzer.command.AnalyzerConnParametersFactory;
 import com.cubrid.sqlanalyzer.command.AnalyzerConsoleArguments;
 import com.cubrid.sqlanalyzer.command.AnalyzerConsoleConfig;
-import com.cubrid.sqlanalyzer.command.AnalyzerConsoleFailure;
+import com.cubrid.sqlanalyzer.command.AnalyzerFailure;
+import com.cubrid.sqlanalyzer.command.AnalyzerConsoleReport;
 import com.cubrid.sqlanalyzer.command.AnalyzerExecutionMode;
 import com.cubrid.sqlanalyzer.command.AnalyzerFailureStage;
 import com.cubrid.sqlanalyzer.command.AnalyzerJdbcConnectionInfo;
 import com.cubrid.sqlanalyzer.command.AnalyzerJdbcConnectionSupport;
 import com.cubrid.sqlanalyzer.command.AnalyzerSourceType;
 import com.cubrid.sqlanalyzer.command.AnalyzerTargetType;
+import com.cubrid.sqlanalyzer.command.dto.AnalyzerObjectCountPreview;
+import com.cubrid.sqlanalyzer.command.dto.AnalyzerOverview;
+import com.cubrid.sqlanalyzer.command.dto.AnalyzerProgressEvent;
+import com.cubrid.sqlanalyzer.command.dto.AnalyzerProgressStage;
+import com.cubrid.sqlanalyzer.command.dto.AnalyzerResult;
+import com.cubrid.sqlanalyzer.command.dto.AnalyzerSourceOverview;
+import com.cubrid.sqlanalyzer.command.dto.AnalyzerTargetOverview;
 import com.cubrid.sqlanalyzer.core.AnalyzerConfiguration;
 import com.cubrid.sqlanalyzer.core.cost.AnalyzerCostCalculator;
 import com.cubrid.sqlanalyzer.core.cost.FailureCostCalculator;
@@ -49,10 +58,6 @@ import com.cubrid.sqlanalyzer.xmlmetadata.XMLDirSchemaFetcher;
 import com.cubrid.sqlanalyzer.xmlmetadata.XMLDirSource;
 
 public class AnalyzerService {
-    public interface AnalyzerProgressListener {
-        void onMessage(String message);
-    }
-
     private static final String SOURCE_CONNECTION_NAME = "console-source";
     private static final String TARGET_CONNECTION_NAME = "console-target";
     private static final Pattern ORACLE_VERSION_NAME_PATTERN = Pattern.compile("\\b\\d+(?:ai|c|g)\\b",
@@ -163,40 +168,109 @@ public class AnalyzerService {
         throw new IllegalStateException("Unsupported source type: " + session.getSourceType());
     }
 
-    public String buildOracleVersionSuffix(AnalyzerConsoleConfig session) {
-        Catalog catalog = session.getSourceCatalog();
-        if (catalog == null || catalog.getVersion() == null) {
-            return "";
-        }
-
-        String versionName = getOracleVersionName(catalog.getVersion());
-        return versionName == null || versionName.isEmpty() ? "" : " (" + versionName + ")";
+    public AnalyzerOverview getOverview(AnalyzerConsoleConfig session) {
+        return new AnalyzerOverview(
+                getProgramVersion(),
+                getSourceOverview(session),
+                getTargetOverview(session),
+                session.getExecutionMode());
     }
 
-    public String buildTargetVersionSuffix(AnalyzerConsoleConfig session) {
-        if (session.getConfig().getTargetConParams() == null) {
-            return "";
+    public AnalyzerObjectCountPreview getObjectCountPreview(AnalyzerConsoleConfig session) {
+        AnalyzerConfiguration config = session.getConfig();
+        if (session.getSourceType() == AnalyzerSourceType.ORACLE) {
+            return new AnalyzerObjectCountPreview(
+                    session.getSourceType(),
+                    session.getSourceCatalog().getSchemas().size(),
+                    config.getTargetTableSchema().size(),
+                    countTargetPrimaryKeys(config.getTargetTableSchema()),
+                    countTargetForeignKeys(config.getTargetTableSchema()),
+                    config.getTargetViewSchema().size(),
+                    config.getTargetSerialSchema().size(),
+                    config.getTargetSynonymSchema().size(),
+                    config.getExpGrantCfg().size(),
+                    config.getTargetPlcsqlProcedureSchema().size(),
+                    config.getTargetPlcsqlFunctionSchema().size(),
+                    0,
+                    0,
+                    0,
+                    0);
         }
 
-        try (Connection connection = session.getConfig().getTargetConParams().createConnection()) {
-            DatabaseMetaData metaData = connection.getMetaData();
-            String versionName = getCubridVersionName(metaData);
-            return versionName == null || versionName.isEmpty() ? "" : " (" + versionName + ")";
-        } catch (SQLException ex) {
-            return "";
-        }
+        QueryDictionary dict = config.getQueryDict();
+        return new AnalyzerObjectCountPreview(
+                session.getSourceType(),
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                dict.getSelectQueryMap().size(),
+                dict.getInsertQueryMap().size(),
+                dict.getUpdateQueryMap().size(),
+                dict.getDeleteQueryMap().size());
+    }
+
+    public AnalyzerResult saveResult(AnalyzerConsoleConfig session) {
+        AnalyzerConsoleReport report = session.getConsoleReport();
+        String savedReportPath = report.saveResultReport();
+
+        return new AnalyzerResult(
+                report.getSourceType(),
+                report.getTargetType(),
+                report.getExecutionMode(),
+                report.getAnalyzedStatementCount(),
+                report.getSucceededStatementCount(),
+                report.getFailedStatementCount(),
+                report.getTotalEstimatedFailureCost(),
+                savedReportPath,
+                report.getFailureMessages(),
+                report.getFailures());
     }
 
     public void runAnalysis(
             AnalyzerConsoleConfig session, AnalyzerProgressListener progressListener) {
         AnalyzerExecutionPlan executionPlan = buildExecutionPlan(session);
+        int totalCount = executionPlan.getStatements().size();
+        notifyProgress(
+                progressListener,
+                new AnalyzerProgressEvent(
+                        AnalyzerProgressStage.PLANNING,
+                        "Generated SQL statements: " + totalCount,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        totalCount,
+                        0,
+                        0,
+                        0));
         costCalculator.analyzeBeforeExecution(executionPlan, session.getConsoleReport());
         if (executionPlan.isEmpty()) {
             session.setAnalyzedStatementCount(0);
             session.setSucceededStatementCount(0);
             session.setFailedStatementCount(0);
             session.clearFailures();
-            publish(progressListener, "No SQL statements were generated for the selected source/mode.");
+            notifyProgress(
+                    progressListener,
+                    new AnalyzerProgressEvent(
+                            AnalyzerProgressStage.EMPTY,
+                            "No SQL statements were generated for the selected source/mode.",
+                            null,
+                            null,
+                            null,
+                            null,
+                            null,
+                            totalCount,
+                            0,
+                            0,
+                            0));
             return;
         }
 
@@ -233,6 +307,102 @@ public class AnalyzerService {
         }
 
         return count;
+    }
+
+    private AnalyzerSourceOverview getSourceOverview(AnalyzerConsoleConfig session) {
+        if (session.getSourceType() == AnalyzerSourceType.ORACLE) {
+            AnalyzerJdbcConnectionInfo profile = AnalyzerJdbcConnectionSupport.parseOracleProfile(
+                    session.getSourceJdbcUrl(),
+                    session.getSourceUser(),
+                    session.getSourcePassword());
+            Catalog catalog = session.getSourceCatalog();
+            String version = catalog == null || catalog.getVersion() == null
+                    ? null
+                    : getOracleVersionName(catalog.getVersion());
+            return new AnalyzerSourceOverview(
+                    session.getSourceType(),
+                    session.getSourceJdbcUrl(),
+                    profile.getHost(),
+                    profile.getPort(),
+                    profile.getDatabaseName(),
+                    session.getSourceUser(),
+                    version,
+                    null,
+                    null,
+                    0);
+        }
+
+        return new AnalyzerSourceOverview(
+                session.getSourceType(),
+                null,
+                null,
+                0,
+                null,
+                null,
+                null,
+                session.getXmlDirectory(),
+                session.getXmlCharset(),
+                countXmlFiles(session.getXmlDirectory()));
+    }
+
+    private AnalyzerTargetOverview getTargetOverview(AnalyzerConsoleConfig session) {
+        if (session.getTargetType() == AnalyzerTargetType.JDBC) {
+            AnalyzerJdbcConnectionInfo profile = AnalyzerJdbcConnectionSupport.parseCubridProfile(
+                    session.getTargetJdbcUrl(),
+                    session.getTargetUser(),
+                    session.getTargetPassword());
+            return new AnalyzerTargetOverview(
+                    session.getTargetType(),
+                    session.getTargetJdbcUrl(),
+                    profile.getHost(),
+                    profile.getPort(),
+                    profile.getDatabaseName(),
+                    session.getTargetUser(),
+                    getTargetVersionName(session),
+                    null);
+        }
+
+        return new AnalyzerTargetOverview(
+                session.getTargetType(),
+                null,
+                null,
+                0,
+                null,
+                null,
+                null,
+                getParserVersion());
+    }
+
+    private String getProgramVersion() {
+        Package packageInfo = AnalyzerService.class.getPackage();
+        String version = packageInfo == null ? null : packageInfo.getImplementationVersion();
+        return version == null || version.isEmpty() ? "0.0.1-SNAPSHOT" : version;
+    }
+
+    private String getParserVersion() {
+        return "CUBRID parser";
+    }
+
+    private String getTargetVersionName(AnalyzerConsoleConfig session) {
+        if (session.getConfig().getTargetConParams() == null) {
+            return null;
+        }
+
+        try (Connection connection = session.getConfig().getTargetConParams().createConnection()) {
+            return getCubridVersionName(connection.getMetaData());
+        } catch (SQLException ex) {
+            return null;
+        }
+    }
+
+    private int countXmlFiles(String xmlDirectory) {
+        if (xmlDirectory == null || xmlDirectory.isEmpty()) {
+            return 0;
+        }
+
+        File directory = new File(xmlDirectory);
+        File[] files = directory.listFiles((dir, name) -> name.toLowerCase().endsWith(".xml"));
+        return files == null ? 0 : files.length;
     }
 
     private void loadOracleSourceCatalog(AnalyzerConsoleConfig session) {
@@ -316,6 +486,7 @@ public class AnalyzerService {
             AnalyzerExecutionPlan executionPlan,
             AnalyzerProgressListener progressListener) {
         QueryParser queryParser = new QueryParser();
+        int totalCount = executionPlan.getStatements().size();
         int analyzed = 0;
         int succeeded = 0;
         int failed = 0;
@@ -335,7 +506,20 @@ public class AnalyzerService {
                                 true,
                                 "parsed",
                                 null);
-                publish(progressListener, "[OK] " + statement.getType() + " " + statement.getId());
+                notifyProgress(
+                        progressListener,
+                        new AnalyzerProgressEvent(
+                                AnalyzerProgressStage.STATEMENT_SUCCEEDED,
+                                "[OK] " + statement.getType() + " " + statement.getId(),
+                                statement.getType(),
+                                statement.getId(),
+                                statement.getSQL(),
+                                "parsed",
+                                null,
+                                totalCount,
+                                analyzed,
+                                succeeded,
+                                failed));
             } catch (SQLParserException ex) {
                 failed++;
                 String failureMessage = buildFailureMessage(statement.getType(), statement.getId(), ex.getMessage());
@@ -350,7 +534,20 @@ public class AnalyzerService {
                                 false,
                                 ex.getMessage(),
                                 AnalyzerFailureStage.PARSER);
-                publish(progressListener, "[FAIL] " + failureMessage);
+                notifyProgress(
+                        progressListener,
+                        new AnalyzerProgressEvent(
+                                AnalyzerProgressStage.STATEMENT_FAILED,
+                                "[FAIL] " + failureMessage,
+                                statement.getType(),
+                                statement.getId(),
+                                statement.getSQL(),
+                                ex.getMessage(),
+                                AnalyzerFailureStage.PARSER,
+                                totalCount,
+                                analyzed,
+                                succeeded,
+                                failed));
             } catch (Exception ex) {
                 failed++;
                 String failureMessage = buildFailureMessage(statement.getType(), statement.getId(), ex.toString());
@@ -365,7 +562,20 @@ public class AnalyzerService {
                                 false,
                                 ex.toString(),
                                 AnalyzerFailureStage.PARSER);
-                publish(progressListener, "[FAIL] " + failureMessage);
+                notifyProgress(
+                        progressListener,
+                        new AnalyzerProgressEvent(
+                                AnalyzerProgressStage.STATEMENT_FAILED,
+                                "[FAIL] " + failureMessage,
+                                statement.getType(),
+                                statement.getId(),
+                                statement.getSQL(),
+                                ex.toString(),
+                                AnalyzerFailureStage.PARSER,
+                                totalCount,
+                                analyzed,
+                                succeeded,
+                                failed));
             }
         }
 
@@ -383,6 +593,7 @@ public class AnalyzerService {
             AnalyzerProgressListener progressListener) {
         Connection connection = null;
         List<String> cleanupQueries = new ArrayList<String>();
+        int totalCount = executionPlan.getStatements().size();
         int analyzed = 0;
         int succeeded = 0;
         int failed = 0;
@@ -404,14 +615,25 @@ public class AnalyzerService {
                                     true,
                                     resultSummary,
                                     null);
-                    publish(
+                    notifyProgress(
                             progressListener,
-                            "[OK] "
-                                    + statement.getType()
-                                    + " "
-                                    + statement.getId()
-                                    + " : "
-                                    + resultSummary);
+                            new AnalyzerProgressEvent(
+                                    AnalyzerProgressStage.STATEMENT_SUCCEEDED,
+                                    "[OK] "
+                                            + statement.getType()
+                                            + " "
+                                            + statement.getId()
+                                            + " : "
+                                            + resultSummary,
+                                    statement.getType(),
+                                    statement.getId(),
+                                    statement.getSQL(),
+                                    resultSummary,
+                                    null,
+                                    totalCount,
+                                    analyzed,
+                                    succeeded,
+                                    failed));
 
                     String cleanupQuery = buildCleanupQuery(session, statement);
                     if (cleanupQuery != null) {
@@ -431,14 +653,35 @@ public class AnalyzerService {
                                     false,
                                     ex.toString(),
                                     AnalyzerFailureStage.JDBC);
-                    publish(progressListener, "[FAIL] " + failureMessage);
+                    notifyProgress(
+                            progressListener,
+                            new AnalyzerProgressEvent(
+                                    AnalyzerProgressStage.STATEMENT_FAILED,
+                                    "[FAIL] " + failureMessage,
+                                    statement.getType(),
+                                    statement.getId(),
+                                    statement.getSQL(),
+                                    ex.toString(),
+                                    AnalyzerFailureStage.JDBC,
+                                    totalCount,
+                                    analyzed,
+                                    succeeded,
+                                    failed));
                 }
             }
         } catch (Exception ex) {
             throw new RuntimeException("JDBC execution failed to start: " + ex.getMessage(), ex);
         } finally {
             if (!cleanupQueries.isEmpty()) {
-                runJdbcCleanup(connection, cleanupQueries, session, progressListener);
+                runJdbcCleanup(
+                        connection,
+                        cleanupQueries,
+                        session,
+                        progressListener,
+                        totalCount,
+                        analyzed,
+                        succeeded,
+                        failed);
             }
             Closer.close(connection);
         }
@@ -455,19 +698,19 @@ public class AnalyzerService {
         return type + " " + id + " : " + reason;
     }
 
-    private AnalyzerConsoleFailure buildFailure(
+    private AnalyzerFailure buildFailure(
             AnalyzerStatement statement, String reason, AnalyzerFailureStage stage) {
         return buildFailure(
                 statement.getType(), statement.getId(), statement.getSQL(), reason, stage);
     }
 
-    private AnalyzerConsoleFailure buildFailure(
+    private AnalyzerFailure buildFailure(
             String statementType,
             String statementId,
             String sql,
             String reason,
             AnalyzerFailureStage stage) {
-        AnalyzerConsoleFailure failure = new AnalyzerConsoleFailure();
+        AnalyzerFailure failure = new AnalyzerFailure();
         failure.setFailureStage(stage);
         failure.setStatementType(statementType);
         failure.setStatementId(statementId);
@@ -514,7 +757,11 @@ public class AnalyzerService {
             Connection connection,
             List<String> cleanupQueries,
             AnalyzerConsoleConfig session,
-            AnalyzerProgressListener progressListener) {
+            AnalyzerProgressListener progressListener,
+            int totalCount,
+            int completedCount,
+            int succeededCount,
+            int failedCount) {
         for (int i = cleanupQueries.size() - 1; i >= 0; i--) {
             String cleanupQuery = cleanupQueries.get(i);
             String cleanupId = "CLEANUP_" + (cleanupQueries.size() - i);
@@ -531,7 +778,20 @@ public class AnalyzerService {
                                 true,
                                 "cleanup executed",
                                 null);
-                publish(progressListener, "[CLEANUP OK] " + cleanupQuery);
+                notifyProgress(
+                        progressListener,
+                        new AnalyzerProgressEvent(
+                                AnalyzerProgressStage.CLEANUP_SUCCEEDED,
+                                "[CLEANUP OK] " + cleanupQuery,
+                                "CLEANUP",
+                                cleanupId,
+                                cleanupQuery,
+                                "cleanup executed",
+                                null,
+                                totalCount,
+                                completedCount,
+                                succeededCount,
+                                failedCount));
             } catch (Exception ex) {
                 String failureMessage = "CLEANUP : " + cleanupQuery + " : " + ex.toString();
                 session.addFailureMessage(failureMessage);
@@ -550,7 +810,20 @@ public class AnalyzerService {
                                 false,
                                 ex.toString(),
                                 AnalyzerFailureStage.CLEANUP);
-                publish(progressListener, "[CLEANUP FAIL] " + failureMessage);
+                notifyProgress(
+                        progressListener,
+                        new AnalyzerProgressEvent(
+                                AnalyzerProgressStage.CLEANUP_FAILED,
+                                "[CLEANUP FAIL] " + failureMessage,
+                                "CLEANUP",
+                                cleanupId,
+                                cleanupQuery,
+                                ex.toString(),
+                                AnalyzerFailureStage.CLEANUP,
+                                totalCount,
+                                completedCount,
+                                succeededCount,
+                                failedCount));
             } finally {
                 Closer.close(statement);
             }
@@ -660,19 +933,30 @@ public class AnalyzerService {
 
     private void publishAnalysisCompleted(
             AnalyzerProgressListener progressListener, int analyzed, int succeeded, int failed) {
-        publish(
+        notifyProgress(
                 progressListener,
-                "Analysis completed. Total="
-                        + analyzed
-                        + ", Success="
-                        + succeeded
-                        + ", Failed="
-                        + failed);
+                new AnalyzerProgressEvent(
+                        AnalyzerProgressStage.COMPLETED,
+                        "Analysis completed. Total="
+                                + analyzed
+                                + ", Success="
+                                + succeeded
+                                + ", Failed="
+                                + failed,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        analyzed,
+                        analyzed,
+                        succeeded,
+                        failed));
     }
 
-    private void publish(AnalyzerProgressListener progressListener, String message) {
+    private void notifyProgress(AnalyzerProgressListener progressListener, AnalyzerProgressEvent event) {
         if (progressListener != null) {
-            progressListener.onMessage(message);
+            progressListener.onProgress(event);
         }
     }
 }

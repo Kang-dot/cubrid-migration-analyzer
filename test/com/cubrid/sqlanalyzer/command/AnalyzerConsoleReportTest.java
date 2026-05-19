@@ -32,15 +32,15 @@ class AnalyzerConsoleReportTest {
                 "syntax error",
                 AnalyzerFailureStage.PARSER);
 
-        AnalyzerConsoleFailure failure = new AnalyzerConsoleFailure();
+        AnalyzerFailure failure = new AnalyzerFailure();
         failure.setStatementType("SELECT");
         failure.setStatementId("Q1");
         failure.setSql("SELECT * FROM emp");
         failure.setReason("syntax error");
         failure.setFailureStage(AnalyzerFailureStage.PARSER);
         failure.setEstimatedCost(0.7f);
-        failure.addCostDetail(new AnalyzerConsoleCostDetail("Base DML", 1, 0.2f, 0.2f));
-        failure.addCostDetail(new AnalyzerConsoleCostDetail("JOIN detected", 1, 0.5f, 0.5f));
+        failure.addCostDetail(new AnalyzerCostDetail("Base DML", 1, 0.2f, 0.2f));
+        failure.addCostDetail(new AnalyzerCostDetail("JOIN detected", 1, 0.5f, 0.5f));
         report.addFailure(failure);
 
         String resultText = report.buildResultText();
