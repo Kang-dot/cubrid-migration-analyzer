@@ -12,7 +12,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.TimeZone;
 
-import com.cubrid.cubridmigration.core.common.Closer;
 import com.cubrid.cubridmigration.cubrid.CUBRIDTimeUtil;
 
 public class AnalyzerConsoleReport {
@@ -134,7 +133,6 @@ public class AnalyzerConsoleReport {
     }
 
     public String saveResultReport() {
-        PrintWriter writer = null;
         try {
             File reportDir = getReportDirectory();
             if (!reportDir.exists() && !reportDir.mkdirs()) {
@@ -143,15 +141,14 @@ public class AnalyzerConsoleReport {
 
             generatedAt = System.currentTimeMillis();
             File reportFile = new File(reportDir, buildReportFileName());
-            writer = new PrintWriter(
-                    new OutputStreamWriter(new FileOutputStream(reportFile), "UTF-8"));
-            writer.print(buildResultText());
-            writer.flush();
+            try (PrintWriter writer = new PrintWriter(
+                    new OutputStreamWriter(new FileOutputStream(reportFile), "UTF-8"))) {
+                writer.print(buildResultText());
+                writer.flush();
+            }
             return reportFile.getAbsolutePath();
         } catch (IOException e) {
             throw new RuntimeException("Failed to save console report: " + e.getMessage(), e);
-        } finally {
-            Closer.close(writer);
         }
     }
 

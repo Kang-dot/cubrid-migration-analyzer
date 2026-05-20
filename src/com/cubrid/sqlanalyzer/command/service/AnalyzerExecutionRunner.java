@@ -7,7 +7,6 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.cubrid.cubridmigration.core.common.Closer;
 import com.cubrid.cubridmigration.core.dbobject.PlcsqlFunction;
 import com.cubrid.cubridmigration.core.dbobject.PlcsqlProcedure;
 import com.cubrid.cubridmigration.core.dbobject.Sequence;
@@ -220,7 +219,6 @@ public class AnalyzerExecutionRunner {
             AnalyzerConsoleConfig session,
             AnalyzerExecutionPlan executionPlan,
             AnalyzerProgressListener progressListener) {
-        Connection connection = null;
         List<String> cleanupQueries = new ArrayList<String>();
         int totalCount = executionPlan.getStatements().size();
         int analyzed = 0;
@@ -229,8 +227,7 @@ public class AnalyzerExecutionRunner {
 
         session.clearFailures();
 
-        try {
-            connection = session.getConfig().getTargetConParams().createConnection();
+        try (Connection connection = session.getConfig().getTargetConParams().createConnection()) {
             for (AnalyzerStatement statement : executionPlan.getStatements()) {
                 analyzed++;
                 try {
@@ -298,9 +295,6 @@ public class AnalyzerExecutionRunner {
                                     failed));
                 }
             }
-        } catch (Exception ex) {
-            throw new RuntimeException("JDBC execution failed to start: " + ex.getMessage(), ex);
-        } finally {
             if (!cleanupQueries.isEmpty()) {
                 runJdbcCleanup(
                         connection,
@@ -312,7 +306,8 @@ public class AnalyzerExecutionRunner {
                         succeeded,
                         failed);
             }
-            Closer.close(connection);
+        } catch (Exception ex) {
+            throw new RuntimeException("JDBC execution failed to start: " + ex.getMessage(), ex);
         }
 
         session.setAnalyzedStatementCount(analyzed);
@@ -325,20 +320,17 @@ public class AnalyzerExecutionRunner {
 
     private String executeJdbcStatement(Connection connection, AnalyzerStatement statement)
             throws SQLException {
-        Statement jdbcStatement = null;
-        ResultSet resultSet = null;
-
-        try {
-            jdbcStatement = connection.createStatement();
+        try (Statement jdbcStatement = connection.createStatement()) {
             boolean hasResultSet = jdbcStatement.execute(statement.getSQL());
 
             if (hasResultSet) {
-                resultSet = jdbcStatement.getResultSet();
-                int rowCount = 0;
-                while (resultSet.next()) {
-                    rowCount++;
+                try (ResultSet resultSet = jdbcStatement.getResultSet()) {
+                    int rowCount = 0;
+                    while (resultSet.next()) {
+                        rowCount++;
+                    }
+                    return "rows=" + rowCount;
                 }
-                return "rows=" + rowCount;
             }
 
             int updateCount = jdbcStatement.getUpdateCount();
@@ -351,9 +343,6 @@ public class AnalyzerExecutionRunner {
             }
 
             return "updated=" + updateCount;
-        } finally {
-            Closer.close(resultSet);
-            Closer.close(jdbcStatement);
         }
     }
 
@@ -369,9 +358,7 @@ public class AnalyzerExecutionRunner {
         for (int i = cleanupQueries.size() - 1; i >= 0; i--) {
             String cleanupQuery = cleanupQueries.get(i);
             String cleanupId = "CLEANUP_" + (cleanupQueries.size() - i);
-            Statement statement = null;
-            try {
-                statement = connection.createStatement();
+            try (Statement statement = connection.createStatement()) {
                 statement.execute(cleanupQuery);
                 connection.commit();
                 session.getConsoleReport()
@@ -428,8 +415,6 @@ public class AnalyzerExecutionRunner {
                                 completedCount,
                                 succeededCount,
                                 failedCount));
-            } finally {
-                Closer.close(statement);
             }
         }
     }
