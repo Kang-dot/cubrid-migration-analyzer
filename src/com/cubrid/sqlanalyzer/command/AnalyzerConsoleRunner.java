@@ -1,7 +1,7 @@
 package com.cubrid.sqlanalyzer.command;
 
-import com.cubrid.sqlanalyzer.command.dto.AnalyzerProgressEvent;
-import com.cubrid.sqlanalyzer.command.dto.AnalyzerProgressStage;
+import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerProgressEventViewModel;
+import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerProgressStage;
 import com.cubrid.sqlanalyzer.command.page.AnalyzerObjectCountPage;
 import com.cubrid.sqlanalyzer.command.page.AnalyzerOverviewPage;
 import com.cubrid.sqlanalyzer.command.page.AnalyzerResultPage;
@@ -207,7 +207,7 @@ public class AnalyzerConsoleRunner {
         resultPage.render(analyzerService.saveResult(session));
     }
 
-    private String formatProgressEvent(AnalyzerProgressEvent event) {
+    private String formatProgressEvent(AnalyzerProgressEventViewModel event) {
         if (event.stage() == AnalyzerProgressStage.PLANNING) {
             return "";
         }

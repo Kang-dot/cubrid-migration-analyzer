@@ -12,44 +12,43 @@ import com.cubrid.sqlanalyzer.command.AnalyzerExecutionMode;
 import com.cubrid.sqlanalyzer.command.AnalyzerSourceType;
 import com.cubrid.sqlanalyzer.command.AnalyzerTargetType;
 import com.cubrid.sqlanalyzer.command.ConsoleIO;
-import com.cubrid.sqlanalyzer.command.dto.AnalyzerOverview;
-import com.cubrid.sqlanalyzer.command.dto.AnalyzerSourceOverview;
-import com.cubrid.sqlanalyzer.command.dto.AnalyzerTargetOverview;
+import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerOverviewViewModel;
+import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerSourceOverviewViewModel;
+import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerTargetOverviewViewModel;
 
 class AnalyzerOverviewPageTest {
     @Test
-    @DisplayName("XML parser overview renders service DTO details")
-    void shouldRenderXmlParserOverviewFromDto() {
+    @DisplayName("XML parser overview renders view model details")
+    void shouldRenderXmlParserOverviewFromViewModel() {
         RecordingConsoleIO io = new RecordingConsoleIO();
-        AnalyzerOverview overview =
-                new AnalyzerOverview(
-                        "0.0.1-SNAPSHOT",
-                        new AnalyzerSourceOverview(
-                                AnalyzerSourceType.XML,
-                                null,
-                                null,
-                                0,
-                                null,
-                                null,
-                                null,
-                                "/tmp/sqlmap",
-                                "UTF-8",
-                                3),
-                        new AnalyzerTargetOverview(
-                                AnalyzerTargetType.PARSER,
-                                null,
-                                null,
-                                0,
-                                null,
-                                null,
-                                null,
-                                "CUBRID parser"),
-                        AnalyzerExecutionMode.DML);
+        AnalyzerOverviewViewModel overview = new AnalyzerOverviewViewModel(
+                "0.0.1-SNAPSHOT",
+                new AnalyzerSourceOverviewViewModel(
+                        AnalyzerSourceType.XML,
+                        null,
+                        null,
+                        0,
+                        null,
+                        null,
+                        null,
+                        "/tmp/sqlmap",
+                        "UTF-8",
+                        3),
+                new AnalyzerTargetOverviewViewModel(
+                        AnalyzerTargetType.PARSER,
+                        null,
+                        null,
+                        0,
+                        null,
+                        null,
+                        null,
+                        "CUBRID parser"),
+                AnalyzerExecutionMode.DML);
 
         new AnalyzerOverviewPage(io).render(overview);
         String output = io.output();
 
-        assertTrue(output.contains("[3/4] Overview"));
+        assertTrue(output.contains("[1/3] Overview"));
         assertTrue(output.contains("Program     : 0.0.1-SNAPSHOT"));
         assertTrue(output.contains("Source      : XML"));
         assertTrue(output.contains("XML dir     : /tmp/sqlmap"));
@@ -61,33 +60,32 @@ class AnalyzerOverviewPageTest {
     }
 
     @Test
-    @DisplayName("JDBC overview renders connection details from DTO")
-    void shouldRenderJdbcOverviewConnectionDetailsFromDto() {
+    @DisplayName("JDBC overview renders connection details from view model")
+    void shouldRenderJdbcOverviewConnectionDetailsFromViewModel() {
         RecordingConsoleIO io = new RecordingConsoleIO();
-        AnalyzerOverview overview =
-                new AnalyzerOverview(
-                        "1.2.3",
-                        new AnalyzerSourceOverview(
-                                AnalyzerSourceType.ORACLE,
-                                "jdbc:oracle:thin:@//oracle.example.com:1521/XEPDB1",
-                                "oracle.example.com",
-                                1521,
-                                "XEPDB1",
-                                "oracle_user",
-                                "21c",
-                                null,
-                                null,
-                                0),
-                        new AnalyzerTargetOverview(
-                                AnalyzerTargetType.JDBC,
-                                "jdbc:cubrid:cubrid.example.com:33000:demodb:::",
-                                "cubrid.example.com",
-                                33000,
-                                "demodb",
-                                "dba",
-                                "11.3",
-                                null),
-                        AnalyzerExecutionMode.DDL);
+        AnalyzerOverviewViewModel overview = new AnalyzerOverviewViewModel(
+                "1.2.3",
+                new AnalyzerSourceOverviewViewModel(
+                        AnalyzerSourceType.ORACLE,
+                        "jdbc:oracle:thin:@//oracle.example.com:1521/XEPDB1",
+                        "oracle.example.com",
+                        1521,
+                        "XEPDB1",
+                        "oracle_user",
+                        "21c",
+                        null,
+                        null,
+                        0),
+                new AnalyzerTargetOverviewViewModel(
+                        AnalyzerTargetType.JDBC,
+                        "jdbc:cubrid:cubrid.example.com:33000:demodb:::",
+                        "cubrid.example.com",
+                        33000,
+                        "demodb",
+                        "dba",
+                        "11.3",
+                        null),
+                AnalyzerExecutionMode.DDL);
 
         new AnalyzerOverviewPage(io).render(overview);
         String output = io.output();

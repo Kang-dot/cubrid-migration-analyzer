@@ -12,9 +12,9 @@ import com.cubrid.sqlanalyzer.command.AnalyzerJdbcConnectionInfo;
 import com.cubrid.sqlanalyzer.command.AnalyzerJdbcConnectionSupport;
 import com.cubrid.sqlanalyzer.command.AnalyzerSourceType;
 import com.cubrid.sqlanalyzer.command.AnalyzerTargetType;
-import com.cubrid.sqlanalyzer.command.dto.AnalyzerObjectCountPreview;
-import com.cubrid.sqlanalyzer.command.dto.AnalyzerOverview;
-import com.cubrid.sqlanalyzer.command.dto.AnalyzerResult;
+import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerObjectCountPreviewViewModel;
+import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerOverviewViewModel;
+import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerResultViewModel;
 import com.cubrid.sqlanalyzer.core.AnalyzerConfiguration;
 import com.cubrid.sqlanalyzer.core.dbobject.AnalyzerCatalog;
 import com.cubrid.sqlanalyzer.core.dbobject.QueryDictionary;
@@ -29,15 +29,15 @@ public class AnalyzerService {
     private static final AnalyzerConnParametersFactory CUBRID_CONN_PARAMETERS_FACTORY = AnalyzerJdbcConnectionSupport
             .createFactory(DatabaseType.CUBRID);
 
-    private final AnalyzerDTOBuilder dtoBuilder;
+    private final AnalyzerViewModelBuilder viewModelBuilder;
     private final AnalyzerExecutionRunner executionRunner;
 
     public AnalyzerService() {
-        this(new AnalyzerDTOBuilder(), new AnalyzerExecutionRunner());
+        this(new AnalyzerViewModelBuilder(), new AnalyzerExecutionRunner());
     }
 
-    AnalyzerService(AnalyzerDTOBuilder dtoBuilder, AnalyzerExecutionRunner executionRunner) {
-        this.dtoBuilder = dtoBuilder;
+    AnalyzerService(AnalyzerViewModelBuilder viewModelBuilder, AnalyzerExecutionRunner executionRunner) {
+        this.viewModelBuilder = viewModelBuilder;
         this.executionRunner = executionRunner;
     }
 
@@ -140,12 +140,12 @@ public class AnalyzerService {
         throw new IllegalStateException("Unsupported source type: " + session.getSourceType());
     }
 
-    public AnalyzerOverview getOverview(AnalyzerConsoleConfig session) {
-        return dtoBuilder.buildOverview(session);
+    public AnalyzerOverviewViewModel getOverview(AnalyzerConsoleConfig session) {
+        return viewModelBuilder.buildOverview(session);
     }
 
-    public AnalyzerObjectCountPreview getObjectCountPreview(AnalyzerConsoleConfig session) {
-        return dtoBuilder.buildObjectCountPreview(session);
+    public AnalyzerObjectCountPreviewViewModel getObjectCountPreview(AnalyzerConsoleConfig session) {
+        return viewModelBuilder.buildObjectCountPreview(session);
     }
 
     public void runAnalysis(
@@ -153,10 +153,10 @@ public class AnalyzerService {
         executionRunner.run(session, progressListener);
     }
 
-    public AnalyzerResult saveResult(AnalyzerConsoleConfig session) {
+    public AnalyzerResultViewModel saveResult(AnalyzerConsoleConfig session) {
         AnalyzerConsoleReport report = session.getConsoleReport();
         String savedReportPath = report.saveResultReport();
-        return dtoBuilder.buildResult(report, savedReportPath);
+        return viewModelBuilder.buildResult(report, savedReportPath);
     }
 
     private void loadOracleSourceCatalog(AnalyzerConsoleConfig session) {

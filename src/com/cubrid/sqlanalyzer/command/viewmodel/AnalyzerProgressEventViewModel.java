@@ -1,8 +1,8 @@
-package com.cubrid.sqlanalyzer.command.dto;
+package com.cubrid.sqlanalyzer.command.viewmodel;
 
 import com.cubrid.sqlanalyzer.command.AnalyzerFailureStage;
 
-public record AnalyzerProgressEvent(
+public record AnalyzerProgressEventViewModel(
         AnalyzerProgressStage stage,
         String message,
         String statementType,

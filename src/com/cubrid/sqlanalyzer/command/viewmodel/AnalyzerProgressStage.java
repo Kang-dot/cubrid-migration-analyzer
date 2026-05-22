@@ -1,4 +1,4 @@
-package com.cubrid.sqlanalyzer.command.dto;
+package com.cubrid.sqlanalyzer.command.viewmodel;
 
 public enum AnalyzerProgressStage {
     PLANNING,

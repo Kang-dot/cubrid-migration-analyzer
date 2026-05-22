@@ -3,7 +3,7 @@ package com.cubrid.sqlanalyzer.command.page;
 import com.cubrid.sqlanalyzer.command.AnalyzerCostDetail;
 import com.cubrid.sqlanalyzer.command.AnalyzerFailure;
 import com.cubrid.sqlanalyzer.command.ConsoleIO;
-import com.cubrid.sqlanalyzer.command.dto.AnalyzerResult;
+import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerResultViewModel;
 
 public class AnalyzerResultPage {
     private final ConsoleIO io;
@@ -12,7 +12,7 @@ public class AnalyzerResultPage {
         this.io = io;
     }
 
-    public void render(AnalyzerResult result) {
+    public void render(AnalyzerResultViewModel result) {
         io.println("");
         io.println("Result summary");
         io.println("Source : " + result.sourceType());

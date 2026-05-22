@@ -71,6 +71,7 @@ public final class AnalyzerConsoleSettingsLoader {
         }
 
         List<String> tokens = new ArrayList<String>();
+        addOption(tokens, "-ui", getFirst(properties, "ui.mode", "ui"));
         addOption(tokens, "-jr", getFirst(properties, "jdbc.repository.dir", "jdbcRepositoryDir"));
 
         String source = getFirst(properties, "source.type", "source");

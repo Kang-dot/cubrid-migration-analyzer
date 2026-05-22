@@ -21,8 +21,8 @@ import com.cubrid.sqlanalyzer.command.AnalyzerFailure;
 import com.cubrid.sqlanalyzer.command.AnalyzerFailureStage;
 import com.cubrid.sqlanalyzer.command.AnalyzerSourceType;
 import com.cubrid.sqlanalyzer.command.AnalyzerTargetType;
-import com.cubrid.sqlanalyzer.command.dto.AnalyzerProgressEvent;
-import com.cubrid.sqlanalyzer.command.dto.AnalyzerProgressStage;
+import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerProgressEventViewModel;
+import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerProgressStage;
 import com.cubrid.sqlanalyzer.core.AnalyzerConfiguration;
 import com.cubrid.sqlanalyzer.core.cost.AnalyzerCostCalculator;
 import com.cubrid.sqlanalyzer.core.cost.FailureCostCalculator;
@@ -43,7 +43,7 @@ public class AnalyzerExecutionRunner {
         int totalCount = executionPlan.getStatements().size();
         notifyProgress(
                 progressListener,
-                new AnalyzerProgressEvent(
+                new AnalyzerProgressEventViewModel(
                         AnalyzerProgressStage.PLANNING,
                         "Generated SQL statements: " + totalCount,
                         null,
@@ -63,7 +63,7 @@ public class AnalyzerExecutionRunner {
             session.clearFailures();
             notifyProgress(
                     progressListener,
-                    new AnalyzerProgressEvent(
+                    new AnalyzerProgressEventViewModel(
                             AnalyzerProgressStage.EMPTY,
                             "No SQL statements were generated for the selected source/mode.",
                             null,
@@ -136,7 +136,7 @@ public class AnalyzerExecutionRunner {
                                 null);
                 notifyProgress(
                         progressListener,
-                        new AnalyzerProgressEvent(
+                        new AnalyzerProgressEventViewModel(
                                 AnalyzerProgressStage.STATEMENT_SUCCEEDED,
                                 "[OK] " + statement.getType() + " " + statement.getId(),
                                 statement.getType(),
@@ -164,7 +164,7 @@ public class AnalyzerExecutionRunner {
                                 AnalyzerFailureStage.PARSER);
                 notifyProgress(
                         progressListener,
-                        new AnalyzerProgressEvent(
+                        new AnalyzerProgressEventViewModel(
                                 AnalyzerProgressStage.STATEMENT_FAILED,
                                 "[FAIL] " + failureMessage,
                                 statement.getType(),
@@ -192,7 +192,7 @@ public class AnalyzerExecutionRunner {
                                 AnalyzerFailureStage.PARSER);
                 notifyProgress(
                         progressListener,
-                        new AnalyzerProgressEvent(
+                        new AnalyzerProgressEventViewModel(
                                 AnalyzerProgressStage.STATEMENT_FAILED,
                                 "[FAIL] " + failureMessage,
                                 statement.getType(),
@@ -243,7 +243,7 @@ public class AnalyzerExecutionRunner {
                                     null);
                     notifyProgress(
                             progressListener,
-                            new AnalyzerProgressEvent(
+                            new AnalyzerProgressEventViewModel(
                                     AnalyzerProgressStage.STATEMENT_SUCCEEDED,
                                     "[OK] "
                                             + statement.getType()
@@ -281,7 +281,7 @@ public class AnalyzerExecutionRunner {
                                     AnalyzerFailureStage.JDBC);
                     notifyProgress(
                             progressListener,
-                            new AnalyzerProgressEvent(
+                            new AnalyzerProgressEventViewModel(
                                     AnalyzerProgressStage.STATEMENT_FAILED,
                                     "[FAIL] " + failureMessage,
                                     statement.getType(),
@@ -371,7 +371,7 @@ public class AnalyzerExecutionRunner {
                                 null);
                 notifyProgress(
                         progressListener,
-                        new AnalyzerProgressEvent(
+                        new AnalyzerProgressEventViewModel(
                                 AnalyzerProgressStage.CLEANUP_SUCCEEDED,
                                 "[CLEANUP OK] " + cleanupQuery,
                                 "CLEANUP",
@@ -403,7 +403,7 @@ public class AnalyzerExecutionRunner {
                                 AnalyzerFailureStage.CLEANUP);
                 notifyProgress(
                         progressListener,
-                        new AnalyzerProgressEvent(
+                        new AnalyzerProgressEventViewModel(
                                 AnalyzerProgressStage.CLEANUP_FAILED,
                                 "[CLEANUP FAIL] " + failureMessage,
                                 "CLEANUP",
@@ -549,7 +549,7 @@ public class AnalyzerExecutionRunner {
             AnalyzerProgressListener progressListener, int analyzed, int succeeded, int failed) {
         notifyProgress(
                 progressListener,
-                new AnalyzerProgressEvent(
+                new AnalyzerProgressEventViewModel(
                         AnalyzerProgressStage.COMPLETED,
                         "Analysis completed. Total="
                                 + analyzed
@@ -568,7 +568,7 @@ public class AnalyzerExecutionRunner {
                         failed));
     }
 
-    private void notifyProgress(AnalyzerProgressListener progressListener, AnalyzerProgressEvent event) {
+    private void notifyProgress(AnalyzerProgressListener progressListener, AnalyzerProgressEventViewModel event) {
         if (progressListener != null) {
             progressListener.onProgress(event);
         }

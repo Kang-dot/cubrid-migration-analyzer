@@ -2,7 +2,7 @@ package com.cubrid.sqlanalyzer.command.page;
 
 import com.cubrid.sqlanalyzer.command.AnalyzerSourceType;
 import com.cubrid.sqlanalyzer.command.ConsoleIO;
-import com.cubrid.sqlanalyzer.command.dto.AnalyzerObjectCountPreview;
+import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerObjectCountPreviewViewModel;
 
 public class AnalyzerObjectCountPage {
     private final ConsoleIO io;
@@ -11,7 +11,7 @@ public class AnalyzerObjectCountPage {
         this.io = io;
     }
 
-    public void render(AnalyzerObjectCountPreview preview) {
+    public void render(AnalyzerObjectCountPreviewViewModel preview) {
         io.println("");
         io.println("Object count preview");
         if (preview.sourceType() == AnalyzerSourceType.ORACLE) {

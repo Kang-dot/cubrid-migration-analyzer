@@ -1,7 +1,7 @@
 package com.cubrid.sqlanalyzer.command.service;
 
-import com.cubrid.sqlanalyzer.command.dto.AnalyzerProgressEvent;
+import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerProgressEventViewModel;
 
 public interface AnalyzerProgressListener {
-    void onProgress(AnalyzerProgressEvent event);
+    void onProgress(AnalyzerProgressEventViewModel event);
 }

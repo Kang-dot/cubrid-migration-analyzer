@@ -1,8 +1,8 @@
-package com.cubrid.sqlanalyzer.command.dto;
+package com.cubrid.sqlanalyzer.command.viewmodel;
 
 import com.cubrid.sqlanalyzer.command.AnalyzerSourceType;
 
-public record AnalyzerObjectCountPreview(
+public record AnalyzerObjectCountPreviewViewModel(
         AnalyzerSourceType sourceType,
         int catalogSchemaCount,
         int targetTableCount,

@@ -1,4 +1,4 @@
-package com.cubrid.sqlanalyzer.command.dto;
+package com.cubrid.sqlanalyzer.command.viewmodel;
 
 import java.util.List;
 
@@ -7,7 +7,7 @@ import com.cubrid.sqlanalyzer.command.AnalyzerExecutionMode;
 import com.cubrid.sqlanalyzer.command.AnalyzerSourceType;
 import com.cubrid.sqlanalyzer.command.AnalyzerTargetType;
 
-public record AnalyzerResult(
+public record AnalyzerResultViewModel(
         AnalyzerSourceType sourceType,
         AnalyzerTargetType targetType,
         AnalyzerExecutionMode executionMode,
@@ -19,7 +19,7 @@ public record AnalyzerResult(
         List<String> failureMessages,
         List<AnalyzerFailure> failures) {
 
-    public AnalyzerResult {
+    public AnalyzerResultViewModel {
         failureMessages = failureMessages == null ? List.of() : List.copyOf(failureMessages);
         failures = failures == null ? List.of() : List.copyOf(failures);
     }

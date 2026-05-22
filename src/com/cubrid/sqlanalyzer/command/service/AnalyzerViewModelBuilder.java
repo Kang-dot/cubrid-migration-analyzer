@@ -17,30 +17,30 @@ import com.cubrid.sqlanalyzer.command.AnalyzerJdbcConnectionInfo;
 import com.cubrid.sqlanalyzer.command.AnalyzerJdbcConnectionSupport;
 import com.cubrid.sqlanalyzer.command.AnalyzerSourceType;
 import com.cubrid.sqlanalyzer.command.AnalyzerTargetType;
-import com.cubrid.sqlanalyzer.command.dto.AnalyzerObjectCountPreview;
-import com.cubrid.sqlanalyzer.command.dto.AnalyzerOverview;
-import com.cubrid.sqlanalyzer.command.dto.AnalyzerResult;
-import com.cubrid.sqlanalyzer.command.dto.AnalyzerSourceOverview;
-import com.cubrid.sqlanalyzer.command.dto.AnalyzerTargetOverview;
+import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerObjectCountPreviewViewModel;
+import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerOverviewViewModel;
+import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerResultViewModel;
+import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerSourceOverviewViewModel;
+import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerTargetOverviewViewModel;
 import com.cubrid.sqlanalyzer.core.AnalyzerConfiguration;
 import com.cubrid.sqlanalyzer.core.dbobject.QueryDictionary;
 
-public class AnalyzerDTOBuilder {
+public class AnalyzerViewModelBuilder {
     private static final Pattern ORACLE_VERSION_NAME_PATTERN = Pattern.compile("\\b\\d+(?:ai|c|g)\\b",
             Pattern.CASE_INSENSITIVE);
 
-    public AnalyzerOverview buildOverview(AnalyzerConsoleConfig session) {
-        return new AnalyzerOverview(
+    public AnalyzerOverviewViewModel buildOverview(AnalyzerConsoleConfig session) {
+        return new AnalyzerOverviewViewModel(
                 getProgramVersion(),
                 buildSourceOverview(session),
                 buildTargetOverview(session),
                 session.getExecutionMode());
     }
 
-    public AnalyzerObjectCountPreview buildObjectCountPreview(AnalyzerConsoleConfig session) {
+    public AnalyzerObjectCountPreviewViewModel buildObjectCountPreview(AnalyzerConsoleConfig session) {
         AnalyzerConfiguration config = session.getConfig();
         if (session.getSourceType() == AnalyzerSourceType.ORACLE) {
-            return new AnalyzerObjectCountPreview(
+            return new AnalyzerObjectCountPreviewViewModel(
                     session.getSourceType(),
                     session.getSourceCatalog().getSchemas().size(),
                     config.getTargetTableSchema().size(),
@@ -59,7 +59,7 @@ public class AnalyzerDTOBuilder {
         }
 
         QueryDictionary dict = config.getQueryDict();
-        return new AnalyzerObjectCountPreview(
+        return new AnalyzerObjectCountPreviewViewModel(
                 session.getSourceType(),
                 0,
                 0,
@@ -77,8 +77,8 @@ public class AnalyzerDTOBuilder {
                 dict.getDeleteQueryMap().size());
     }
 
-    public AnalyzerResult buildResult(AnalyzerConsoleReport report, String savedReportPath) {
-        return new AnalyzerResult(
+    public AnalyzerResultViewModel buildResult(AnalyzerConsoleReport report, String savedReportPath) {
+        return new AnalyzerResultViewModel(
                 report.getSourceType(),
                 report.getTargetType(),
                 report.getExecutionMode(),
@@ -91,7 +91,7 @@ public class AnalyzerDTOBuilder {
                 report.getFailures());
     }
 
-    private AnalyzerSourceOverview buildSourceOverview(AnalyzerConsoleConfig session) {
+    private AnalyzerSourceOverviewViewModel buildSourceOverview(AnalyzerConsoleConfig session) {
         if (session.getSourceType() == AnalyzerSourceType.ORACLE) {
             AnalyzerJdbcConnectionInfo profile = AnalyzerJdbcConnectionSupport.parseOracleProfile(
                     session.getSourceJdbcUrl(),
@@ -101,7 +101,7 @@ public class AnalyzerDTOBuilder {
             String version = catalog == null || catalog.getVersion() == null
                     ? null
                     : getOracleVersionName(catalog.getVersion());
-            return new AnalyzerSourceOverview(
+            return new AnalyzerSourceOverviewViewModel(
                     session.getSourceType(),
                     session.getSourceJdbcUrl(),
                     profile.getHost(),
@@ -114,7 +114,7 @@ public class AnalyzerDTOBuilder {
                     0);
         }
 
-        return new AnalyzerSourceOverview(
+        return new AnalyzerSourceOverviewViewModel(
                 session.getSourceType(),
                 null,
                 null,
@@ -127,13 +127,13 @@ public class AnalyzerDTOBuilder {
                 countXmlFiles(session.getXmlDirectory()));
     }
 
-    private AnalyzerTargetOverview buildTargetOverview(AnalyzerConsoleConfig session) {
+    private AnalyzerTargetOverviewViewModel buildTargetOverview(AnalyzerConsoleConfig session) {
         if (session.getTargetType() == AnalyzerTargetType.JDBC) {
             AnalyzerJdbcConnectionInfo profile = AnalyzerJdbcConnectionSupport.parseCubridProfile(
                     session.getTargetJdbcUrl(),
                     session.getTargetUser(),
                     session.getTargetPassword());
-            return new AnalyzerTargetOverview(
+            return new AnalyzerTargetOverviewViewModel(
                     session.getTargetType(),
                     session.getTargetJdbcUrl(),
                     profile.getHost(),
@@ -144,7 +144,7 @@ public class AnalyzerDTOBuilder {
                     null);
         }
 
-        return new AnalyzerTargetOverview(
+        return new AnalyzerTargetOverviewViewModel(
                 session.getTargetType(),
                 null,
                 null,
@@ -178,7 +178,7 @@ public class AnalyzerDTOBuilder {
     }
 
     private String getProgramVersion() {
-        Package packageInfo = AnalyzerDTOBuilder.class.getPackage();
+        Package packageInfo = AnalyzerViewModelBuilder.class.getPackage();
         String version = packageInfo == null ? null : packageInfo.getImplementationVersion();
         return version == null || version.isEmpty() ? "0.0.1-SNAPSHOT" : version;
     }

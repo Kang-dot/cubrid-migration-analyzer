@@ -29,6 +29,27 @@ class AnalyzerConsoleArgumentsTest {
     }
 
     @Test
+    @DisplayName("TUI mode option is parsed correctly")
+    void shouldParseTuiModeOption() {
+        AnalyzerConsoleArguments arguments =
+                AnalyzerConsoleArguments.parse(
+                        new String[] {"-ui", "tui", "-sx", "-xd", "/tmp/sqlmap", "-tp"});
+
+        assertEquals(AnalyzerUiMode.TUI, arguments.getUiMode());
+        assertTrue(arguments.isTuiMode());
+    }
+
+    @Test
+    @DisplayName("TUI shortcut option is parsed correctly")
+    void shouldParseTuiShortcutOption() {
+        AnalyzerConsoleArguments arguments =
+                AnalyzerConsoleArguments.parse(new String[] {"-tui", "-sx", "-xd", "/tmp/sqlmap", "-tp"});
+
+        assertEquals(AnalyzerUiMode.TUI, arguments.getUiMode());
+        assertTrue(arguments.isTuiMode());
+    }
+
+    @Test
     @DisplayName("missing XML directory value is rejected")
     void shouldRejectXmlSourceWithoutDirectory() {
         IllegalArgumentException exception =

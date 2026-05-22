@@ -1,7 +1,11 @@
 package com.cubrid.sqlanalyzer.command;
 
+import java.io.IOException;
+
 import com.cubrid.common.log.LogInitializer;
 import com.cubrid.cubridmigration.core.common.PathUtils;
+import com.cubrid.sqlanalyzer.command.service.AnalyzerService;
+import com.cubrid.sqlanalyzer.command.tui.AnalyzerTuiRunner;
 
 public class AnalyzerConsoleMain {
     public static void main(String[] args) {
@@ -26,6 +30,11 @@ public class AnalyzerConsoleMain {
 
         AnalyzerJdbcConnectionSupport.initializeJdbcDrivers();
 
+        if (arguments.isTuiMode()) {
+            System.exit(startTuiAnalyzer(arguments));
+            return;
+        }
+
         ConsoleIO io = new AnalyzerConsoleIOController(System.in, System.out);
         AnalyzerConsoleRunner runner = new AnalyzerConsoleRunner(io);
         int exitCode =
@@ -33,5 +42,25 @@ public class AnalyzerConsoleMain {
                         ? runner.startAnalyzer()
                         : runner.startAnalyzer(arguments);
         System.exit(exitCode);
+    }
+
+    private static int startTuiAnalyzer(AnalyzerConsoleArguments arguments) {
+        if (arguments.isInteractive()) {
+            System.err.println("TUI mode requires analyzer options or -conf <settingsFile>.");
+            return 1;
+        }
+
+        AnalyzerService analyzerService = new AnalyzerService();
+        AnalyzerConsoleConfig session = new AnalyzerConsoleConfig();
+        try {
+            analyzerService.applyArguments(session, arguments);
+            analyzerService.prepareConfiguration(session);
+            new AnalyzerTuiRunner().start(session, analyzerService);
+            return 0;
+        } catch (IOException | RuntimeException ex) {
+            System.err.println("Analyzer failed: " + ex.getMessage());
+            ex.printStackTrace();
+            return 1;
+        }
     }
 }

@@ -3,9 +3,9 @@ package com.cubrid.sqlanalyzer.command.page;
 import com.cubrid.sqlanalyzer.command.AnalyzerSourceType;
 import com.cubrid.sqlanalyzer.command.AnalyzerTargetType;
 import com.cubrid.sqlanalyzer.command.ConsoleIO;
-import com.cubrid.sqlanalyzer.command.dto.AnalyzerOverview;
-import com.cubrid.sqlanalyzer.command.dto.AnalyzerSourceOverview;
-import com.cubrid.sqlanalyzer.command.dto.AnalyzerTargetOverview;
+import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerOverviewViewModel;
+import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerSourceOverviewViewModel;
+import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerTargetOverviewViewModel;
 
 public class AnalyzerOverviewPage {
     private final ConsoleIO io;
@@ -14,16 +14,16 @@ public class AnalyzerOverviewPage {
         this.io = io;
     }
 
-    public void render(AnalyzerOverview overview) {
+    public void render(AnalyzerOverviewViewModel overview) {
         io.println("");
-        io.println("[3/4] Overview");
+        io.println("[1/3] Overview");
         io.println("Program     : " + formatText(overview.programVersion()));
         renderSource(overview.source());
         renderTarget(overview.source(), overview.target());
         io.println("Mode        : " + overview.executionMode());
     }
 
-    private void renderSource(AnalyzerSourceOverview source) {
+    private void renderSource(AnalyzerSourceOverviewViewModel source) {
         io.println("Source      : " + source.type());
         if (source.type() == AnalyzerSourceType.ORACLE) {
             io.println("Oracle URL  : " + formatText(source.jdbcUrl()) + formatVersionSuffix(source.version()));
@@ -37,7 +37,7 @@ public class AnalyzerOverviewPage {
         }
     }
 
-    private void renderTarget(AnalyzerSourceOverview source, AnalyzerTargetOverview target) {
+    private void renderTarget(AnalyzerSourceOverviewViewModel source, AnalyzerTargetOverviewViewModel target) {
         io.println("Target      : " + target.type());
         if (target.type() == AnalyzerTargetType.JDBC) {
             io.println("Target URL  : " + formatText(target.jdbcUrl()) + formatVersionSuffix(target.version()));

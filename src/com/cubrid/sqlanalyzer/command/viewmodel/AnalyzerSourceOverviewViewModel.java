@@ -1,8 +1,8 @@
-package com.cubrid.sqlanalyzer.command.dto;
+package com.cubrid.sqlanalyzer.command.viewmodel;
 
 import com.cubrid.sqlanalyzer.command.AnalyzerSourceType;
 
-public record AnalyzerSourceOverview(
+public record AnalyzerSourceOverviewViewModel(
         AnalyzerSourceType type,
         String jdbcUrl,
         String host,

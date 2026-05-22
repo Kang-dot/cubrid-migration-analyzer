@@ -15,6 +15,13 @@ public class AnalyzerConsoleArguments {
     @Parameter(names = "-jr", description = "Optional JDBC driver repository directory")
     private String jdbcRepositoryDir;
 
+    @Parameter(names = {"-ui", "--ui"}, description = "UI mode: console or tui")
+    private String parsedUiMode = AnalyzerUiMode.CONSOLE.name().toLowerCase();
+
+    @Parameter(names = "-tui", description = "Shortcut for -ui tui")
+    private boolean tuiMode;
+
+    private AnalyzerUiMode uiMode = AnalyzerUiMode.CONSOLE;
     private AnalyzerSourceType sourceType;
     private AnalyzerTargetType targetType;
     private String sourceJdbcUrl;
@@ -98,6 +105,9 @@ public class AnalyzerConsoleArguments {
                 + "Options:" + System.lineSeparator()
                 + "  -conf <path> Settings file path. Default: settings/setting.conf"
                 + System.lineSeparator()
+                + "  -ui <mode>   UI mode: console or tui. Default: console"
+                + System.lineSeparator()
+                + "  -tui         Shortcut for -ui tui" + System.lineSeparator()
                 + "  -jr <path>   Optional JDBC driver repository directory"
                 + System.lineSeparator()
                 + "  -so          Source is Oracle JDBC" + System.lineSeparator()
@@ -117,6 +127,14 @@ public class AnalyzerConsoleArguments {
 
     public String getJdbcRepositoryDir() {
         return jdbcRepositoryDir;
+    }
+
+    public AnalyzerUiMode getUiMode() {
+        return uiMode;
+    }
+
+    public boolean isTuiMode() {
+        return uiMode == AnalyzerUiMode.TUI;
     }
 
     public AnalyzerSourceType getSourceType() {
@@ -177,6 +195,7 @@ public class AnalyzerConsoleArguments {
         }
 
         interactive = false;
+        applyUiMode();
         if (countOptions(args, "-so", "-sx") > 1) {
             throw new IllegalArgumentException(
                     "Only one source option is allowed." + System.lineSeparator() + usage());
@@ -213,6 +232,26 @@ public class AnalyzerConsoleArguments {
             targetJdbcUrl = values[0];
             targetUser = values[1];
             targetPassword = values[2];
+        }
+    }
+
+    private void applyUiMode() {
+        if (tuiMode) {
+            uiMode = AnalyzerUiMode.TUI;
+            return;
+        }
+
+        if (parsedUiMode == null || parsedUiMode.trim().isEmpty()) {
+            uiMode = AnalyzerUiMode.CONSOLE;
+            return;
+        }
+
+        String normalized = parsedUiMode.trim().toUpperCase();
+        try {
+            uiMode = AnalyzerUiMode.valueOf(normalized);
+        } catch (IllegalArgumentException ex) {
+            throw new IllegalArgumentException(
+                    "Unsupported UI mode: " + parsedUiMode + System.lineSeparator() + usage());
         }
     }
 

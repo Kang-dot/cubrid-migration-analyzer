@@ -18,7 +18,8 @@ class AnalyzerConsoleSettingsLoaderTest {
         Path settingsFile = tempDir.resolve("setting.conf");
         Files.writeString(
                 settingsFile,
-                "source.type=xml\n"
+                "ui.mode=tui\n"
+                        + "source.type=xml\n"
                         + "xml.directory=/tmp/sqlmap\n"
                         + "xml.charset=EUC-KR\n"
                         + "target.type=parser\n");
@@ -30,6 +31,7 @@ class AnalyzerConsoleSettingsLoaderTest {
         assertEquals("/tmp/sqlmap", arguments.getXmlDirectory());
         assertEquals("EUC-KR", arguments.getXmlCharset());
         assertEquals(AnalyzerTargetType.PARSER, arguments.getTargetType());
+        assertEquals(AnalyzerUiMode.TUI, arguments.getUiMode());
     }
 
     @Test
