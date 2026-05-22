@@ -1,5 +1,6 @@
 package com.cubrid.sqlanalyzer.command.tui.page;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
@@ -43,8 +44,10 @@ class AnalyzerTuiResultPageTest {
         assertTrue(screenText.contains("OK     : 8"));
         assertTrue(screenText.contains("FAIL   : 2"));
         assertTrue(screenText.contains("Cost   : 12.5"));
-        assertTrue(screenText.contains("- SELECT q1 failed"));
-        assertTrue(screenText.contains("Saved result report: /tmp/analyzer-result.txt"));
+        assertTrue(screenText.contains("Report : /tmp/analyzer-result.txt"));
+        assertTrue(screenText.contains("See the report file for detailed execution logs."));
+        assertFalse(screenText.contains("- SELECT q1 failed"));
+        assertFalse(screenText.contains("Failed statements"));
     }
 
     private List<String> collectLabelTexts(Panel panel) {

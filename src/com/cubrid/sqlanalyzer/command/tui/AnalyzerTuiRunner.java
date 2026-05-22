@@ -8,6 +8,7 @@ import com.cubrid.sqlanalyzer.command.service.AnalyzerService;
 import com.cubrid.sqlanalyzer.command.tui.page.AnalyzerTuiObjectCountPage;
 import com.cubrid.sqlanalyzer.command.tui.page.AnalyzerTuiOverviewPage;
 import com.cubrid.sqlanalyzer.command.tui.page.AnalyzerTuiProgressPage;
+import com.cubrid.sqlanalyzer.command.tui.page.AnalyzerTuiProgressPage.ProgressView;
 import com.cubrid.sqlanalyzer.command.tui.page.AnalyzerTuiResultPage;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerObjectCountPreviewViewModel;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerOverviewViewModel;
@@ -172,25 +173,34 @@ public class AnalyzerTuiRunner {
             AnalyzerService analyzerService,
             NavigationState state) {
         state.enterAction = null;
-        Panel content = withLayout(progressPage.build());
+        ProgressView progressView = progressPage.buildView();
+        Panel content = withLayout(progressView.getPanel());
         window.setComponent(content);
         Thread worker = new Thread(
-                () -> runAnalysisAndShowResult(window, gui, session, analyzerService, state),
+                () -> runAnalysisAndWaitForResultEnter(
+                        window, gui, session, analyzerService, state, progressView),
                 "analyzer-tui-analysis");
         worker.setDaemon(true);
         worker.start();
     }
 
-    private void runAnalysisAndShowResult(
+    private void runAnalysisAndWaitForResultEnter(
             BasicWindow window,
             MultiWindowTextGUI gui,
             AnalyzerConsoleConfig session,
             AnalyzerService analyzerService,
-            NavigationState state) {
+            NavigationState state,
+            ProgressView progressView) {
         try {
-            analyzerService.runAnalysis(session, null);
+            analyzerService.runAnalysis(
+                    session,
+                    event -> gui.getGUIThread().invokeLater(() -> progressView.update(event)));
             AnalyzerResultViewModel result = analyzerService.saveResult(session);
-            gui.getGUIThread().invokeLater(() -> showResult(window, state, result));
+            gui.getGUIThread().invokeLater(
+                    () -> {
+                        progressView.markCompleted();
+                        state.enterAction = () -> showResult(window, state, result);
+                    });
         } catch (RuntimeException ex) {
             gui.getGUIThread().invokeLater(() -> showError(window, state, ex));
         }
