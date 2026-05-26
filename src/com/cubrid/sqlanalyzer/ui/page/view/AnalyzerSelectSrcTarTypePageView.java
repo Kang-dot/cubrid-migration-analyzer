@@ -55,8 +55,6 @@ import com.cubrid.sqlanalyzer.core.AnalyzerConfiguration;
  */
 public class AnalyzerSelectSrcTarTypePageView {
 
-//    private static final Logger LOG = LogUtil.getLogger(SelectSrcTarTypesView.class);
-
     private static final String TARGET_TYPE_KEY = "target_type";
     private static final String SOURCE_TYPE_KEY = "source_type";
 
@@ -258,4 +256,3 @@ public class AnalyzerSelectSrcTarTypePageView {
 //        }
 //    }
 }
-

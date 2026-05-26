@@ -17,8 +17,8 @@ import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import com.cubrid.common.log.LogUtil;
 import com.cubrid.cubridmigration.core.connection.CMTConParamManager;
 import com.cubrid.cubridmigration.core.connection.ConnParameters;
 import com.cubrid.cubridmigration.core.dbobject.Catalog;
@@ -38,7 +38,7 @@ import com.cubrid.sqlanalyzer.ui.page.view.AnalyzerSchemaTableView.SrcTable;
 
 public class AnalyzerSchemaMappingPage extends AnalyzerWizardPage {
 
-    private static final Logger LOG = LogUtil.getLogger(SchemaMappingPage.class);
+    private static final Logger LOG = LoggerFactory.getLogger(SchemaMappingPage.class);
 
     private AnalyzerWizard wizard;
     private AnalyzerConfiguration config;

@@ -56,8 +56,6 @@ public class AnalyzerProgressUIController {
     private static final String[] STATEMENT_TYPES = {
         TYPE_DDL_TABLE, TYPE_DDL_VIEW, TYPE_SELECT, TYPE_INSERT, TYPE_UPDATE, TYPE_DELETE
     };
-//    protected static final Logger LOG = LogUtil.getLogger(MigrationProgressUIController.class);
-
     protected ProgressMonitorDialogRunner progressMonitorDialogRunner =
             new ProgressMonitorDialogRunner();
 

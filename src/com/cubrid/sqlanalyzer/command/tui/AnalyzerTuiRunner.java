@@ -27,9 +27,12 @@ import com.googlecode.lanterna.input.KeyStroke;
 import com.googlecode.lanterna.input.KeyType;
 import com.googlecode.lanterna.screen.Screen;
 import com.googlecode.lanterna.terminal.DefaultTerminalFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class AnalyzerTuiRunner {
     private static final TerminalSize DEFAULT_TERMINAL_SIZE = new TerminalSize(100, 30);
+    private static final Logger LOG = LoggerFactory.getLogger(AnalyzerTuiRunner.class);
 
     private final AnalyzerTuiOverviewPage overviewPage;
     private final AnalyzerTuiObjectCountPage objectCountPage;
@@ -56,6 +59,7 @@ public class AnalyzerTuiRunner {
     }
 
     public void start(AnalyzerConsoleConfig session, AnalyzerService analyzerService) throws IOException {
+        LOG.info("Starting TUI runner.");
         try (Screen screen = new DefaultTerminalFactory()
                 .setInitialTerminalSize(DEFAULT_TERMINAL_SIZE)
                 .createScreen()) {
@@ -68,6 +72,7 @@ public class AnalyzerTuiRunner {
             showOverview(window, gui, session, analyzerService, state);
             gui.addWindowAndWait(window);
         }
+        LOG.info("TUI runner stopped.");
     }
 
     public void showOverview(AnalyzerOverviewViewModel overview) throws IOException {
@@ -132,10 +137,12 @@ public class AnalyzerTuiRunner {
             AnalyzerService analyzerService,
             NavigationState state) {
         if (state.sourceLoaded) {
+            LOG.info("Source metadata already loaded. Showing object count page.");
             showObjectCount(window, gui, session, analyzerService, state);
             return;
         }
 
+        LOG.info("Showing metadata loading page.");
         state.enterAction = null;
         Panel content = new Panel();
         content.setLayoutManager(new LinearLayout());
@@ -157,11 +164,13 @@ public class AnalyzerTuiRunner {
             AnalyzerService analyzerService,
             NavigationState state) {
         try {
+            LOG.info("Loading source metadata in TUI worker.");
             analyzerService.loadSourceCatalog(session);
             state.sourceLoaded = true;
             gui.getGUIThread().invokeLater(
                     () -> showObjectCount(window, gui, session, analyzerService, state));
         } catch (RuntimeException ex) {
+            LOG.error("Failed to load source metadata in TUI worker.", ex);
             gui.getGUIThread().invokeLater(() -> showError(window, state, ex));
         }
     }
@@ -172,6 +181,7 @@ public class AnalyzerTuiRunner {
             AnalyzerConsoleConfig session,
             AnalyzerService analyzerService,
             NavigationState state) {
+        LOG.info("Showing TUI progress page and starting analysis worker.");
         state.enterAction = null;
         ProgressView progressView = progressPage.buildView();
         Panel content = withLayout(progressView.getPanel());
@@ -192,6 +202,7 @@ public class AnalyzerTuiRunner {
             NavigationState state,
             ProgressView progressView) {
         try {
+            LOG.info("Running analysis in TUI worker.");
             analyzerService.runAnalysis(
                     session,
                     event -> gui.getGUIThread().invokeLater(() -> progressView.update(event)));
@@ -202,11 +213,13 @@ public class AnalyzerTuiRunner {
                         state.enterAction = () -> showResult(window, state, result);
                     });
         } catch (RuntimeException ex) {
+            LOG.error("Analysis failed in TUI worker.", ex);
             gui.getGUIThread().invokeLater(() -> showError(window, state, ex));
         }
     }
 
     private void showResult(BasicWindow window, NavigationState state, AnalyzerResultViewModel result) {
+        LOG.info("Showing TUI result page.");
         Panel content = withLayout(resultPage.build(result));
         Button closeButton = new Button("Close", window::close);
         content.addComponent(closeButton);
@@ -214,6 +227,7 @@ public class AnalyzerTuiRunner {
     }
 
     private void showError(BasicWindow window, NavigationState state, RuntimeException ex) {
+        LOG.error("Showing TUI error page.", ex);
         Panel content = new Panel();
         content.setLayoutManager(new LinearLayout());
         content.addComponent(new Label("Analyzer failed"));

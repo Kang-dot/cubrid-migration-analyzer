@@ -15,7 +15,6 @@ import com.cubrid.sqlanalyzer.ui.reporter.AnalyzerReporter;
 
 public class AnalyzerEventHandler implements IAnalyzerEventHandler {
 
-//    private static final Logger LOG = LogUtil.getLogger(MigrationEventHandler.class);
     private final IAnalyzerMonitor monitor;
     private final AnalyzerReporter reporter;
     private final IMigrationBroker breaker;

@@ -6,9 +6,12 @@ import com.cubrid.sqlanalyzer.command.page.AnalyzerObjectCountPage;
 import com.cubrid.sqlanalyzer.command.page.AnalyzerOverviewPage;
 import com.cubrid.sqlanalyzer.command.page.AnalyzerResultPage;
 import com.cubrid.sqlanalyzer.command.service.AnalyzerService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class AnalyzerConsoleRunner {
     private static final String DEFAULT_XML_CHARSET = "UTF-8";
+    private static final Logger LOG = LoggerFactory.getLogger(AnalyzerConsoleRunner.class);
 
     private final ConsoleIO io;
     private final AnalyzerService analyzerService;
@@ -25,6 +28,7 @@ public class AnalyzerConsoleRunner {
     }
 
     public int startAnalyzer() {
+        LOG.info("Interactive console analyzer flow started.");
         io.println("======================================");
         io.println("CUBRID SQL Analyzer Console");
         io.println("======================================");
@@ -46,8 +50,10 @@ public class AnalyzerConsoleRunner {
 
             runAnalysis(session);
             printResult(session);
+            LOG.info("Interactive console analyzer flow finished successfully.");
             return 0;
         } catch (RuntimeException ex) {
+            LOG.error("Interactive console analyzer flow failed.", ex);
             io.println("Analyzer failed: " + ex.getMessage());
             ex.printStackTrace();
             return 1;
@@ -55,6 +61,7 @@ public class AnalyzerConsoleRunner {
     }
 
     public int startAnalyzer(AnalyzerConsoleArguments arguments) {
+        LOG.info("Non-interactive console analyzer flow started.");
         io.println("======================================");
         io.println("CUBRID SQL Analyzer Console");
         io.println("======================================");
@@ -69,8 +76,10 @@ public class AnalyzerConsoleRunner {
             renderPreviewPages(session);
             runAnalysis(session);
             printResult(session);
+            LOG.info("Non-interactive console analyzer flow finished successfully.");
             return 0;
         } catch (RuntimeException ex) {
+            LOG.error("Non-interactive console analyzer flow failed.", ex);
             io.println("Analyzer failed: " + ex.getMessage());
             ex.printStackTrace();
             return 1;
@@ -175,6 +184,7 @@ public class AnalyzerConsoleRunner {
     }
 
     private void loadSourceCatalog(AnalyzerConsoleConfig session) {
+        LOG.info("Loading source metadata. sourceType={}", session.getSourceType());
         io.println("");
         io.println("Loading source metadata...");
         analyzerService.loadSourceCatalog(session);
@@ -191,6 +201,7 @@ public class AnalyzerConsoleRunner {
     }
 
     private void runAnalysis(AnalyzerConsoleConfig session) {
+        LOG.info("Console analysis progress started.");
         io.println("");
         io.println("[4/4] Analysis progress");
         analyzerService.runAnalysis(
@@ -201,6 +212,7 @@ public class AnalyzerConsoleRunner {
                         io.println(message);
                     }
                 });
+        LOG.info("Console analysis progress finished.");
     }
 
     private void printResult(AnalyzerConsoleConfig session) {

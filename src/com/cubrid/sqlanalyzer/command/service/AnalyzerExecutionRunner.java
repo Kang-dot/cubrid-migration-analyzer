@@ -33,14 +33,24 @@ import com.cubrid.sqlanalyzer.core.plan.CatalogDDLPlanBuilder;
 import com.cubrid.sqlanalyzer.core.plan.QueryDictionaryPlanBuilder;
 import com.cubrid.sqlanalyzer.core.runner.QueryParser;
 import com.cubrid.sqlanalyzer.core.runner.SQLParserException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class AnalyzerExecutionRunner {
+    private static final Logger LOG = LoggerFactory.getLogger(AnalyzerExecutionRunner.class);
+
     private final AnalyzerCostCalculator costCalculator = new FailureCostCalculator();
 
     public void run(
             AnalyzerConsoleConfig session, AnalyzerProgressListener progressListener) {
+        LOG.info(
+                "Analysis execution started. sourceType={}, targetType={}, executionMode={}",
+                session.getSourceType(),
+                session.getTargetType(),
+                session.getExecutionMode());
         AnalyzerExecutionPlan executionPlan = buildExecutionPlan(session);
         int totalCount = executionPlan.getStatements().size();
+        LOG.info("Analysis execution plan built. statementCount={}", totalCount);
         notifyProgress(
                 progressListener,
                 new AnalyzerProgressEventViewModel(
@@ -57,6 +67,7 @@ public class AnalyzerExecutionRunner {
                         0));
         costCalculator.analyzeBeforeExecution(executionPlan, session.getConsoleReport());
         if (executionPlan.isEmpty()) {
+            LOG.info("Analysis execution ended without statements.");
             session.setAnalyzedStatementCount(0);
             session.setSucceededStatementCount(0);
             session.setFailedStatementCount(0);
@@ -79,11 +90,13 @@ public class AnalyzerExecutionRunner {
         }
 
         if (session.getTargetType() == AnalyzerTargetType.PARSER) {
+            LOG.info("Running parser analysis.");
             runParserAnalysis(session, executionPlan, progressListener);
             return;
         }
 
         if (session.getTargetType() == AnalyzerTargetType.JDBC) {
+            LOG.info("Running JDBC analysis.");
             runJdbcAnalysis(session, executionPlan, progressListener);
             return;
         }
@@ -92,6 +105,10 @@ public class AnalyzerExecutionRunner {
     }
 
     private AnalyzerExecutionPlan buildExecutionPlan(AnalyzerConsoleConfig session) {
+        LOG.info(
+                "Building execution plan. sourceType={}, executionMode={}",
+                session.getSourceType(),
+                session.getExecutionMode());
         if (session.getSourceType() == AnalyzerSourceType.XML) {
             if (session.getExecutionMode() == AnalyzerExecutionMode.DDL) {
                 return new AnalyzerExecutionPlan();
@@ -151,6 +168,12 @@ public class AnalyzerExecutionRunner {
             } catch (SQLParserException ex) {
                 failed++;
                 String failureMessage = buildFailureMessage(statement.getType(), statement.getId(), ex.getMessage());
+                LOG.warn(
+                        "Parser analysis failed for statement. statementType={}, statementId={}, reason={}",
+                        statement.getType(),
+                        statement.getId(),
+                        ex.getMessage(),
+                        ex);
                 session.addFailureMessage(failureMessage);
                 session.addFailure(
                         buildFailure(statement, ex.getMessage(), AnalyzerFailureStage.PARSER));
@@ -179,6 +202,11 @@ public class AnalyzerExecutionRunner {
             } catch (Exception ex) {
                 failed++;
                 String failureMessage = buildFailureMessage(statement.getType(), statement.getId(), ex.toString());
+                LOG.warn(
+                        "Unexpected parser analysis exception for statement. statementType={}, statementId={}",
+                        statement.getType(),
+                        statement.getId(),
+                        ex);
                 session.addFailureMessage(failureMessage);
                 session.addFailure(
                         buildFailure(statement, ex.toString(), AnalyzerFailureStage.PARSER));
@@ -212,6 +240,11 @@ public class AnalyzerExecutionRunner {
         session.setFailedStatementCount(failed);
         costCalculator.analyzeAfterExecution(session.getConsoleReport());
 
+        LOG.info(
+                "Parser analysis completed. total={}, succeeded={}, failed={}",
+                analyzed,
+                succeeded,
+                failed);
         notifyAnalysisCompleted(progressListener, analyzed, succeeded, failed);
     }
 
@@ -268,6 +301,11 @@ public class AnalyzerExecutionRunner {
                 } catch (Exception ex) {
                     failed++;
                     String failureMessage = buildFailureMessage(statement.getType(), statement.getId(), ex.toString());
+                    LOG.warn(
+                            "JDBC analysis failed for statement. statementType={}, statementId={}",
+                            statement.getType(),
+                            statement.getId(),
+                            ex);
                     session.addFailureMessage(failureMessage);
                     session.addFailure(
                             buildFailure(statement, ex.toString(), AnalyzerFailureStage.JDBC));
@@ -315,6 +353,11 @@ public class AnalyzerExecutionRunner {
         session.setFailedStatementCount(failed);
         costCalculator.analyzeAfterExecution(session.getConsoleReport());
 
+        LOG.info(
+                "JDBC analysis completed. total={}, succeeded={}, failed={}",
+                analyzed,
+                succeeded,
+                failed);
         notifyAnalysisCompleted(progressListener, analyzed, succeeded, failed);
     }
 
@@ -385,6 +428,7 @@ public class AnalyzerExecutionRunner {
                                 failedCount));
             } catch (Exception ex) {
                 String failureMessage = "CLEANUP : " + cleanupQuery + " : " + ex.toString();
+                LOG.warn("JDBC cleanup failed. cleanupId={}", cleanupId, ex);
                 session.addFailureMessage(failureMessage);
                 session.addFailure(
                         buildFailure(
@@ -569,6 +613,16 @@ public class AnalyzerExecutionRunner {
     }
 
     private void notifyProgress(AnalyzerProgressListener progressListener, AnalyzerProgressEventViewModel event) {
+        LOG.info(
+                "Analysis progress. stage={}, total={}, completed={}, succeeded={}, failed={}, statementType={}, statementId={}, message={}",
+                event.stage(),
+                event.totalCount(),
+                event.completedCount(),
+                event.succeededCount(),
+                event.failedCount(),
+                event.statementType(),
+                event.statementId(),
+                event.message());
         if (progressListener != null) {
             progressListener.onProgress(event);
         }

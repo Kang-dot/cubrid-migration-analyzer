@@ -55,7 +55,6 @@ import com.cubrid.sqlanalyzer.ui.page.view.AnalyzerSelectSrcTarTypePageView;
  */
 public class AnalyzerSelectSrcTarTypePage extends AnalyzerWizardPage {
 
-//    private static final Logger LOG = LogUtil.getLogger(AnalyzerSelectSrcTarTypePage.class);
     private AnalyzerSelectSrcTarTypePageView comSelection;
     private Composite mainCom;
     private ScrolledComposite scComposite;

@@ -5,8 +5,6 @@ import com.cubrid.sqlanalyzer.core.dbobject.QueryDictionary;
 
 public class AnalyzerConfiguration extends MigrationConfiguration {
 
-//    private static final Logger LOG = LogUtil.getLogger(MigrationConfiguration.class);
-
 	// TODO: ora2cubrid
 	// TODO: need to change oracle ID
     public static int SOURCE_TYPE_DB = 3;

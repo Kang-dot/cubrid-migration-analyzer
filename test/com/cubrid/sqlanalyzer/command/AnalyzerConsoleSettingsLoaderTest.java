@@ -83,4 +83,38 @@ class AnalyzerConsoleSettingsLoaderTest {
 
         assertArrayEquals(new String[] {"-sx", "-xd", "/tmp/sqlmap", "-tp"}, args);
     }
+
+    @Test
+    void shouldLoadLogDirectoryFromSettingsFile() throws Exception {
+        Path settingsFile = tempDir.resolve("setting.conf");
+        Files.writeString(settingsFile, "log.dir=custom-logs\n");
+
+        String logDirectory =
+                AnalyzerConsoleSettingsLoader.loadLogDirectory(new String[0], settingsFile);
+
+        assertEquals("custom-logs", logDirectory);
+    }
+
+    @Test
+    void shouldUseDefaultLogDirectoryWhenSettingsFileHasNoLogDirectory() throws Exception {
+        Path settingsFile = tempDir.resolve("setting.conf");
+        Files.writeString(settingsFile, "source.type=xml\n");
+
+        String logDirectory =
+                AnalyzerConsoleSettingsLoader.loadLogDirectory(new String[0], settingsFile);
+
+        assertEquals("logs", logDirectory);
+    }
+
+    @Test
+    void shouldLoadLogDirectoryFromExplicitSettingsFile() throws Exception {
+        Path settingsFile = tempDir.resolve("custom.conf");
+        Files.writeString(settingsFile, "log.dir=/tmp/sql-analyzer-logs\n");
+
+        String logDirectory =
+                AnalyzerConsoleSettingsLoader.loadLogDirectory(
+                        new String[] {"-conf", settingsFile.toString()}, null);
+
+        assertEquals("/tmp/sql-analyzer-logs", logDirectory);
+    }
 }

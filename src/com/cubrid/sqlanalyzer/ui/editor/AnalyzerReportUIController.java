@@ -35,8 +35,6 @@ import com.cubrid.sqlanalyzer.ui.reporter.AnalyzerReporter;
 public class AnalyzerReportUIController {
     protected static final String UTF_8 = "utf-8";
     protected static final String EMPTY_CELL_VALUE = "-";
-//    private static final Logger LOG = LogUtil.getLogger(MigrationReportUIController.class);
-
     protected static final String[] TAB_NAME =
             new String[] {Messages.lblOverview, Messages.lblDBObjects, Messages.lblDBRecords};
 

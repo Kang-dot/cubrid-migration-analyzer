@@ -13,6 +13,7 @@ import java.util.Properties;
 public final class AnalyzerConsoleSettingsLoader {
     private static final String DEFAULT_SETTINGS_PATH = "settings/setting.conf";
     private static final String WORKSPACE_SETTINGS_PATH = "com.cubrid.SQLAnalyzer/settings/setting.conf";
+    private static final String DEFAULT_LOG_DIRECTORY = "logs";
 
     private AnalyzerConsoleSettingsLoader() {
     }
@@ -21,18 +22,28 @@ public final class AnalyzerConsoleSettingsLoader {
         return loadStartupArguments(args, null);
     }
 
+    public static String loadLogDirectory(String[] args) {
+        return loadLogDirectory(args, null);
+    }
+
+    static String loadLogDirectory(String[] args, Path defaultSettingsPath) {
+        Path settingsPath = resolveSettingsPath(args, defaultSettingsPath);
+        if (settingsPath == null || !Files.isRegularFile(settingsPath)) {
+            return DEFAULT_LOG_DIRECTORY;
+        }
+
+        String logDirectory = getFirst(loadProperties(settingsPath), "log.dir", "logDir");
+        return logDirectory == null ? DEFAULT_LOG_DIRECTORY : logDirectory;
+    }
+
     static String[] loadStartupArguments(String[] args, Path defaultSettingsPath) {
         StartupArguments startupArguments = extractSettingsOption(args);
         if (startupArguments.remainingArgs.length > 0) {
             return startupArguments.remainingArgs;
         }
 
-        Path settingsPath = startupArguments.settingsPath;
-        boolean explicitSettingsPath = settingsPath != null;
-        if (settingsPath == null) {
-            settingsPath = defaultSettingsPath == null ? resolveDefaultSettingsPath() : defaultSettingsPath;
-        }
-
+        Path settingsPath = resolveSettingsPath(args, defaultSettingsPath);
+        boolean explicitSettingsPath = startupArguments.settingsPath != null;
         if (settingsPath == null || !Files.isRegularFile(settingsPath)) {
             if (explicitSettingsPath) {
                 throw new IllegalArgumentException("Settings file does not exist: " + settingsPath);
@@ -41,6 +52,15 @@ public final class AnalyzerConsoleSettingsLoader {
         }
 
         return loadArguments(settingsPath);
+    }
+
+    private static Path resolveSettingsPath(String[] args, Path defaultSettingsPath) {
+        StartupArguments startupArguments = extractSettingsOption(args);
+        Path settingsPath = startupArguments.settingsPath;
+        if (settingsPath == null) {
+            settingsPath = defaultSettingsPath == null ? resolveDefaultSettingsPath() : defaultSettingsPath;
+        }
+        return settingsPath;
     }
 
     private static Path resolveDefaultSettingsPath() {
@@ -58,12 +78,7 @@ public final class AnalyzerConsoleSettingsLoader {
     }
 
     private static String[] loadArguments(Path settingsPath) {
-        Properties properties = new Properties();
-        try (InputStream input = Files.newInputStream(settingsPath)) {
-            properties.load(input);
-        } catch (IOException ex) {
-            throw new IllegalArgumentException("Failed to read settings file: " + settingsPath, ex);
-        }
+        Properties properties = loadProperties(settingsPath);
 
         String rawArguments = trimToNull(properties.getProperty("arguments"));
         if (rawArguments != null) {
@@ -85,6 +100,16 @@ public final class AnalyzerConsoleSettingsLoader {
         }
 
         return tokens.toArray(new String[tokens.size()]);
+    }
+
+    private static Properties loadProperties(Path settingsPath) {
+        Properties properties = new Properties();
+        try (InputStream input = Files.newInputStream(settingsPath)) {
+            properties.load(input);
+        } catch (IOException ex) {
+            throw new IllegalArgumentException("Failed to read settings file: " + settingsPath, ex);
+        }
+        return properties;
     }
 
     private static void addSource(List<String> tokens, Properties properties, String source) {
