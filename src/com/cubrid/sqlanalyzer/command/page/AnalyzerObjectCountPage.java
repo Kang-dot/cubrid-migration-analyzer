@@ -25,6 +25,7 @@ public class AnalyzerObjectCountPage {
             io.println("Target grants   : " + preview.targetGrantCount());
             io.println("Target procs    : " + preview.targetProcedureCount());
             io.println("Target funcs    : " + preview.targetFunctionCount());
+            io.println("Target triggers : " + preview.targetTriggerCount());
         } else {
             io.println("SELECT count    : " + preview.selectCount());
             io.println("INSERT count    : " + preview.insertCount());

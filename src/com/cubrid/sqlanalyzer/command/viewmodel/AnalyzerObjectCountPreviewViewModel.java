@@ -14,6 +14,7 @@ public record AnalyzerObjectCountPreviewViewModel(
         int targetGrantCount,
         int targetProcedureCount,
         int targetFunctionCount,
+        int targetTriggerCount,
         int selectCount,
         int insertCount,
         int updateCount,

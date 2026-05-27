@@ -11,6 +11,7 @@ import static com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes.TYPE_DDL_P
 import static com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes.TYPE_DDL_SEQUENCE;
 import static com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes.TYPE_DDL_SYNONYM;
 import static com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes.TYPE_DDL_TABLE;
+import static com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes.TYPE_DDL_TRIGGER;
 import static com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes.TYPE_DDL_VIEW_ALTER;
 import static com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes.TYPE_DDL_VIEW_CREATE;
 
@@ -23,6 +24,7 @@ import com.cubrid.cubridmigration.core.dbobject.PlcsqlProcedure;
 import com.cubrid.cubridmigration.core.dbobject.Sequence;
 import com.cubrid.cubridmigration.core.dbobject.Synonym;
 import com.cubrid.cubridmigration.core.dbobject.Table;
+import com.cubrid.cubridmigration.core.dbobject.Trigger;
 import com.cubrid.cubridmigration.core.dbobject.View;
 import com.cubrid.cubridmigration.core.engine.config.SourceGrantConfig;
 import com.cubrid.cubridmigration.cubrid.CUBRIDSQLHelper;
@@ -156,6 +158,36 @@ public class CatalogDDLPlanBuilder implements AnalyzerExecutionPlanBuilder {
                             TYPE_DDL_FUNC_BODY, "FUNC_BODY_" + (++seq), sql, 4300 + seq));
         }
 
+        seq = 0;
+        for (String triggerConfig : config.getExpTriggerCfg()) {
+            Trigger trigger = getExportTrigger(config, triggerConfig);
+            if (trigger == null) {
+                continue;
+            }
+            String sql = trigger.getDDL();
+            if (sql == null || sql.trim().isEmpty()) {
+                sql = triggerConfig;
+            }
+            plan.add(
+                    new AnalyzerStatement(
+                            TYPE_DDL_TRIGGER, "TRIGGER_" + (++seq), sql, 5000 + seq));
+        }
+
         return plan;
+    }
+
+    private Trigger getExportTrigger(AnalyzerConfiguration config, String triggerConfig) {
+        if (triggerConfig == null || triggerConfig.trim().isEmpty()) {
+            return null;
+        }
+
+        String schema = null;
+        String name = triggerConfig;
+        String[] parts = triggerConfig.split("\\.");
+        if (parts.length > 1) {
+            schema = parts[0];
+            name = parts[1];
+        }
+        return config.getExpTrigger(schema, name);
     }
 }

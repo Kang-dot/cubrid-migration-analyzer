@@ -30,6 +30,7 @@ class AnalyzerTuiObjectCountPageTest {
                 0,
                 0,
                 0,
+                0,
                 3,
                 2,
                 1,
@@ -43,6 +44,34 @@ class AnalyzerTuiObjectCountPageTest {
         assertTrue(screenText.contains("INSERT count    : 2"));
         assertTrue(screenText.contains("UPDATE count    : 1"));
         assertTrue(screenText.contains("DELETE count    : 4"));
+    }
+
+    @Test
+    @DisplayName("object count TUI page renders Oracle trigger count")
+    void shouldRenderOracleTriggerCount() {
+        AnalyzerObjectCountPreviewViewModel preview =
+                new AnalyzerObjectCountPreviewViewModel(
+                        AnalyzerSourceType.ORACLE,
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6,
+                        7,
+                        8,
+                        9,
+                        10,
+                        11,
+                        0,
+                        0,
+                        0,
+                        0);
+
+        Panel panel = new AnalyzerTuiObjectCountPage().build(preview);
+        String screenText = String.join(System.lineSeparator(), collectLabelTexts(panel));
+
+        assertTrue(screenText.contains("Target triggers : 11"));
     }
 
     private List<String> collectLabelTexts(Panel panel) {

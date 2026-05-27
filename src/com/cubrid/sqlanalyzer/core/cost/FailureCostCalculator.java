@@ -24,6 +24,7 @@ public class FailureCostCalculator implements AnalyzerCostCalculator {
     private static final float GRANT_BASE_COST = 0.1f;
     private static final float PK_BASE_COST = 0.1f;
     private static final float FK_BASE_COST = 0.1f;
+    private static final float TRIGGER_BASE_COST = 10.0f;
 
     private static class CostComputationResult {
         private float totalCost;
@@ -85,6 +86,8 @@ public class FailureCostCalculator implements AnalyzerCostCalculator {
                 return calculatePk();
             case AnalyzerStatementTypes.TYPE_DDL_FK:
                 return calculateFk(sql);
+            case AnalyzerStatementTypes.TYPE_DDL_TRIGGER:
+                return calculateTrigger();
             case "SELECT":
             case "INSERT":
             case "UPDATE":
@@ -259,6 +262,12 @@ public class FailureCostCalculator implements AnalyzerCostCalculator {
         CostComputationResult result = new CostComputationResult();
         result.addCost("Base foreign key DDL", 1, FK_BASE_COST);
         result.addCost("ON DELETE clause", hasKeyword(upperNormalizedSql, "ON DELETE") ? 1 : 0, 0.5f);
+        return result;
+    }
+
+    private CostComputationResult calculateTrigger() {
+        CostComputationResult result = new CostComputationResult();
+        result.addCost("Base trigger DDL", 1, TRIGGER_BASE_COST);
         return result;
     }
 

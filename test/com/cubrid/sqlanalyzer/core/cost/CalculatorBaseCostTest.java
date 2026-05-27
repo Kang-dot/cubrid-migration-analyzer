@@ -22,4 +22,15 @@ class CalculatorBaseCostTest extends CostTestSupport {
 
         assertEquals(2.1f, cost, DELTA);
     }
+
+    @Test
+    @DisplayName("trigger DDL uses the unsupported trigger base cost")
+    void shouldReturnTriggerBaseCost() {
+        float cost =
+                estimateCost(
+                        AnalyzerStatementTypes.TYPE_DDL_TRIGGER,
+                        "CREATE OR REPLACE TRIGGER tr BEFORE INSERT ON t BEGIN NULL; END;");
+
+        assertEquals(10.0f, cost, DELTA);
+    }
 }

@@ -31,6 +31,7 @@ public class AnalyzerTuiObjectCountPage {
             lines.add("Target grants   : " + preview.targetGrantCount());
             lines.add("Target procs    : " + preview.targetProcedureCount());
             lines.add("Target funcs    : " + preview.targetFunctionCount());
+            lines.add("Target triggers : " + preview.targetTriggerCount());
             return lines;
         }
 

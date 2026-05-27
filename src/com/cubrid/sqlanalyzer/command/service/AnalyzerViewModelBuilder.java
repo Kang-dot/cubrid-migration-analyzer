@@ -52,6 +52,7 @@ public class AnalyzerViewModelBuilder {
                     config.getExpGrantCfg().size(),
                     config.getTargetPlcsqlProcedureSchema().size(),
                     config.getTargetPlcsqlFunctionSchema().size(),
+                    config.getExpTriggerCfg().size(),
                     0,
                     0,
                     0,
@@ -61,6 +62,7 @@ public class AnalyzerViewModelBuilder {
         QueryDictionary dict = config.getQueryDict();
         return new AnalyzerObjectCountPreviewViewModel(
                 session.getSourceType(),
+                0,
                 0,
                 0,
                 0,
