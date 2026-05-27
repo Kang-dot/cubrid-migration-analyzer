@@ -1,6 +1,7 @@
 package com.cubrid.sqlanalyzer.command.tui.page;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -61,7 +62,18 @@ class AnalyzerTuiOverviewPageTest {
         assertTrue(screenText.contains("XML files   : 1"));
         assertTrue(screenText.contains("Target      : PARSER"));
         assertTrue(screenText.contains("Parser      : CUBRID parser"));
+        assertEquals(2, countOccurrences(screenText, "XML files   : 1"));
         assertTrue(screenText.contains("Mode        : DML"));
+    }
+
+    private int countOccurrences(String text, String pattern) {
+        int count = 0;
+        int index = text.indexOf(pattern);
+        while (index >= 0) {
+            count++;
+            index = text.indexOf(pattern, index + pattern.length());
+        }
+        return count;
     }
 
     private List<String> collectLabelTexts(Panel panel) {

@@ -2,6 +2,7 @@ package com.cubrid.sqlanalyzer.command.tui;
 
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import com.cubrid.sqlanalyzer.command.AnalyzerConsoleConfig;
 import com.cubrid.sqlanalyzer.command.service.AnalyzerService;
@@ -13,7 +14,6 @@ import com.cubrid.sqlanalyzer.command.tui.page.AnalyzerTuiResultPage;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerObjectCountPreviewViewModel;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerOverviewViewModel;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerResultViewModel;
-import com.googlecode.lanterna.TerminalPosition;
 import com.googlecode.lanterna.TerminalSize;
 import com.googlecode.lanterna.gui2.BasicWindow;
 import com.googlecode.lanterna.gui2.Button;
@@ -21,10 +21,6 @@ import com.googlecode.lanterna.gui2.Label;
 import com.googlecode.lanterna.gui2.LinearLayout;
 import com.googlecode.lanterna.gui2.MultiWindowTextGUI;
 import com.googlecode.lanterna.gui2.Panel;
-import com.googlecode.lanterna.gui2.Window;
-import com.googlecode.lanterna.gui2.WindowListener;
-import com.googlecode.lanterna.input.KeyStroke;
-import com.googlecode.lanterna.input.KeyType;
 import com.googlecode.lanterna.screen.Screen;
 import com.googlecode.lanterna.terminal.DefaultTerminalFactory;
 import org.slf4j.Logger;
@@ -32,6 +28,7 @@ import org.slf4j.LoggerFactory;
 
 public class AnalyzerTuiRunner {
     private static final TerminalSize DEFAULT_TERMINAL_SIZE = new TerminalSize(100, 30);
+    private static final int METADATA_LOADING_TICK_MILLIS = 1000;
     private static final Logger LOG = LoggerFactory.getLogger(AnalyzerTuiRunner.class);
 
     private final AnalyzerTuiOverviewPage overviewPage;
@@ -67,7 +64,6 @@ public class AnalyzerTuiRunner {
             MultiWindowTextGUI gui = new MultiWindowTextGUI(screen);
             BasicWindow window = new BasicWindow("CUBRID SQL Analyzer");
             NavigationState state = new NavigationState();
-            window.addWindowListener(new EnterKeyListener(state));
 
             showOverview(window, gui, session, analyzerService, state);
             gui.addWindowAndWait(window);
@@ -104,10 +100,10 @@ public class AnalyzerTuiRunner {
         AnalyzerOverviewViewModel overview = analyzerService.getOverview(session);
         Panel content = withLayout(overviewPage.build(overview));
         Runnable nextAction = () -> showMetadataLoadingAndObjectCount(window, gui, session, analyzerService, state);
-        Button nextButton = new Button("Next (Enter)", nextAction);
+        Button nextButton = new Button("Next", nextAction);
         content.addComponent(nextButton);
         content.addComponent(new Button("Close", window::close));
-        setContent(window, content, nextButton, state, nextAction);
+        setContent(window, content, nextButton);
     }
 
     private void showObjectCount(
@@ -119,14 +115,14 @@ public class AnalyzerTuiRunner {
         try {
             AnalyzerObjectCountPreviewViewModel preview = analyzerService.getObjectCountPreview(session);
             Panel content = withLayout(objectCountPage.build(preview));
-            Runnable analyzeAction = () -> showProgressAndRun(window, gui, session, analyzerService, state);
-            Button analyzeButton = new Button("Analyze (Enter)", analyzeAction);
+            Runnable analyzeAction = () -> showProgressAndRun(window, gui, session, analyzerService);
+            Button analyzeButton = new Button("Analyze", analyzeAction);
             content.addComponent(analyzeButton);
             content.addComponent(new Button("Back", () -> showOverview(window, gui, session, analyzerService, state)));
             content.addComponent(new Button("Close", window::close));
-            setContent(window, content, analyzeButton, state, analyzeAction);
+            setContent(window, content, analyzeButton);
         } catch (RuntimeException ex) {
-            showError(window, state, ex);
+            showError(window, ex);
         }
     }
 
@@ -143,18 +139,49 @@ public class AnalyzerTuiRunner {
         }
 
         LOG.info("Showing metadata loading page.");
-        state.enterAction = null;
         Panel content = new Panel();
         content.setLayoutManager(new LinearLayout());
-        content.addComponent(new Label("Loading source metadata..."));
+        Label loadingStatus = new Label("Loading source metadata");
+        content.addComponent(loadingStatus);
         content.addComponent(new Label("The object count page will open when metadata is ready."));
         window.setComponent(content);
+        AtomicBoolean loading = new AtomicBoolean(true);
+        startMetadataLoadingAnimation(gui, loadingStatus, loading);
 
         Thread worker = new Thread(
-                () -> loadMetadataAndShowObjectCount(window, gui, session, analyzerService, state),
+                () -> loadMetadataAndShowObjectCount(window, gui, session, analyzerService, state, loading),
                 "analyzer-tui-metadata");
         worker.setDaemon(true);
         worker.start();
+    }
+
+    private void startMetadataLoadingAnimation(
+            MultiWindowTextGUI gui,
+            Label loadingStatus,
+            AtomicBoolean loading) {
+        AtomicInteger tick = new AtomicInteger();
+        Thread animator = new Thread(
+                () -> {
+                    while (loading.get()) {
+                        int currentTick = tick.getAndIncrement();
+                        String dots = ".".repeat(currentTick % 4);
+                        try {
+                            gui.getGUIThread().invokeLater(
+                                    () -> loadingStatus.setText("Loading source metadata" + dots));
+                        } catch (IllegalStateException ex) {
+                            return;
+                        }
+                        try {
+                            Thread.sleep(METADATA_LOADING_TICK_MILLIS);
+                        } catch (InterruptedException ex) {
+                            Thread.currentThread().interrupt();
+                            return;
+                        }
+                    }
+                },
+                "analyzer-tui-metadata-animation");
+        animator.setDaemon(true);
+        animator.start();
     }
 
     private void loadMetadataAndShowObjectCount(
@@ -162,16 +189,19 @@ public class AnalyzerTuiRunner {
             MultiWindowTextGUI gui,
             AnalyzerConsoleConfig session,
             AnalyzerService analyzerService,
-            NavigationState state) {
+            NavigationState state,
+            AtomicBoolean loading) {
         try {
             LOG.info("Loading source metadata in TUI worker.");
             analyzerService.loadSourceCatalog(session);
             state.sourceLoaded = true;
+            loading.set(false);
             gui.getGUIThread().invokeLater(
                     () -> showObjectCount(window, gui, session, analyzerService, state));
         } catch (RuntimeException ex) {
+            loading.set(false);
             LOG.error("Failed to load source metadata in TUI worker.", ex);
-            gui.getGUIThread().invokeLater(() -> showError(window, state, ex));
+            gui.getGUIThread().invokeLater(() -> showError(window, ex));
         }
     }
 
@@ -179,27 +209,25 @@ public class AnalyzerTuiRunner {
             BasicWindow window,
             MultiWindowTextGUI gui,
             AnalyzerConsoleConfig session,
-            AnalyzerService analyzerService,
-            NavigationState state) {
+            AnalyzerService analyzerService) {
         LOG.info("Showing TUI progress page and starting analysis worker.");
-        state.enterAction = null;
         ProgressView progressView = progressPage.buildView();
         Panel content = withLayout(progressView.getPanel());
         window.setComponent(content);
         Thread worker = new Thread(
-                () -> runAnalysisAndWaitForResultEnter(
-                        window, gui, session, analyzerService, state, progressView),
+                () -> runAnalysisAndShowResultButton(
+                        window, gui, session, analyzerService, content, progressView),
                 "analyzer-tui-analysis");
         worker.setDaemon(true);
         worker.start();
     }
 
-    private void runAnalysisAndWaitForResultEnter(
+    private void runAnalysisAndShowResultButton(
             BasicWindow window,
             MultiWindowTextGUI gui,
             AnalyzerConsoleConfig session,
             AnalyzerService analyzerService,
-            NavigationState state,
+            Panel content,
             ProgressView progressView) {
         try {
             LOG.info("Running analysis in TUI worker.");
@@ -210,23 +238,25 @@ public class AnalyzerTuiRunner {
             gui.getGUIThread().invokeLater(
                     () -> {
                         progressView.markCompleted();
-                        state.enterAction = () -> showResult(window, state, result);
+                        Button resultButton = new Button("Result", () -> showResult(window, result));
+                        content.addComponent(resultButton);
+                        window.setFocusedInteractable(resultButton);
                     });
         } catch (RuntimeException ex) {
             LOG.error("Analysis failed in TUI worker.", ex);
-            gui.getGUIThread().invokeLater(() -> showError(window, state, ex));
+            gui.getGUIThread().invokeLater(() -> showError(window, ex));
         }
     }
 
-    private void showResult(BasicWindow window, NavigationState state, AnalyzerResultViewModel result) {
+    private void showResult(BasicWindow window, AnalyzerResultViewModel result) {
         LOG.info("Showing TUI result page.");
         Panel content = withLayout(resultPage.build(result));
         Button closeButton = new Button("Close", window::close);
         content.addComponent(closeButton);
-        setContent(window, content, closeButton, state, window::close);
+        setContent(window, content, closeButton);
     }
 
-    private void showError(BasicWindow window, NavigationState state, RuntimeException ex) {
+    private void showError(BasicWindow window, RuntimeException ex) {
         LOG.error("Showing TUI error page.", ex);
         Panel content = new Panel();
         content.setLayoutManager(new LinearLayout());
@@ -235,9 +265,6 @@ public class AnalyzerTuiRunner {
         Button closeButton = new Button("Close", window::close);
         content.addComponent(closeButton);
         setContent(window, content, closeButton);
-        if (state != null) {
-            state.enterAction = window::close;
-        }
     }
 
     private Panel withLayout(Panel panel) {
@@ -250,46 +277,7 @@ public class AnalyzerTuiRunner {
         window.setFocusedInteractable(primaryButton);
     }
 
-    private void setContent(
-            BasicWindow window,
-            Panel content,
-            Button primaryButton,
-            NavigationState state,
-            Runnable enterAction) {
-        setContent(window, content, primaryButton);
-        state.enterAction = enterAction;
-    }
-
     private static class NavigationState {
         private boolean sourceLoaded;
-        private Runnable enterAction;
-    }
-
-    private static class EnterKeyListener implements WindowListener {
-        private final NavigationState state;
-
-        private EnterKeyListener(NavigationState state) {
-            this.state = state;
-        }
-
-        public void onInput(Window basePane, KeyStroke keyStroke, AtomicBoolean deliverEvent) {
-            if (keyStroke.getKeyType() == KeyType.Enter && state.enterAction != null) {
-                deliverEvent.set(false);
-                state.enterAction.run();
-            }
-        }
-
-        public void onUnhandledInput(Window basePane, KeyStroke keyStroke, AtomicBoolean hasBeenHandled) {
-            if (keyStroke.getKeyType() == KeyType.Enter && state.enterAction != null) {
-                hasBeenHandled.set(true);
-                state.enterAction.run();
-            }
-        }
-
-        public void onResized(Window window, TerminalSize oldSize, TerminalSize newSize) {
-        }
-
-        public void onMoved(Window window, TerminalPosition oldPosition, TerminalPosition newPosition) {
-        }
     }
 }

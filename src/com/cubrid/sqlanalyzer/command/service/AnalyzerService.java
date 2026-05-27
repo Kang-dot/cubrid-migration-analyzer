@@ -191,6 +191,7 @@ public class AnalyzerService {
     public AnalyzerResultViewModel saveResult(AnalyzerConsoleConfig session) {
         LOG.info("Saving analyzer result report.");
         AnalyzerConsoleReport report = session.getConsoleReport();
+        report.setOverview(viewModelBuilder.buildOverview(session));
         String savedReportPath = report.saveResultReport();
         LOG.info("Analyzer result report saved. path={}", savedReportPath);
         return viewModelBuilder.buildResult(report, savedReportPath);

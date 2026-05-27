@@ -49,6 +49,7 @@ public class AnalyzerOverviewPage {
                 && !source.xmlDirectory().isEmpty()) {
             io.println("Parser      : " + formatText(target.parserVersion()));
             io.println("XML dir     : " + formatText(source.xmlDirectory()));
+            io.println("XML files   : " + source.xmlFileCount());
         } else if (target.type() == AnalyzerTargetType.PARSER) {
             io.println("Parser      : " + formatText(target.parserVersion()));
         }

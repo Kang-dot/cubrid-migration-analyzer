@@ -26,7 +26,7 @@ public class AnalyzerTuiOverviewPage {
         lines.add("[1/4] Overview");
         lines.add("Program     : " + formatText(overview.programVersion()));
         appendSource(lines, overview.source());
-        appendTarget(lines, overview.target());
+        appendTarget(lines, overview.source(), overview.target());
         lines.add("Mode        : " + overview.executionMode());
         return lines;
     }
@@ -46,7 +46,10 @@ public class AnalyzerTuiOverviewPage {
         lines.add("XML files   : " + source.xmlFileCount());
     }
 
-    private void appendTarget(List<String> lines, AnalyzerTargetOverviewViewModel target) {
+    private void appendTarget(
+            List<String> lines,
+            AnalyzerSourceOverviewViewModel source,
+            AnalyzerTargetOverviewViewModel target) {
         lines.add("Target      : " + target.type());
         if (target.type() == AnalyzerTargetType.JDBC) {
             lines.add("Target URL  : " + formatText(target.jdbcUrl()) + formatVersionSuffix(target.version()));
@@ -57,6 +60,12 @@ public class AnalyzerTuiOverviewPage {
         }
 
         lines.add("Parser      : " + formatText(target.parserVersion()));
+        if (source != null
+                && source.xmlDirectory() != null
+                && !source.xmlDirectory().isEmpty()) {
+            lines.add("XML dir     : " + formatText(source.xmlDirectory()));
+            lines.add("XML files   : " + source.xmlFileCount());
+        }
     }
 
     private String formatVersionSuffix(String version) {

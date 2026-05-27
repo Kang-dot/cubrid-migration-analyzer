@@ -91,7 +91,7 @@ public class AnalyzerTuiProgressPage {
         }
 
         public void markCompleted() {
-            statusLabel.setText("Analysis completed. Press Enter to open result.");
+            statusLabel.setText("Analysis completed. Open the result.");
         }
 
         private void addRecentMessage(String message) {

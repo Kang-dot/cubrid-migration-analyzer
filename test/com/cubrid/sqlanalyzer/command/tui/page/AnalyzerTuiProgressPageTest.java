@@ -64,8 +64,8 @@ class AnalyzerTuiProgressPageTest {
     }
 
     @Test
-    @DisplayName("progress TUI page asks for enter after completion")
-    void shouldAskForEnterAfterCompletion() {
+    @DisplayName("progress TUI page renders completion state")
+    void shouldRenderCompletionState() {
         ProgressView progressView = new AnalyzerTuiProgressPage().buildView();
 
         progressView.markCompleted();
@@ -73,7 +73,7 @@ class AnalyzerTuiProgressPageTest {
         String screenText = String.join(
                 System.lineSeparator(), collectLabelTexts(progressView.getPanel()));
 
-        assertTrue(screenText.contains("Analysis completed. Press Enter to open result."));
+        assertTrue(screenText.contains("Analysis completed. Open the result."));
     }
 
     private List<String> collectLabelTexts(Panel panel) {

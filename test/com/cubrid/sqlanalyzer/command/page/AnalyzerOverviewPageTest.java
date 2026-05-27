@@ -1,6 +1,7 @@
 package com.cubrid.sqlanalyzer.command.page;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -56,6 +57,7 @@ class AnalyzerOverviewPageTest {
         assertTrue(output.contains("XML files   : 3"));
         assertTrue(output.contains("Target      : PARSER"));
         assertTrue(output.contains("Parser      : CUBRID parser"));
+        assertEquals(2, countOccurrences(output, "XML files   : 3"));
         assertTrue(output.contains("Mode        : DML"));
     }
 
@@ -100,6 +102,16 @@ class AnalyzerOverviewPageTest {
         assertTrue(output.contains("Target DB   : demodb"));
         assertTrue(output.contains("Target User : dba"));
         assertTrue(output.contains("Mode        : DDL"));
+    }
+
+    private int countOccurrences(String text, String pattern) {
+        int count = 0;
+        int index = text.indexOf(pattern);
+        while (index >= 0) {
+            count++;
+            index = text.indexOf(pattern, index + pattern.length());
+        }
+        return count;
     }
 
     private static class RecordingConsoleIO implements ConsoleIO {
