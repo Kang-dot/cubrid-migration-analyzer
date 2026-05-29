@@ -1,15 +1,15 @@
 package com.cubrid.sqlanalyzer.core.cost;
 
-import com.cubrid.sqlanalyzer.command.AnalyzerConsoleReport;
+import com.cubrid.sqlanalyzer.command.AnalyzerReport;
 import com.cubrid.sqlanalyzer.core.plan.AnalyzerExecutionPlan;
 
 public interface AnalyzerCostCalculator {
     default void analyzeBeforeExecution(
-            AnalyzerExecutionPlan executionPlan, AnalyzerConsoleReport report) {
+            AnalyzerExecutionPlan executionPlan, AnalyzerReport report) {
         // no-op
     }
 
-    default void analyzeAfterExecution(AnalyzerConsoleReport report) {
+    default void analyzeAfterExecution(AnalyzerReport report) {
         // no-op
     }
 }

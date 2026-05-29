@@ -11,11 +11,11 @@ import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerOverviewViewModel;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerSourceOverviewViewModel;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerTargetOverviewViewModel;
 
-class AnalyzerConsoleReportTest {
+class AnalyzerReportTest {
     @Test
     @DisplayName("result text includes summary and failure details")
     void shouldBuildResultTextWithStatementAndFailureSections() {
-        AnalyzerConsoleReport report = new AnalyzerConsoleReport();
+        AnalyzerReport report = new AnalyzerReport();
         report.setSourceType(AnalyzerSourceType.XML);
         report.setTargetType(AnalyzerTargetType.PARSER);
         report.setExecutionMode(AnalyzerExecutionMode.DML);
@@ -75,7 +75,7 @@ class AnalyzerConsoleReportTest {
     @Test
     @DisplayName("result text includes overview connection details when available")
     void shouldBuildResultTextWithOverviewConnectionDetails() {
-        AnalyzerConsoleReport report = new AnalyzerConsoleReport();
+        AnalyzerReport report = new AnalyzerReport();
         report.setSourceType(AnalyzerSourceType.XML);
         report.setTargetType(AnalyzerTargetType.PARSER);
         report.setExecutionMode(AnalyzerExecutionMode.DML);

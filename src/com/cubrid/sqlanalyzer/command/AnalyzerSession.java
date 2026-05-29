@@ -7,9 +7,9 @@ import com.cubrid.cubridmigration.core.dbobject.Catalog;
 import com.cubrid.sqlanalyzer.core.AnalyzerConfiguration;
 import com.cubrid.sqlanalyzer.core.dbobject.AnalyzerCatalog;
 
-public class AnalyzerConsoleConfig {
+public class AnalyzerSession {
     private final AnalyzerConfiguration config = new AnalyzerConfiguration();
-    private final AnalyzerConsoleReport consoleReport = new AnalyzerConsoleReport();
+    private final AnalyzerReport report = new AnalyzerReport();
 
     private AnalyzerSourceType sourceType;
     private AnalyzerTargetType targetType;
@@ -43,7 +43,7 @@ public class AnalyzerConsoleConfig {
 
     public void setSourceType(AnalyzerSourceType sourceType) {
         this.sourceType = sourceType;
-        consoleReport.setSourceType(sourceType);
+        report.setSourceType(sourceType);
     }
 
     public AnalyzerTargetType getTargetType() {
@@ -52,7 +52,7 @@ public class AnalyzerConsoleConfig {
 
     public void setTargetType(AnalyzerTargetType targetType) {
         this.targetType = targetType;
-        consoleReport.setTargetType(targetType);
+        report.setTargetType(targetType);
     }
 
     public AnalyzerExecutionMode getExecutionMode() {
@@ -61,7 +61,7 @@ public class AnalyzerConsoleConfig {
 
     public void setExecutionMode(AnalyzerExecutionMode executionMode) {
         this.executionMode = executionMode;
-        consoleReport.setExecutionMode(executionMode);
+        report.setExecutionMode(executionMode);
     }
 
     public String getSourceJdbcUrl() {
@@ -150,7 +150,7 @@ public class AnalyzerConsoleConfig {
 
     public void setAnalyzedStatementCount(int analyzedStatementCount) {
         this.analyzedStatementCount = analyzedStatementCount;
-        consoleReport.setAnalyzedStatementCount(analyzedStatementCount);
+        report.setAnalyzedStatementCount(analyzedStatementCount);
     }
 
     public int getSucceededStatementCount() {
@@ -159,7 +159,7 @@ public class AnalyzerConsoleConfig {
 
     public void setSucceededStatementCount(int succeededStatementCount) {
         this.succeededStatementCount = succeededStatementCount;
-        consoleReport.setSucceededStatementCount(succeededStatementCount);
+        report.setSucceededStatementCount(succeededStatementCount);
     }
 
     public int getFailedStatementCount() {
@@ -168,28 +168,28 @@ public class AnalyzerConsoleConfig {
 
     public void setFailedStatementCount(int failedStatementCount) {
         this.failedStatementCount = failedStatementCount;
-        consoleReport.setFailedStatementCount(failedStatementCount);
+        report.setFailedStatementCount(failedStatementCount);
     }
 
     public List<String> getFailureMessages() {
-        return consoleReport.getFailureMessages();
+        return report.getFailureMessages();
     }
 
     public void clearFailures() {
         failureMessages.clear();
-        consoleReport.clearFailures();
+        report.clearFailures();
     }
 
     public void addFailureMessage(String failureMessage) {
         failureMessages.add(failureMessage);
-        consoleReport.addFailureMessage(failureMessage);
+        report.addFailureMessage(failureMessage);
     }
 
     public void addFailure(AnalyzerFailure failure) {
-        consoleReport.addFailure(failure);
+        report.addFailure(failure);
     }
 
-    public AnalyzerConsoleReport getConsoleReport() {
-        return consoleReport;
+    public AnalyzerReport getReport() {
+        return report;
     }
 }

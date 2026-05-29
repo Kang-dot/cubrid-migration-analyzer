@@ -9,7 +9,7 @@ import java.util.regex.Pattern;
 
 import com.cubrid.sqlanalyzer.command.AnalyzerCostDetail;
 import com.cubrid.sqlanalyzer.command.AnalyzerFailure;
-import com.cubrid.sqlanalyzer.command.AnalyzerConsoleReport;
+import com.cubrid.sqlanalyzer.command.AnalyzerReport;
 import com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes;
 
 public class FailureCostCalculator implements AnalyzerCostCalculator {
@@ -43,7 +43,7 @@ public class FailureCostCalculator implements AnalyzerCostCalculator {
     }
 
     @Override
-    public void analyzeAfterExecution(AnalyzerConsoleReport report) {
+    public void analyzeAfterExecution(AnalyzerReport report) {
         for (AnalyzerFailure failure : report.getFailures()) {
             CostComputationResult result =
                     calculateCostByType(failure.getStatementType(), failure.getSql());

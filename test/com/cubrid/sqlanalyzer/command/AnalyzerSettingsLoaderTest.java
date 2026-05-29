@@ -1,20 +1,19 @@
 package com.cubrid.sqlanalyzer.command;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-class AnalyzerConsoleSettingsLoaderTest {
+class AnalyzerSettingsLoaderTest {
     @TempDir
     Path tempDir;
 
     @Test
-    void shouldLoadStructuredSettingsWhenNoConsoleArgumentsAreProvided() throws Exception {
+    void shouldLoadStructuredSettingsWhenNoCliArgumentsAreProvided() throws Exception {
         Path settingsFile = tempDir.resolve("setting.conf");
         Files.writeString(
                 settingsFile,
@@ -24,8 +23,8 @@ class AnalyzerConsoleSettingsLoaderTest {
                         + "xml.charset=EUC-KR\n"
                         + "target.type=parser\n");
 
-        String[] args = AnalyzerConsoleSettingsLoader.loadStartupArguments(new String[0], settingsFile);
-        AnalyzerConsoleArguments arguments = AnalyzerConsoleArguments.parse(args);
+        String[] args = AnalyzerSettingsLoader.loadStartupArguments(new String[0], settingsFile);
+        AnalyzerArgumentsController arguments = AnalyzerArgumentsController.parse(args);
 
         assertEquals(AnalyzerSourceType.XML, arguments.getSourceType());
         assertEquals("/tmp/sqlmap", arguments.getXmlDirectory());
@@ -35,7 +34,7 @@ class AnalyzerConsoleSettingsLoaderTest {
     }
 
     @Test
-    void shouldPreferConsoleArgumentsOverDefaultSettings() throws Exception {
+    void shouldPreferCliArgumentsOverDefaultSettings() throws Exception {
         Path settingsFile = tempDir.resolve("setting.conf");
         Files.writeString(
                 settingsFile,
@@ -43,8 +42,8 @@ class AnalyzerConsoleSettingsLoaderTest {
                         + "xml.directory=/from/settings\n"
                         + "target.type=parser\n");
 
-        String[] cliArgs = new String[] {"-sx", "-xd", "/from/cli", "-tp"};
-        String[] args = AnalyzerConsoleSettingsLoader.loadStartupArguments(cliArgs, settingsFile);
+        String[] cliArgs = new String[] { "-sx", "-xd", "/from/cli", "-tp" };
+        String[] args = AnalyzerSettingsLoader.loadStartupArguments(cliArgs, settingsFile);
 
         assertArrayEquals(cliArgs, args);
     }
@@ -62,8 +61,8 @@ class AnalyzerConsoleSettingsLoaderTest {
                         + "source.password=cubrid\n"
                         + "target.type=parser\n");
 
-        String[] args = AnalyzerConsoleSettingsLoader.loadStartupArguments(new String[0], settingsFile);
-        AnalyzerConsoleArguments arguments = AnalyzerConsoleArguments.parse(args);
+        String[] args = AnalyzerSettingsLoader.loadStartupArguments(new String[0], settingsFile);
+        AnalyzerArgumentsController arguments = AnalyzerArgumentsController.parse(args);
 
         assertEquals(AnalyzerSourceType.ORACLE, arguments.getSourceType());
         assertEquals("jdbc:oracle:thin:@//192.168.1.6:1521/xe", arguments.getSourceJdbcUrl());
@@ -77,11 +76,10 @@ class AnalyzerConsoleSettingsLoaderTest {
         Path settingsFile = tempDir.resolve("custom.conf");
         Files.writeString(settingsFile, "arguments=-sx -xd /tmp/sqlmap -tp\n");
 
-        String[] args =
-                AnalyzerConsoleSettingsLoader.loadStartupArguments(
-                        new String[] {"-conf", settingsFile.toString()}, null);
+        String[] args = AnalyzerSettingsLoader.loadStartupArguments(
+                new String[] { "-conf", settingsFile.toString() }, null);
 
-        assertArrayEquals(new String[] {"-sx", "-xd", "/tmp/sqlmap", "-tp"}, args);
+        assertArrayEquals(new String[] { "-sx", "-xd", "/tmp/sqlmap", "-tp" }, args);
     }
 
     @Test
@@ -89,8 +87,7 @@ class AnalyzerConsoleSettingsLoaderTest {
         Path settingsFile = tempDir.resolve("setting.conf");
         Files.writeString(settingsFile, "log.dir=custom-logs\n");
 
-        String logDirectory =
-                AnalyzerConsoleSettingsLoader.loadLogDirectory(new String[0], settingsFile);
+        String logDirectory = AnalyzerSettingsLoader.loadLogDirectory(new String[0], settingsFile);
 
         assertEquals("custom-logs", logDirectory);
     }
@@ -100,8 +97,7 @@ class AnalyzerConsoleSettingsLoaderTest {
         Path settingsFile = tempDir.resolve("setting.conf");
         Files.writeString(settingsFile, "source.type=xml\n");
 
-        String logDirectory =
-                AnalyzerConsoleSettingsLoader.loadLogDirectory(new String[0], settingsFile);
+        String logDirectory = AnalyzerSettingsLoader.loadLogDirectory(new String[0], settingsFile);
 
         assertEquals("logs", logDirectory);
     }
@@ -111,9 +107,8 @@ class AnalyzerConsoleSettingsLoaderTest {
         Path settingsFile = tempDir.resolve("custom.conf");
         Files.writeString(settingsFile, "log.dir=/tmp/sql-analyzer-logs\n");
 
-        String logDirectory =
-                AnalyzerConsoleSettingsLoader.loadLogDirectory(
-                        new String[] {"-conf", settingsFile.toString()}, null);
+        String logDirectory = AnalyzerSettingsLoader.loadLogDirectory(
+                new String[] { "-conf", settingsFile.toString() }, null);
 
         assertEquals("/tmp/sql-analyzer-logs", logDirectory);
     }

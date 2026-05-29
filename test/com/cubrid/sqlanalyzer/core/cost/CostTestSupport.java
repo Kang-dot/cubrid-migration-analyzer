@@ -1,7 +1,7 @@
 package com.cubrid.sqlanalyzer.core.cost;
 
 import com.cubrid.sqlanalyzer.command.AnalyzerFailure;
-import com.cubrid.sqlanalyzer.command.AnalyzerConsoleReport;
+import com.cubrid.sqlanalyzer.command.AnalyzerReport;
 
 abstract class CostTestSupport {
     protected static final float DELTA = 0.0001f;
@@ -13,7 +13,7 @@ abstract class CostTestSupport {
     }
 
     protected AnalyzerFailure analyzeFailure(String statementType, String sql) {
-        AnalyzerConsoleReport report = new AnalyzerConsoleReport();
+        AnalyzerReport report = new AnalyzerReport();
         AnalyzerFailure failure = new AnalyzerFailure();
         failure.setStatementType(statementType);
         failure.setStatementId("TEST_1");

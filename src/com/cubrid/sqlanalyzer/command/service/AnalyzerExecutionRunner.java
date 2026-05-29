@@ -15,7 +15,7 @@ import com.cubrid.cubridmigration.core.dbobject.Table;
 import com.cubrid.cubridmigration.core.dbobject.View;
 import com.cubrid.cubridmigration.core.engine.config.SourceGrantConfig;
 import com.cubrid.cubridmigration.cubrid.CUBRIDSQLHelper;
-import com.cubrid.sqlanalyzer.command.AnalyzerConsoleConfig;
+import com.cubrid.sqlanalyzer.command.AnalyzerSession;
 import com.cubrid.sqlanalyzer.command.AnalyzerExecutionMode;
 import com.cubrid.sqlanalyzer.command.AnalyzerFailure;
 import com.cubrid.sqlanalyzer.command.AnalyzerFailureStage;
@@ -43,7 +43,7 @@ public class AnalyzerExecutionRunner {
     private final AnalyzerCostCalculator costCalculator = new FailureCostCalculator();
 
     public void run(
-            AnalyzerConsoleConfig session, AnalyzerProgressListener progressListener) {
+            AnalyzerSession session, AnalyzerProgressListener progressListener) {
         LOG.info(
                 "Analysis execution started. sourceType={}, targetType={}, executionMode={}",
                 session.getSourceType(),
@@ -66,7 +66,7 @@ public class AnalyzerExecutionRunner {
                         0,
                         0,
                         0));
-        costCalculator.analyzeBeforeExecution(executionPlan, session.getConsoleReport());
+        costCalculator.analyzeBeforeExecution(executionPlan, session.getReport());
         if (executionPlan.isEmpty()) {
             LOG.info("Analysis execution ended without statements.");
             session.setAnalyzedStatementCount(0);
@@ -105,7 +105,7 @@ public class AnalyzerExecutionRunner {
         throw new IllegalStateException("Unsupported target type: " + session.getTargetType());
     }
 
-    private AnalyzerExecutionPlan buildExecutionPlan(AnalyzerConsoleConfig session) {
+    private AnalyzerExecutionPlan buildExecutionPlan(AnalyzerSession session) {
         LOG.info(
                 "Building execution plan. sourceType={}, executionMode={}",
                 session.getSourceType(),
@@ -128,7 +128,7 @@ public class AnalyzerExecutionRunner {
     }
 
     private void runParserAnalysis(
-            AnalyzerConsoleConfig session,
+            AnalyzerSession session,
             AnalyzerExecutionPlan executionPlan,
             AnalyzerProgressListener progressListener) {
         QueryParser queryParser = new QueryParser();
@@ -151,7 +151,7 @@ public class AnalyzerExecutionRunner {
             try {
                 queryParser.checkSQL(statement.getSQL());
                 succeeded++;
-                session.getConsoleReport()
+                session.getReport()
                         .addStatementResult(
                                 statement.getType(),
                                 statement.getId(),
@@ -185,7 +185,7 @@ public class AnalyzerExecutionRunner {
                 session.addFailureMessage(failureMessage);
                 session.addFailure(
                         buildFailure(statement, ex.getMessage(), AnalyzerFailureStage.PARSER));
-                session.getConsoleReport()
+                session.getReport()
                         .addStatementResult(
                                 statement.getType(),
                                 statement.getId(),
@@ -218,7 +218,7 @@ public class AnalyzerExecutionRunner {
                 session.addFailureMessage(failureMessage);
                 session.addFailure(
                         buildFailure(statement, ex.toString(), AnalyzerFailureStage.PARSER));
-                session.getConsoleReport()
+                session.getReport()
                         .addStatementResult(
                                 statement.getType(),
                                 statement.getId(),
@@ -246,7 +246,7 @@ public class AnalyzerExecutionRunner {
         session.setAnalyzedStatementCount(analyzed);
         session.setSucceededStatementCount(succeeded);
         session.setFailedStatementCount(failed);
-        costCalculator.analyzeAfterExecution(session.getConsoleReport());
+        costCalculator.analyzeAfterExecution(session.getReport());
 
         LOG.info(
                 "Parser analysis completed. total={}, succeeded={}, failed={}",
@@ -257,7 +257,7 @@ public class AnalyzerExecutionRunner {
     }
 
     private void runJdbcAnalysis(
-            AnalyzerConsoleConfig session,
+            AnalyzerSession session,
             AnalyzerExecutionPlan executionPlan,
             AnalyzerProgressListener progressListener) {
         List<String> cleanupQueries = new ArrayList<String>();
@@ -281,7 +281,7 @@ public class AnalyzerExecutionRunner {
                 try {
                     String resultSummary = executeJdbcStatement(connection, statement);
                     succeeded++;
-                    session.getConsoleReport()
+                    session.getReport()
                             .addStatementResult(
                                     statement.getType(),
                                     statement.getId(),
@@ -324,7 +324,7 @@ public class AnalyzerExecutionRunner {
                     session.addFailureMessage(failureMessage);
                     session.addFailure(
                             buildFailure(statement, ex.toString(), AnalyzerFailureStage.JDBC));
-                    session.getConsoleReport()
+                    session.getReport()
                             .addStatementResult(
                                     statement.getType(),
                                     statement.getId(),
@@ -366,7 +366,7 @@ public class AnalyzerExecutionRunner {
         session.setAnalyzedStatementCount(analyzed);
         session.setSucceededStatementCount(succeeded);
         session.setFailedStatementCount(failed);
-        costCalculator.analyzeAfterExecution(session.getConsoleReport());
+        costCalculator.analyzeAfterExecution(session.getReport());
 
         LOG.info(
                 "JDBC analysis completed. total={}, succeeded={}, failed={}",
@@ -407,7 +407,7 @@ public class AnalyzerExecutionRunner {
     private void runJdbcCleanup(
             Connection connection,
             List<String> cleanupQueries,
-            AnalyzerConsoleConfig session,
+            AnalyzerSession session,
             AnalyzerProgressListener progressListener,
             int totalCount,
             int completedCount,
@@ -419,7 +419,7 @@ public class AnalyzerExecutionRunner {
             try (Statement statement = connection.createStatement()) {
                 statement.execute(cleanupQuery);
                 connection.commit();
-                session.getConsoleReport()
+                session.getReport()
                         .addStatementResult(
                                 "CLEANUP",
                                 cleanupId,
@@ -452,7 +452,7 @@ public class AnalyzerExecutionRunner {
                                 cleanupQuery,
                                 ex.toString(),
                                 AnalyzerFailureStage.CLEANUP));
-                session.getConsoleReport()
+                session.getReport()
                         .addStatementResult(
                                 "CLEANUP",
                                 cleanupId,
@@ -514,7 +514,7 @@ public class AnalyzerExecutionRunner {
         return statement.getType() != null && statement.getType().startsWith("DDL_");
     }
 
-    private String buildCleanupQuery(AnalyzerConsoleConfig session, AnalyzerStatement statement) {
+    private String buildCleanupQuery(AnalyzerSession session, AnalyzerStatement statement) {
         if (!isDDL(statement)) {
             return null;
         }
@@ -601,7 +601,7 @@ public class AnalyzerExecutionRunner {
     }
 
     private void objectUnsupportedFailure(
-            AnalyzerConsoleConfig session,
+            AnalyzerSession session,
             AnalyzerProgressListener progressListener,
             int totalCount,
             int analyzed,
@@ -621,7 +621,7 @@ public class AnalyzerExecutionRunner {
                         statement,
                         TRIGGER_UNSUPPORTED_REASON,
                         AnalyzerFailureStage.UNSUPPORTED));
-        session.getConsoleReport()
+        session.getReport()
                 .addStatementResult(
                         statement.getType(),
                         statement.getId(),

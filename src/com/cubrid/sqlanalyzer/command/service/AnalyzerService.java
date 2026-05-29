@@ -1,12 +1,15 @@
 package com.cubrid.sqlanalyzer.command.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.cubrid.cubridmigration.core.dbmetadata.JDBCDBSchemaFetcherFacade;
 import com.cubrid.cubridmigration.core.dbobject.Catalog;
 import com.cubrid.cubridmigration.core.dbtype.DatabaseType;
+import com.cubrid.sqlanalyzer.command.AnalyzerArgumentsController;
 import com.cubrid.sqlanalyzer.command.AnalyzerConnParametersFactory;
-import com.cubrid.sqlanalyzer.command.AnalyzerConsoleArguments;
-import com.cubrid.sqlanalyzer.command.AnalyzerConsoleConfig;
-import com.cubrid.sqlanalyzer.command.AnalyzerConsoleReport;
+import com.cubrid.sqlanalyzer.command.AnalyzerSession;
+import com.cubrid.sqlanalyzer.command.AnalyzerReport;
 import com.cubrid.sqlanalyzer.command.AnalyzerExecutionMode;
 import com.cubrid.sqlanalyzer.command.AnalyzerJdbcConnectionInfo;
 import com.cubrid.sqlanalyzer.command.AnalyzerJdbcConnectionSupport;
@@ -20,8 +23,6 @@ import com.cubrid.sqlanalyzer.core.dbobject.AnalyzerCatalog;
 import com.cubrid.sqlanalyzer.core.dbobject.QueryDictionary;
 import com.cubrid.sqlanalyzer.xmlmetadata.XMLDirSchemaFetcher;
 import com.cubrid.sqlanalyzer.xmlmetadata.XMLDirSource;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class AnalyzerService {
     private static final Logger LOG = LoggerFactory.getLogger(AnalyzerService.class);
@@ -44,7 +45,7 @@ public class AnalyzerService {
         this.executionRunner = executionRunner;
     }
 
-    public void applyArguments(AnalyzerConsoleConfig session, AnalyzerConsoleArguments arguments) {
+    public void applyArguments(AnalyzerSession session, AnalyzerArgumentsController arguments) {
         LOG.info(
                 "Applying analyzer arguments. sourceType={}, targetType={}, uiMode={}",
                 arguments.getSourceType(),
@@ -73,7 +74,7 @@ public class AnalyzerService {
         LOG.info("Analyzer arguments applied. executionMode={}", session.getExecutionMode());
     }
 
-    public void applyExecutionMode(AnalyzerConsoleConfig session) {
+    public void applyExecutionMode(AnalyzerSession session) {
         LOG.info("Resolving execution mode. sourceType={}", session.getSourceType());
         if (AnalyzerSourceType.ORACLE.equals(session.getSourceType())) {
             session.setExecutionMode(AnalyzerExecutionMode.DDL);
@@ -90,7 +91,7 @@ public class AnalyzerService {
         throw new IllegalStateException("Unsupported source type: " + session.getSourceType());
     }
 
-    public void validateOracleSourceConnection(AnalyzerConsoleConfig session) {
+    public void validateOracleSourceConnection(AnalyzerSession session) {
         LOG.info("Validating Oracle source connection.");
         AnalyzerJdbcConnectionInfo profile = AnalyzerJdbcConnectionSupport.parseOracleProfile(
                 session.getSourceJdbcUrl(),
@@ -101,7 +102,7 @@ public class AnalyzerService {
         LOG.info("Oracle source connection validation succeeded.");
     }
 
-    public void validateJdbcTargetConnection(AnalyzerConsoleConfig session) {
+    public void validateJdbcTargetConnection(AnalyzerSession session) {
         LOG.info("Validating CUBRID target connection.");
         AnalyzerJdbcConnectionInfo profile = AnalyzerJdbcConnectionSupport.parseCubridProfile(
                 session.getTargetJdbcUrl(),
@@ -112,7 +113,7 @@ public class AnalyzerService {
         LOG.info("CUBRID target connection validation succeeded.");
     }
 
-    public void prepareConfiguration(AnalyzerConsoleConfig session) {
+    public void prepareConfiguration(AnalyzerSession session) {
         LOG.info(
                 "Preparing analyzer configuration. sourceType={}, targetType={}, executionMode={}",
                 session.getSourceType(),
@@ -148,7 +149,7 @@ public class AnalyzerService {
         LOG.info("Analyzer configuration prepared.");
     }
 
-    public void loadSourceCatalog(AnalyzerConsoleConfig session) {
+    public void loadSourceCatalog(AnalyzerSession session) {
         LOG.info("Loading source catalog. sourceType={}", session.getSourceType());
         if (session.getSourceType() == AnalyzerSourceType.ORACLE) {
             loadOracleSourceCatalog(session);
@@ -165,16 +166,16 @@ public class AnalyzerService {
         throw new IllegalStateException("Unsupported source type: " + session.getSourceType());
     }
 
-    public AnalyzerOverviewViewModel getOverview(AnalyzerConsoleConfig session) {
+    public AnalyzerOverviewViewModel getOverview(AnalyzerSession session) {
         return viewModelBuilder.buildOverview(session);
     }
 
-    public AnalyzerObjectCountPreviewViewModel getObjectCountPreview(AnalyzerConsoleConfig session) {
+    public AnalyzerObjectCountPreviewViewModel getObjectCountPreview(AnalyzerSession session) {
         return viewModelBuilder.buildObjectCountPreview(session);
     }
 
     public void runAnalysis(
-            AnalyzerConsoleConfig session, AnalyzerProgressListener progressListener) {
+            AnalyzerSession session, AnalyzerProgressListener progressListener) {
         LOG.info(
                 "Running analysis. sourceType={}, targetType={}, executionMode={}",
                 session.getSourceType(),
@@ -183,21 +184,21 @@ public class AnalyzerService {
         executionRunner.run(session, progressListener);
         LOG.info(
                 "Analysis finished. total={}, succeeded={}, failed={}",
-                session.getConsoleReport().getAnalyzedStatementCount(),
-                session.getConsoleReport().getSucceededStatementCount(),
-                session.getConsoleReport().getFailedStatementCount());
+                session.getReport().getAnalyzedStatementCount(),
+                session.getReport().getSucceededStatementCount(),
+                session.getReport().getFailedStatementCount());
     }
 
-    public AnalyzerResultViewModel saveResult(AnalyzerConsoleConfig session) {
+    public AnalyzerResultViewModel saveResult(AnalyzerSession session) {
         LOG.info("Saving analyzer result report.");
-        AnalyzerConsoleReport report = session.getConsoleReport();
+        AnalyzerReport report = session.getReport();
         report.setOverview(viewModelBuilder.buildOverview(session));
         String savedReportPath = report.saveResultReport();
         LOG.info("Analyzer result report saved. path={}", savedReportPath);
         return viewModelBuilder.buildResult(report, savedReportPath);
     }
 
-    private void loadOracleSourceCatalog(AnalyzerConsoleConfig session) {
+    private void loadOracleSourceCatalog(AnalyzerSession session) {
         LOG.info("Fetching Oracle source schema.");
         AnalyzerConfiguration config = session.getConfig();
         JDBCDBSchemaFetcherFacade fetcher = new JDBCDBSchemaFetcherFacade();
@@ -213,7 +214,7 @@ public class AnalyzerService {
         LOG.info("Oracle source schema fetched. schemaCount={}", catalog.getSchemas().size());
     }
 
-    private void loadXmlQueryDictionary(AnalyzerConsoleConfig session) {
+    private void loadXmlQueryDictionary(AnalyzerSession session) {
         LOG.info(
                 "Building XML query dictionary. directory={}, charset={}",
                 session.getXmlDirectory(),

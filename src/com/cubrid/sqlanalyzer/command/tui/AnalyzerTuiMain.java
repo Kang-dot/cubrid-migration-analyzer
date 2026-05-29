@@ -2,28 +2,29 @@ package com.cubrid.sqlanalyzer.command.tui;
 
 import java.io.IOException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.cubrid.cubridmigration.core.common.PathUtils;
-import com.cubrid.sqlanalyzer.command.AnalyzerConsoleArguments;
-import com.cubrid.sqlanalyzer.command.AnalyzerConsoleConfig;
-import com.cubrid.sqlanalyzer.command.AnalyzerConsoleSettingsLoader;
+import com.cubrid.sqlanalyzer.command.AnalyzerArgumentsController;
+import com.cubrid.sqlanalyzer.command.AnalyzerSession;
+import com.cubrid.sqlanalyzer.command.AnalyzerSettingsLoader;
 import com.cubrid.sqlanalyzer.command.AnalyzerJdbcConnectionSupport;
 import com.cubrid.sqlanalyzer.command.AnalyzerLogInitializer;
 import com.cubrid.sqlanalyzer.command.service.AnalyzerService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class AnalyzerTuiMain {
     private static final Logger LOG = LoggerFactory.getLogger(AnalyzerTuiMain.class);
 
     public static void main(String[] args) throws IOException {
         PathUtils.initPaths();
-        AnalyzerLogInitializer.initLog(AnalyzerConsoleSettingsLoader.loadLogDirectory(args));
+        AnalyzerLogInitializer.initLog(AnalyzerSettingsLoader.loadLogDirectory(args));
         LOG.info("SQL Analyzer TUI command started. argsCount={}", args == null ? 0 : args.length);
 
-        AnalyzerConsoleArguments arguments;
+        AnalyzerArgumentsController arguments;
         try {
-            arguments = AnalyzerConsoleArguments.parse(
-                    AnalyzerConsoleSettingsLoader.loadStartupArguments(args));
+            arguments = AnalyzerArgumentsController.parse(
+                    AnalyzerSettingsLoader.loadStartupArguments(args));
         } catch (IllegalArgumentException ex) {
             LOG.error("Failed to parse TUI startup arguments.", ex);
             System.err.println(ex.getMessage());
@@ -47,7 +48,7 @@ public class AnalyzerTuiMain {
         AnalyzerJdbcConnectionSupport.initializeJdbcDrivers();
 
         AnalyzerService analyzerService = new AnalyzerService();
-        AnalyzerConsoleConfig session = new AnalyzerConsoleConfig();
+        AnalyzerSession session = new AnalyzerSession();
         try {
             analyzerService.applyArguments(session, arguments);
             analyzerService.prepareConfiguration(session);

@@ -11,8 +11,8 @@ import java.util.regex.Pattern;
 import com.cubrid.cubridmigration.core.dbobject.Catalog;
 import com.cubrid.cubridmigration.core.dbobject.Table;
 import com.cubrid.cubridmigration.core.dbobject.Version;
-import com.cubrid.sqlanalyzer.command.AnalyzerConsoleConfig;
-import com.cubrid.sqlanalyzer.command.AnalyzerConsoleReport;
+import com.cubrid.sqlanalyzer.command.AnalyzerSession;
+import com.cubrid.sqlanalyzer.command.AnalyzerReport;
 import com.cubrid.sqlanalyzer.command.AnalyzerJdbcConnectionInfo;
 import com.cubrid.sqlanalyzer.command.AnalyzerJdbcConnectionSupport;
 import com.cubrid.sqlanalyzer.command.AnalyzerSourceType;
@@ -29,7 +29,7 @@ public class AnalyzerViewModelBuilder {
     private static final Pattern ORACLE_VERSION_NAME_PATTERN = Pattern.compile("\\b\\d+(?:ai|c|g)\\b",
             Pattern.CASE_INSENSITIVE);
 
-    public AnalyzerOverviewViewModel buildOverview(AnalyzerConsoleConfig session) {
+    public AnalyzerOverviewViewModel buildOverview(AnalyzerSession session) {
         return new AnalyzerOverviewViewModel(
                 getProgramVersion(),
                 buildSourceOverview(session),
@@ -37,7 +37,7 @@ public class AnalyzerViewModelBuilder {
                 session.getExecutionMode());
     }
 
-    public AnalyzerObjectCountPreviewViewModel buildObjectCountPreview(AnalyzerConsoleConfig session) {
+    public AnalyzerObjectCountPreviewViewModel buildObjectCountPreview(AnalyzerSession session) {
         AnalyzerConfiguration config = session.getConfig();
         if (session.getSourceType() == AnalyzerSourceType.ORACLE) {
             return new AnalyzerObjectCountPreviewViewModel(
@@ -79,7 +79,7 @@ public class AnalyzerViewModelBuilder {
                 dict.getDeleteQueryMap().size());
     }
 
-    public AnalyzerResultViewModel buildResult(AnalyzerConsoleReport report, String savedReportPath) {
+    public AnalyzerResultViewModel buildResult(AnalyzerReport report, String savedReportPath) {
         return new AnalyzerResultViewModel(
                 report.getSourceType(),
                 report.getTargetType(),
@@ -93,7 +93,7 @@ public class AnalyzerViewModelBuilder {
                 report.getFailures());
     }
 
-    private AnalyzerSourceOverviewViewModel buildSourceOverview(AnalyzerConsoleConfig session) {
+    private AnalyzerSourceOverviewViewModel buildSourceOverview(AnalyzerSession session) {
         if (session.getSourceType() == AnalyzerSourceType.ORACLE) {
             AnalyzerJdbcConnectionInfo profile = AnalyzerJdbcConnectionSupport.parseOracleProfile(
                     session.getSourceJdbcUrl(),
@@ -129,7 +129,7 @@ public class AnalyzerViewModelBuilder {
                 countXmlFiles(session.getXmlDirectory()));
     }
 
-    private AnalyzerTargetOverviewViewModel buildTargetOverview(AnalyzerConsoleConfig session) {
+    private AnalyzerTargetOverviewViewModel buildTargetOverview(AnalyzerSession session) {
         if (session.getTargetType() == AnalyzerTargetType.JDBC) {
             AnalyzerJdbcConnectionInfo profile = AnalyzerJdbcConnectionSupport.parseCubridProfile(
                     session.getTargetJdbcUrl(),
@@ -189,7 +189,7 @@ public class AnalyzerViewModelBuilder {
         return "CUBRID parser";
     }
 
-    private String getTargetVersionName(AnalyzerConsoleConfig session) {
+    private String getTargetVersionName(AnalyzerSession session) {
         if (session.getConfig().getTargetConParams() == null) {
             return null;
         }

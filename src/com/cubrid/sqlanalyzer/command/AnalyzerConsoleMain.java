@@ -2,25 +2,25 @@ package com.cubrid.sqlanalyzer.command;
 
 import java.io.IOException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.cubrid.cubridmigration.core.common.PathUtils;
 import com.cubrid.sqlanalyzer.command.service.AnalyzerService;
 import com.cubrid.sqlanalyzer.command.tui.AnalyzerTuiRunner;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class AnalyzerConsoleMain {
     private static final Logger LOG = LoggerFactory.getLogger(AnalyzerConsoleMain.class);
 
     public static void main(String[] args) {
         PathUtils.initPaths();
-        AnalyzerLogInitializer.initLog(AnalyzerConsoleSettingsLoader.loadLogDirectory(args));
+        AnalyzerLogInitializer.initLog(AnalyzerSettingsLoader.loadLogDirectory(args));
         LOG.info("SQL Analyzer command started. argsCount={}", args == null ? 0 : args.length);
 
-        AnalyzerConsoleArguments arguments;
+        AnalyzerArgumentsController arguments;
         try {
-            arguments =
-                    AnalyzerConsoleArguments.parse(
-                            AnalyzerConsoleSettingsLoader.loadStartupArguments(args));
+            arguments = AnalyzerArgumentsController.parse(
+                    AnalyzerSettingsLoader.loadStartupArguments(args));
         } catch (IllegalArgumentException ex) {
             LOG.error("Failed to parse analyzer startup arguments.", ex);
             System.err.println(ex.getMessage());
@@ -46,22 +46,21 @@ public class AnalyzerConsoleMain {
         LOG.info("Starting analyzer in console mode. interactive={}", arguments.isInteractive());
         ConsoleIO io = new AnalyzerConsoleIOController(System.in, System.out);
         AnalyzerConsoleRunner runner = new AnalyzerConsoleRunner(io);
-        int exitCode =
-                arguments.isInteractive()
-                        ? runner.startAnalyzer()
-                        : runner.startAnalyzer(arguments);
+        int exitCode = arguments.isInteractive()
+                ? runner.startAnalyzer()
+                : runner.startAnalyzer(arguments);
         LOG.info("SQL Analyzer command finished. exitCode={}", exitCode);
         System.exit(exitCode);
     }
 
-    private static int startTuiAnalyzer(AnalyzerConsoleArguments arguments) {
+    private static int startTuiAnalyzer(AnalyzerArgumentsController arguments) {
         if (arguments.isInteractive()) {
             System.err.println("TUI mode requires analyzer options or -conf <settingsFile>.");
             return 1;
         }
 
         AnalyzerService analyzerService = new AnalyzerService();
-        AnalyzerConsoleConfig session = new AnalyzerConsoleConfig();
+        AnalyzerSession session = new AnalyzerSession();
         try {
             analyzerService.applyArguments(session, arguments);
             analyzerService.prepareConfiguration(session);

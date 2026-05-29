@@ -19,7 +19,7 @@ import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerOverviewViewModel;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerSourceOverviewViewModel;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerTargetOverviewViewModel;
 
-public class AnalyzerConsoleReport {
+public class AnalyzerReport {
     private static class StatementResult {
         private final String statementType;
         private final String statementId;
@@ -177,7 +177,7 @@ public class AnalyzerConsoleReport {
             }
             return reportFile.getAbsolutePath();
         } catch (IOException e) {
-            throw new RuntimeException("Failed to save console report: " + e.getMessage(), e);
+            throw new RuntimeException("Failed to save analyzer report: " + e.getMessage(), e);
         }
     }
 
@@ -386,14 +386,14 @@ public class AnalyzerConsoleReport {
     private File getCodeSourceLocation() {
         try {
             return new File(
-                    AnalyzerConsoleReport.class
+                    AnalyzerReport.class
                             .getProtectionDomain()
                             .getCodeSource()
                             .getLocation()
                             .toURI());
         } catch (URISyntaxException e) {
             return new File(
-                    AnalyzerConsoleReport.class
+                    AnalyzerReport.class
                             .getProtectionDomain()
                             .getCodeSource()
                             .getLocation()

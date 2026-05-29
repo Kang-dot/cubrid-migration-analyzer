@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import com.cubrid.sqlanalyzer.command.AnalyzerConsoleConfig;
+import com.cubrid.sqlanalyzer.command.AnalyzerSession;
 import com.cubrid.sqlanalyzer.command.service.AnalyzerService;
 import com.cubrid.sqlanalyzer.command.tui.page.AnalyzerTuiObjectCountPage;
 import com.cubrid.sqlanalyzer.command.tui.page.AnalyzerTuiOverviewPage;
@@ -55,7 +55,7 @@ public class AnalyzerTuiRunner {
         this.resultPage = resultPage;
     }
 
-    public void start(AnalyzerConsoleConfig session, AnalyzerService analyzerService) throws IOException {
+    public void start(AnalyzerSession session, AnalyzerService analyzerService) throws IOException {
         LOG.info("Starting TUI runner.");
         try (Screen screen = new DefaultTerminalFactory()
                 .setInitialTerminalSize(DEFAULT_TERMINAL_SIZE)
@@ -94,7 +94,7 @@ public class AnalyzerTuiRunner {
     private void showOverview(
             BasicWindow window,
             MultiWindowTextGUI gui,
-            AnalyzerConsoleConfig session,
+            AnalyzerSession session,
             AnalyzerService analyzerService,
             NavigationState state) {
         AnalyzerOverviewViewModel overview = analyzerService.getOverview(session);
@@ -109,7 +109,7 @@ public class AnalyzerTuiRunner {
     private void showObjectCount(
             BasicWindow window,
             MultiWindowTextGUI gui,
-            AnalyzerConsoleConfig session,
+            AnalyzerSession session,
             AnalyzerService analyzerService,
             NavigationState state) {
         try {
@@ -129,7 +129,7 @@ public class AnalyzerTuiRunner {
     private void showMetadataLoadingAndObjectCount(
             BasicWindow window,
             MultiWindowTextGUI gui,
-            AnalyzerConsoleConfig session,
+            AnalyzerSession session,
             AnalyzerService analyzerService,
             NavigationState state) {
         if (state.sourceLoaded) {
@@ -187,7 +187,7 @@ public class AnalyzerTuiRunner {
     private void loadMetadataAndShowObjectCount(
             BasicWindow window,
             MultiWindowTextGUI gui,
-            AnalyzerConsoleConfig session,
+            AnalyzerSession session,
             AnalyzerService analyzerService,
             NavigationState state,
             AtomicBoolean loading) {
@@ -208,7 +208,7 @@ public class AnalyzerTuiRunner {
     private void showProgressAndRun(
             BasicWindow window,
             MultiWindowTextGUI gui,
-            AnalyzerConsoleConfig session,
+            AnalyzerSession session,
             AnalyzerService analyzerService) {
         LOG.info("Showing TUI progress page and starting analysis worker.");
         ProgressView progressView = progressPage.buildView();
@@ -225,7 +225,7 @@ public class AnalyzerTuiRunner {
     private void runAnalysisAndShowResultButton(
             BasicWindow window,
             MultiWindowTextGUI gui,
-            AnalyzerConsoleConfig session,
+            AnalyzerSession session,
             AnalyzerService analyzerService,
             Panel content,
             ProgressView progressView) {

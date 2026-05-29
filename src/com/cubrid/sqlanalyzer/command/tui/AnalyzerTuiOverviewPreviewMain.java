@@ -2,7 +2,7 @@ package com.cubrid.sqlanalyzer.command.tui;
 
 import java.io.IOException;
 
-import com.cubrid.sqlanalyzer.command.AnalyzerConsoleConfig;
+import com.cubrid.sqlanalyzer.command.AnalyzerSession;
 import com.cubrid.sqlanalyzer.command.AnalyzerExecutionMode;
 import com.cubrid.sqlanalyzer.command.AnalyzerSourceType;
 import com.cubrid.sqlanalyzer.command.AnalyzerTargetType;
@@ -15,8 +15,8 @@ public class AnalyzerTuiOverviewPreviewMain {
         new AnalyzerTuiRunner().showOverview(overview);
     }
 
-    private static AnalyzerConsoleConfig createPreviewSession() {
-        AnalyzerConsoleConfig session = new AnalyzerConsoleConfig();
+    private static AnalyzerSession createPreviewSession() {
+        AnalyzerSession session = new AnalyzerSession();
         session.setSourceType(AnalyzerSourceType.XML);
         session.setXmlDirectory("./sqlmap");
         session.setXmlCharset("UTF-8");

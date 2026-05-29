@@ -3,15 +3,14 @@ package com.cubrid.sqlanalyzer.command;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-class AnalyzerConsoleArgumentsTest {
+class AnalyzerArgumentsControllerTest {
     @Test
     @DisplayName("empty args keep interactive mode")
     void shouldUseInteractiveModeWhenNoArgumentsAreProvided() {
-        AnalyzerConsoleArguments arguments = AnalyzerConsoleArguments.parse(new String[0]);
+        AnalyzerArgumentsController arguments = AnalyzerArgumentsController.parse(new String[0]);
 
         assertTrue(arguments.isInteractive());
     }
@@ -19,8 +18,8 @@ class AnalyzerConsoleArgumentsTest {
     @Test
     @DisplayName("XML to parser arguments are parsed correctly")
     void shouldParseXmlToParserArguments() {
-        AnalyzerConsoleArguments arguments =
-                AnalyzerConsoleArguments.parse(new String[] {"-sx", "-xd", "/tmp/sqlmap", "-tp"});
+        AnalyzerArgumentsController arguments = AnalyzerArgumentsController
+                .parse(new String[] { "-sx", "-xd", "/tmp/sqlmap", "-tp" });
 
         assertEquals(AnalyzerSourceType.XML, arguments.getSourceType());
         assertEquals("/tmp/sqlmap", arguments.getXmlDirectory());
@@ -31,9 +30,8 @@ class AnalyzerConsoleArgumentsTest {
     @Test
     @DisplayName("TUI mode option is parsed correctly")
     void shouldParseTuiModeOption() {
-        AnalyzerConsoleArguments arguments =
-                AnalyzerConsoleArguments.parse(
-                        new String[] {"-ui", "tui", "-sx", "-xd", "/tmp/sqlmap", "-tp"});
+        AnalyzerArgumentsController arguments = AnalyzerArgumentsController.parse(
+                new String[] { "-ui", "tui", "-sx", "-xd", "/tmp/sqlmap", "-tp" });
 
         assertEquals(AnalyzerUiMode.TUI, arguments.getUiMode());
         assertTrue(arguments.isTuiMode());
@@ -42,8 +40,8 @@ class AnalyzerConsoleArgumentsTest {
     @Test
     @DisplayName("TUI shortcut option is parsed correctly")
     void shouldParseTuiShortcutOption() {
-        AnalyzerConsoleArguments arguments =
-                AnalyzerConsoleArguments.parse(new String[] {"-tui", "-sx", "-xd", "/tmp/sqlmap", "-tp"});
+        AnalyzerArgumentsController arguments = AnalyzerArgumentsController
+                .parse(new String[] { "-tui", "-sx", "-xd", "/tmp/sqlmap", "-tp" });
 
         assertEquals(AnalyzerUiMode.TUI, arguments.getUiMode());
         assertTrue(arguments.isTuiMode());
@@ -52,10 +50,9 @@ class AnalyzerConsoleArgumentsTest {
     @Test
     @DisplayName("missing XML directory value is rejected")
     void shouldRejectXmlSourceWithoutDirectory() {
-        IllegalArgumentException exception =
-                assertThrows(
-                        IllegalArgumentException.class,
-                        () -> AnalyzerConsoleArguments.parse(new String[] {"-sx", "-tp"}));
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> AnalyzerArgumentsController.parse(new String[] { "-sx", "-tp" }));
 
         assertTrue(exception.getMessage().contains("-sx requires -xd <xmlDirectory>."));
     }
@@ -63,12 +60,10 @@ class AnalyzerConsoleArgumentsTest {
     @Test
     @DisplayName("duplicate source options are rejected")
     void shouldRejectDuplicateSourceOptions() {
-        IllegalArgumentException exception =
-                assertThrows(
-                        IllegalArgumentException.class,
-                        () ->
-                                AnalyzerConsoleArguments.parse(
-                                        new String[] {"-sx", "-so", "-oj", "jdbc|user|pw", "-tp"}));
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> AnalyzerArgumentsController.parse(
+                        new String[] { "-sx", "-so", "-oj", "jdbc|user|pw", "-tp" }));
 
         assertTrue(exception.getMessage().contains("Only one source option is allowed"));
     }

@@ -1,13 +1,14 @@
 package com.cubrid.sqlanalyzer.command;
 
-import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerProgressEventViewModel;
-import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerProgressStage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.cubrid.sqlanalyzer.command.page.AnalyzerObjectCountPage;
 import com.cubrid.sqlanalyzer.command.page.AnalyzerOverviewPage;
 import com.cubrid.sqlanalyzer.command.page.AnalyzerResultPage;
 import com.cubrid.sqlanalyzer.command.service.AnalyzerService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerProgressEventViewModel;
+import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerProgressStage;
 
 public class AnalyzerConsoleRunner {
     private static final String DEFAULT_XML_CHARSET = "UTF-8";
@@ -33,7 +34,7 @@ public class AnalyzerConsoleRunner {
         io.println("CUBRID SQL Analyzer Console");
         io.println("======================================");
 
-        AnalyzerConsoleConfig session = new AnalyzerConsoleConfig();
+        AnalyzerSession session = new AnalyzerSession();
 
         try {
             selectSource(session);
@@ -60,13 +61,13 @@ public class AnalyzerConsoleRunner {
         }
     }
 
-    public int startAnalyzer(AnalyzerConsoleArguments arguments) {
+    public int startAnalyzer(AnalyzerArgumentsController arguments) {
         LOG.info("Non-interactive console analyzer flow started.");
         io.println("======================================");
         io.println("CUBRID SQL Analyzer Console");
         io.println("======================================");
 
-        AnalyzerConsoleConfig session = new AnalyzerConsoleConfig();
+        AnalyzerSession session = new AnalyzerSession();
 
         try {
             analyzerService.applyArguments(session, arguments);
@@ -86,7 +87,7 @@ public class AnalyzerConsoleRunner {
         }
     }
 
-    private void selectSource(AnalyzerConsoleConfig session) {
+    private void selectSource(AnalyzerSession session) {
         io.println("");
         io.println("[1/4] Select source");
         io.println("1. Oracle JDBC connection");
@@ -108,7 +109,7 @@ public class AnalyzerConsoleRunner {
         }
     }
 
-    private void promptOracleSource(AnalyzerConsoleConfig session) {
+    private void promptOracleSource(AnalyzerSession session) {
         while (true) {
             session.setSourceJdbcUrl(io.readRequired("Oracle JDBC URL: "));
             session.setSourceUser(io.readRequired("Oracle user: "));
@@ -127,13 +128,13 @@ public class AnalyzerConsoleRunner {
         }
     }
 
-    private void promptXmlSource(AnalyzerConsoleConfig session) {
+    private void promptXmlSource(AnalyzerSession session) {
         session.setXmlDirectory(io.readRequired("XML directory path: "));
         String charset = readLineWithDefault("XML charset [UTF-8]: ", DEFAULT_XML_CHARSET);
         session.setXmlCharset(charset.isEmpty() ? DEFAULT_XML_CHARSET : charset);
     }
 
-    private void selectTarget(AnalyzerConsoleConfig session) {
+    private void selectTarget(AnalyzerSession session) {
         io.println("");
         io.println("[2/4] Select target");
         io.println("1. CUBRID JDBC execution");
@@ -154,7 +155,7 @@ public class AnalyzerConsoleRunner {
         }
     }
 
-    private void promptJdbcTarget(AnalyzerConsoleConfig session) {
+    private void promptJdbcTarget(AnalyzerSession session) {
         while (true) {
             session.setTargetJdbcUrl(io.readRequired("Target JDBC URL: "));
             session.setTargetUser(io.readRequired("Target user: "));
@@ -173,7 +174,7 @@ public class AnalyzerConsoleRunner {
         }
     }
 
-    private void printConnectionValidationMessages(AnalyzerConsoleArguments arguments) {
+    private void printConnectionValidationMessages(AnalyzerArgumentsController arguments) {
         if (AnalyzerSourceType.ORACLE.equals(arguments.getSourceType())) {
             io.println("Oracle connection validation succeeded.");
         }
@@ -183,7 +184,7 @@ public class AnalyzerConsoleRunner {
         }
     }
 
-    private void loadSourceCatalog(AnalyzerConsoleConfig session) {
+    private void loadSourceCatalog(AnalyzerSession session) {
         LOG.info("Loading source metadata. sourceType={}", session.getSourceType());
         io.println("");
         io.println("Loading source metadata...");
@@ -195,12 +196,12 @@ public class AnalyzerConsoleRunner {
         }
     }
 
-    private void renderPreviewPages(AnalyzerConsoleConfig session) {
+    private void renderPreviewPages(AnalyzerSession session) {
         overviewPage.render(analyzerService.getOverview(session));
         objectCountPage.render(analyzerService.getObjectCountPreview(session));
     }
 
-    private void runAnalysis(AnalyzerConsoleConfig session) {
+    private void runAnalysis(AnalyzerSession session) {
         LOG.info("Console analysis progress started.");
         io.println("");
         io.println("[4/4] Analysis progress");
@@ -215,7 +216,7 @@ public class AnalyzerConsoleRunner {
         LOG.info("Console analysis progress finished.");
     }
 
-    private void printResult(AnalyzerConsoleConfig session) {
+    private void printResult(AnalyzerSession session) {
         resultPage.render(analyzerService.saveResult(session));
     }
 

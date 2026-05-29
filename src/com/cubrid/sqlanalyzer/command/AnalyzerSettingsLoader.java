@@ -10,12 +10,12 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Properties;
 
-public final class AnalyzerConsoleSettingsLoader {
+public final class AnalyzerSettingsLoader {
     private static final String DEFAULT_SETTINGS_PATH = "settings/setting.conf";
     private static final String WORKSPACE_SETTINGS_PATH = "com.cubrid.SQLAnalyzer/settings/setting.conf";
     private static final String DEFAULT_LOG_DIRECTORY = "logs";
 
-    private AnalyzerConsoleSettingsLoader() {
+    private AnalyzerSettingsLoader() {
     }
 
     public static String[] loadStartupArguments(String[] args) {
