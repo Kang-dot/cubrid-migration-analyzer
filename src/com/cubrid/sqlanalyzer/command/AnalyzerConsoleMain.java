@@ -5,7 +5,6 @@ import java.io.IOException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.cubrid.cubridmigration.core.common.PathUtils;
 import com.cubrid.sqlanalyzer.command.service.AnalyzerService;
 import com.cubrid.sqlanalyzer.command.tui.AnalyzerTuiRunner;
 
@@ -13,7 +12,6 @@ public class AnalyzerConsoleMain {
     private static final Logger LOG = LoggerFactory.getLogger(AnalyzerConsoleMain.class);
 
     public static void main(String[] args) {
-        PathUtils.initPaths();
         AnalyzerLogInitializer.initLog(AnalyzerSettingsLoader.loadLogDirectory(args));
         LOG.info("SQL Analyzer command started. argsCount={}", args == null ? 0 : args.length);
 

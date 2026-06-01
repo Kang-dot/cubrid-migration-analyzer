@@ -5,7 +5,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
-import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.LinkedHashMap;
@@ -319,13 +318,13 @@ public class AnalyzerReport {
         for (Map.Entry<String, StatementTypeSummary> entry : summaries.entrySet()) {
             StatementTypeSummary summary = entry.getValue();
             sb.append(
-                            String.format(
-                                    Locale.US,
-                                    "%-24s %7d %7d %7d",
-                                    entry.getKey(),
-                                    summary.totalCount,
-                                    summary.succeededCount,
-                                    summary.failedCount))
+                    String.format(
+                            Locale.US,
+                            "%-24s %7d %7d %7d",
+                            entry.getKey(),
+                            summary.totalCount,
+                            summary.succeededCount,
+                            summary.failedCount))
                     .append(lineSeparator);
         }
     }
@@ -353,52 +352,7 @@ public class AnalyzerReport {
     }
 
     private File getReportDirectory() {
-        return new File(resolveAnalyzerProjectDirectory(), "report");
-    }
-
-    private File resolveAnalyzerProjectDirectory() {
-        File codeSource = getCodeSourceLocation();
-        File current = codeSource;
-
-        while (current != null) {
-            if ("com.cubrid.SQLAnalyzer".equals(current.getName())) {
-                return current;
-            }
-            current = current.getParentFile();
-        }
-
-        String userDir = System.getProperty("user.dir");
-        if (userDir != null) {
-            File currentDir = new File(userDir);
-            if ("com.cubrid.SQLAnalyzer".equals(currentDir.getName())) {
-                return currentDir;
-            }
-
-            File child = new File(currentDir, "com.cubrid.SQLAnalyzer");
-            if (child.exists()) {
-                return child;
-            }
-        }
-
-        return new File("com.cubrid.SQLAnalyzer").getAbsoluteFile();
-    }
-
-    private File getCodeSourceLocation() {
-        try {
-            return new File(
-                    AnalyzerReport.class
-                            .getProtectionDomain()
-                            .getCodeSource()
-                            .getLocation()
-                            .toURI());
-        } catch (URISyntaxException e) {
-            return new File(
-                    AnalyzerReport.class
-                            .getProtectionDomain()
-                            .getCodeSource()
-                            .getLocation()
-                            .getPath());
-        }
+        return new File(System.getProperty("user.dir"), "report");
     }
 
     private String buildReportFileName() {

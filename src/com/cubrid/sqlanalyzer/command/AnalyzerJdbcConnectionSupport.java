@@ -8,7 +8,6 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import com.cubrid.cubridmigration.core.common.PathUtils;
 import com.cubrid.cubridmigration.core.connection.ConnParameters;
 import com.cubrid.cubridmigration.core.connection.JDBCData;
 import com.cubrid.cubridmigration.core.connection.JDBCUtil;
@@ -187,23 +186,23 @@ public final class AnalyzerJdbcConnectionSupport {
         Set<String> directories = new LinkedHashSet<String>();
         if (jdbcRepositoryRoot != null && !jdbcRepositoryRoot.isEmpty()) {
             directories.add(jdbcRepositoryRoot);
-            directories.add(PathUtils.mergePath(jdbcRepositoryRoot, "oracle"));
-            directories.add(PathUtils.mergePath(jdbcRepositoryRoot, "cubrid"));
+            directories.add(AnalyzerPathUtils.mergePath(jdbcRepositoryRoot, "oracle"));
+            directories.add(AnalyzerPathUtils.mergePath(jdbcRepositoryRoot, "cubrid"));
             return directories.toArray(new String[0]);
         }
 
-        String installPath = PathUtils.getInstallPath();
-        String jdbcLibDir = PathUtils.getJDBCLibDir();
+        String installPath = AnalyzerPathUtils.getInstallPath();
+        String jdbcLibDir = AnalyzerPathUtils.getJdbcLibDir();
 
         if (jdbcLibDir != null && !jdbcLibDir.isEmpty()) {
             directories.add(jdbcLibDir);
-            directories.add(PathUtils.mergePath(jdbcLibDir, "oracle"));
-            directories.add(PathUtils.mergePath(jdbcLibDir, "cubrid"));
+            directories.add(AnalyzerPathUtils.mergePath(jdbcLibDir, "oracle"));
+            directories.add(AnalyzerPathUtils.mergePath(jdbcLibDir, "cubrid"));
         }
 
         if (installPath != null && !installPath.isEmpty()) {
-            directories.add(PathUtils.mergePath(installPath, "ojdbc"));
-            directories.add(PathUtils.mergePath(installPath, "lib"));
+            directories.add(AnalyzerPathUtils.mergePath(installPath, "ojdbc"));
+            directories.add(AnalyzerPathUtils.mergePath(installPath, "lib"));
         }
 
         return directories.toArray(new String[0]);
