@@ -90,7 +90,13 @@ nb-configuration.xml
 *.log
 
 ##############################
-settings
+## settings
 ##############################
 
 settings/
+
+##############################
+## Distribution templates
+##############################
+!src/dist/
+!src/dist/**

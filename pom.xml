@@ -17,14 +17,20 @@
 			<version.dependency.plugin>3.7.1</version.dependency.plugin>
 			<version.resources.plugin>3.3.1</version.resources.plugin>
 			<version.surefire.plugin>3.3.1</version.surefire.plugin>
+			<cubrid.jdbc.version>11.3.2.0053</cubrid.jdbc.version>
+			<dist.dir>${project.build.directory}/analyzer</dist.dir>
+			<cmt.core.jar>${project.basedir}/../cubrid-migration/plugins/com.cubrid.cubridmigration.core/target/com.cubrid.cubridmigration.core-1.0.0-SNAPSHOT.jar</cmt.core.jar>
+			<cmt.configuration.jar>${project.basedir}/../cubrid-migration/plugins/com.cubrid.common.configuration/target/com.cubrid.common.configuration-1.0.0-SNAPSHOT.jar</cmt.configuration.jar>
 	</properties>
 	<build>
+		<finalName>analyzer</finalName>
 		<sourceDirectory>src</sourceDirectory>
 			<resources>
 				<resource>
 					<directory>src</directory>
 					<excludes>
 						<exclude>**/*.java</exclude>
+						<exclude>dist/**</exclude>
 					</excludes>
 				</resource>
 				<resource>
@@ -48,25 +54,47 @@
 		<plugins>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<version>3.4.2</version>
+				<configuration>
+					<outputDirectory>${dist.dir}</outputDirectory>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-dependency-plugin</artifactId>
 				<version>3.7.1</version>
 				<executions>
 					<execution>
-						<id>copy-dependencies</id>
-						<phase>generate-resources</phase>
+						<id>copy-runtime-dependencies</id>
+						<phase>package</phase>
 						<goals>
 							<goal>copy-dependencies</goal>
 						</goals>
-						<configuration>
-							<outputDirectory>${project.basedir}/lib</outputDirectory>
-
-							<excludeGroupIds>org.eclipse.platform,
-								com.cubrid.cubridmigration</excludeGroupIds>
-							<overWriteReleases>false</overWriteReleases>
-							<overWriteSnapshots>false</overWriteSnapshots>
-							<overWriteIfNewer>true</overWriteIfNewer>
-						</configuration>
-					</execution>
+							<configuration>
+								<includeScope>runtime</includeScope>
+								<excludeArtifactIds>cubrid-jdbc</excludeArtifactIds>
+								<outputDirectory>${dist.dir}/lib</outputDirectory>
+							</configuration>
+						</execution>
+						<execution>
+							<id>copy-cubrid-jdbc-driver</id>
+							<phase>package</phase>
+							<goals>
+								<goal>copy</goal>
+							</goals>
+							<configuration>
+								<artifactItems>
+									<artifactItem>
+										<groupId>org.cubrid</groupId>
+										<artifactId>cubrid-jdbc</artifactId>
+										<version>${cubrid.jdbc.version}</version>
+										<type>jar</type>
+										<outputDirectory>${dist.dir}/jdbc</outputDirectory>
+									</artifactItem>
+								</artifactItems>
+							</configuration>
+						</execution>
 				</executions>
 			</plugin>
 				<plugin>
@@ -84,6 +112,87 @@
 						<classpathScope>compile</classpathScope>
 						<includeProjectDependencies>true</includeProjectDependencies>
 					</configuration>
+					<executions>
+						<execution>
+							<id>build-linux-jni</id>
+							<phase>generate-resources</phase>
+							<goals>
+								<goal>exec</goal>
+							</goals>
+							<configuration>
+								<executable>make</executable>
+								<arguments>
+									<argument>-C</argument>
+									<argument>${project.basedir}/jni</argument>
+									<argument>all</argument>
+								</arguments>
+							</configuration>
+						</execution>
+					</executions>
+				</plugin>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-antrun-plugin</artifactId>
+					<version>3.1.0</version>
+					<executions>
+						<execution>
+							<id>prepare-dist</id>
+							<phase>prepare-package</phase>
+							<goals>
+								<goal>run</goal>
+							</goals>
+							<configuration>
+								<target>
+									<delete dir="${dist.dir}"/>
+									<mkdir dir="${dist.dir}/jni"/>
+									<mkdir dir="${dist.dir}/settings"/>
+									<copy file="${project.basedir}/jni/libsqlvalidator.so"
+										todir="${dist.dir}/jni"/>
+									<!-- Remove these copies after the temporary systemPath dependencies
+										are replaced with dependencies from a Maven repository. -->
+									<copy file="${cmt.core.jar}" todir="${dist.dir}/lib"/>
+									<copy file="${cmt.configuration.jar}" todir="${dist.dir}/lib"/>
+									<copy file="${project.basedir}/src/dist/analyzer.sh"
+										todir="${dist.dir}"/>
+									<copy file="${project.basedir}/src/dist/settings/setting.conf"
+										todir="${dist.dir}/settings"/>
+									<copy file="${project.basedir}/src/dist/settings/cost.json"
+										todir="${dist.dir}/settings"/>
+									<chmod file="${dist.dir}/analyzer.sh" perm="755"/>
+									<chmod file="${dist.dir}/jni/libsqlvalidator.so" perm="755"/>
+								</target>
+							</configuration>
+						</execution>
+						<execution>
+							<id>package-linux-distribution</id>
+							<phase>package</phase>
+							<goals>
+								<goal>run</goal>
+							</goals>
+							<configuration>
+								<target>
+									<tar destfile="${project.build.directory}/sql-analyzer-${project.version}-linux-x86_64.tar.gz"
+										compression="gzip"
+										longfile="gnu">
+										<tarfileset dir="${dist.dir}"
+											prefix="sql-analyzer-${project.version}"
+											filemode="0644"
+											dirmode="0755">
+											<exclude name="analyzer.sh"/>
+											<exclude name="jni/libsqlvalidator.so"/>
+										</tarfileset>
+										<tarfileset dir="${dist.dir}"
+											prefix="sql-analyzer-${project.version}"
+											filemode="0755"
+											dirmode="0755">
+											<include name="analyzer.sh"/>
+											<include name="jni/libsqlvalidator.so"/>
+										</tarfileset>
+									</tar>
+								</target>
+							</configuration>
+						</execution>
+					</executions>
 				</plugin>
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
@@ -96,34 +205,13 @@
 		</plugins>
 	</build>
 	<dependencies>
-
-	    <!--
-	    <dependency>
-	        <groupId>com.cubrid.cubridmigration</groupId>
-	        <artifactId>com.cubrid.cubridmigration.ui</artifactId>
-	        <version>1.0.0-SNAPSHOT</version>
-	    </dependency>
-	    
-	    <dependency>
-	        <groupId>com.cubrid.cubridmigration</groupId>
-	        <artifactId>com.cubrid.cubridmigration.core</artifactId>
-	        <version>1.0.0-SNAPSHOT</version>
-	    </dependency>
-	    
-	    <dependency>
-	        <groupId>com.cubrid.cubridmigration</groupId>
-	        <artifactId>com.cubrid.common.configuration</artifactId>
-	        <version>1.0.0-SNAPSHOT</version>
-	    </dependency>
-	    -->
-
 	    <!-- Temporary workspace-local fallback: consume cubrid-migration target jars directly. -->
 	    <dependency>
 	        <groupId>com.cubrid.cubridmigration</groupId>
 	        <artifactId>com.cubrid.cubridmigration.core</artifactId>
 	        <version>1.0.0-SNAPSHOT</version>
 	        <scope>system</scope>
-	        <systemPath>${project.basedir}/../cubrid-migration/plugins/com.cubrid.cubridmigration.core/target/com.cubrid.cubridmigration.core-1.0.0-SNAPSHOT.jar</systemPath>
+	        <systemPath>${cmt.core.jar}</systemPath>
 	    </dependency>
 	    
 	    <dependency>
@@ -131,7 +219,7 @@
 	        <artifactId>com.cubrid.common.configuration</artifactId>
 	        <version>1.0.0-SNAPSHOT</version>
 	        <scope>system</scope>
-	        <systemPath>${project.basedir}/../cubrid-migration/plugins/com.cubrid.common.configuration/target/com.cubrid.common.configuration-1.0.0-SNAPSHOT.jar</systemPath>
+	        <systemPath>${cmt.configuration.jar}</systemPath>
 	    </dependency>
 	    	    
 	    <dependency>
@@ -153,11 +241,11 @@
 		    <scope>compile</scope>
 		</dependency>
 		
-		<dependency>
-			<groupId>org.cubrid</groupId>
-			<artifactId>cubrid-jdbc</artifactId>
-			<version>11.3.2.0053</version>
-		</dependency>
+			<dependency>
+				<groupId>org.cubrid</groupId>
+				<artifactId>cubrid-jdbc</artifactId>
+				<version>${cubrid.jdbc.version}</version>
+			</dependency>
 		
 		<dependency>
 		    <groupId>org.apache.commons</groupId>
