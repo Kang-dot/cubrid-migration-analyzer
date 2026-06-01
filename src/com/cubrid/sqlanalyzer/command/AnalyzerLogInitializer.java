@@ -41,7 +41,7 @@ public final class AnalyzerLogInitializer {
             configurator.setContext(context);
             context.reset();
 
-            Path external = Paths.get("logback.xml");
+            Path external = Paths.get("settings", "logback.xml");
             if (Files.isReadable(external)) {
                 configurator.doConfigure(external.toFile());
                 return;

@@ -158,6 +158,8 @@
 										todir="${dist.dir}/settings"/>
 									<copy file="${project.basedir}/src/dist/settings/cost.json"
 										todir="${dist.dir}/settings"/>
+									<copy file="${project.basedir}/src/dist/settings/logback.xml"
+										todir="${dist.dir}/settings"/>
 									<chmod file="${dist.dir}/analyzer.sh" perm="755"/>
 									<chmod file="${dist.dir}/jni/libsqlvalidator.so" perm="755"/>
 								</target>
