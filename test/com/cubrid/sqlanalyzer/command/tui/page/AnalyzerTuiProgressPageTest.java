@@ -10,8 +10,9 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import com.cubrid.sqlanalyzer.command.tui.page.AnalyzerTuiProgressPage.ProgressView;
+import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerProgressCounts;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerProgressEventViewModel;
-import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerProgressStage;
+import com.cubrid.sqlanalyzer.core.plan.AnalyzerStatement;
 import com.googlecode.lanterna.gui2.Component;
 import com.googlecode.lanterna.gui2.Label;
 import com.googlecode.lanterna.gui2.Panel;
@@ -37,18 +38,11 @@ class AnalyzerTuiProgressPageTest {
 
         for (int i = 1; i <= 6; i++) {
             progressView.update(
-                    new AnalyzerProgressEventViewModel(
-                            AnalyzerProgressStage.STATEMENT_SUCCEEDED,
+                    AnalyzerProgressEventViewModel.statementSucceeded(
                             "[OK] SELECT q" + i,
-                            "SELECT",
-                            "q" + i,
-                            "select " + i,
+                            new AnalyzerStatement("SELECT", "q" + i, "select " + i, i),
                             "parsed",
-                            null,
-                            6,
-                            i,
-                            i,
-                            0));
+                            new AnalyzerProgressCounts(6, i, i, 0)));
         }
 
         String screenText = String.join(

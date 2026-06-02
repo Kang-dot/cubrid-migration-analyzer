@@ -124,7 +124,7 @@ public final class AnalyzerJdbcConnectionSupport {
     }
 
     private static String resolveAndLoadDriver(DatabaseType databaseType) {
-        String[] searchDirectories = getSearchDirectories(databaseType);
+        String[] searchDirectories = getRepositoryDirectories();
         for (String dirPath : searchDirectories) {
             File driver = findDriverJar(dirPath, databaseType);
             if (driver == null) {
@@ -146,10 +146,6 @@ public final class AnalyzerJdbcConnectionSupport {
 
         throw new IllegalStateException(
                 "JDBC driver not found for " + databaseType.getName() + " in configured project directories.");
-    }
-
-    private static String[] getSearchDirectories(DatabaseType databaseType) {
-        return getRepositoryDirectories();
     }
 
     private static File findDriverJar(String directoryPath, DatabaseType databaseType) {

@@ -22,7 +22,7 @@ import com.cubrid.sqlanalyzer.command.AnalyzerFailureStage;
 import com.cubrid.sqlanalyzer.command.AnalyzerSourceType;
 import com.cubrid.sqlanalyzer.command.AnalyzerTargetType;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerProgressEventViewModel;
-import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerProgressStage;
+import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerProgressCounts;
 import com.cubrid.sqlanalyzer.core.AnalyzerConfiguration;
 import com.cubrid.sqlanalyzer.core.cost.AnalyzerCostCalculator;
 import com.cubrid.sqlanalyzer.core.cost.FailureCostCalculator;
@@ -54,18 +54,7 @@ public class AnalyzerExecutionRunner {
         LOG.info("Analysis execution plan built. statementCount={}", totalCount);
         notifyProgress(
                 progressListener,
-                new AnalyzerProgressEventViewModel(
-                        AnalyzerProgressStage.PLANNING,
-                        "Generated SQL statements: " + totalCount,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        totalCount,
-                        0,
-                        0,
-                        0));
+                AnalyzerProgressEventViewModel.planning(totalCount));
         costCalculator.analyzeBeforeExecution(executionPlan, session.getReport());
         if (executionPlan.isEmpty()) {
             LOG.info("Analysis execution ended without statements.");
@@ -75,18 +64,7 @@ public class AnalyzerExecutionRunner {
             session.clearFailures();
             notifyProgress(
                     progressListener,
-                    new AnalyzerProgressEventViewModel(
-                            AnalyzerProgressStage.EMPTY,
-                            "No SQL statements were generated for the selected source/mode.",
-                            null,
-                            null,
-                            null,
-                            null,
-                            null,
-                            totalCount,
-                            0,
-                            0,
-                            0));
+                    AnalyzerProgressEventViewModel.empty(totalCount));
             return;
         }
 
@@ -144,7 +122,8 @@ public class AnalyzerExecutionRunner {
             if (isUnsupportedStatement(statement)) {
                 failed++;
                 objectUnsupportedFailure(
-                        session, progressListener, totalCount, analyzed, succeeded, failed,
+                        session, progressListener,
+                        new AnalyzerProgressCounts(totalCount, analyzed, succeeded, failed),
                         statement);
                 continue;
             }
@@ -161,18 +140,10 @@ public class AnalyzerExecutionRunner {
                                 null);
                 notifyProgress(
                         progressListener,
-                        new AnalyzerProgressEventViewModel(
-                                AnalyzerProgressStage.STATEMENT_SUCCEEDED,
-                                "[OK] " + statement.getType() + " " + statement.getId(),
-                                statement.getType(),
-                                statement.getId(),
-                                statement.getSQL(),
+                        AnalyzerProgressEventViewModel.statementSucceeded(
+                                statement,
                                 "parsed",
-                                null,
-                                totalCount,
-                                analyzed,
-                                succeeded,
-                                failed));
+                                new AnalyzerProgressCounts(totalCount, analyzed, succeeded, failed)));
             } catch (SQLParserException ex) {
                 failed++;
                 String failureMessage = buildFailureMessage(statement.getType(), statement.getId(), ex.getMessage());
@@ -195,18 +166,11 @@ public class AnalyzerExecutionRunner {
                                 AnalyzerFailureStage.PARSER);
                 notifyProgress(
                         progressListener,
-                        new AnalyzerProgressEventViewModel(
-                                AnalyzerProgressStage.STATEMENT_FAILED,
-                                "[FAIL] " + failureMessage,
-                                statement.getType(),
-                                statement.getId(),
-                                statement.getSQL(),
+                        AnalyzerProgressEventViewModel.statementFailed(
+                                statement,
                                 ex.getMessage(),
                                 AnalyzerFailureStage.PARSER,
-                                totalCount,
-                                analyzed,
-                                succeeded,
-                                failed));
+                                new AnalyzerProgressCounts(totalCount, analyzed, succeeded, failed)));
             } catch (Exception ex) {
                 failed++;
                 String failureMessage = buildFailureMessage(statement.getType(), statement.getId(), ex.toString());
@@ -228,18 +192,11 @@ public class AnalyzerExecutionRunner {
                                 AnalyzerFailureStage.PARSER);
                 notifyProgress(
                         progressListener,
-                        new AnalyzerProgressEventViewModel(
-                                AnalyzerProgressStage.STATEMENT_FAILED,
-                                "[FAIL] " + failureMessage,
-                                statement.getType(),
-                                statement.getId(),
-                                statement.getSQL(),
+                        AnalyzerProgressEventViewModel.statementFailed(
+                                statement,
                                 ex.toString(),
                                 AnalyzerFailureStage.PARSER,
-                                totalCount,
-                                analyzed,
-                                succeeded,
-                                failed));
+                                new AnalyzerProgressCounts(totalCount, analyzed, succeeded, failed)));
             }
         }
 
@@ -253,7 +210,8 @@ public class AnalyzerExecutionRunner {
                 analyzed,
                 succeeded,
                 failed);
-        notifyAnalysisCompleted(progressListener, analyzed, succeeded, failed);
+        notifyAnalysisCompleted(progressListener,
+                new AnalyzerProgressCounts(analyzed, analyzed, succeeded, failed));
     }
 
     private void runJdbcAnalysis(
@@ -274,7 +232,8 @@ public class AnalyzerExecutionRunner {
                 if (isUnsupportedStatement(statement)) {
                     failed++;
                     objectUnsupportedFailure(
-                            session, progressListener, totalCount, analyzed, succeeded, failed,
+                            session, progressListener,
+                            new AnalyzerProgressCounts(totalCount, analyzed, succeeded, failed),
                             statement);
                     continue;
                 }
@@ -291,23 +250,10 @@ public class AnalyzerExecutionRunner {
                                     null);
                     notifyProgress(
                             progressListener,
-                            new AnalyzerProgressEventViewModel(
-                                    AnalyzerProgressStage.STATEMENT_SUCCEEDED,
-                                    "[OK] "
-                                            + statement.getType()
-                                            + " "
-                                            + statement.getId()
-                                            + " : "
-                                            + resultSummary,
-                                    statement.getType(),
-                                    statement.getId(),
-                                    statement.getSQL(),
+                            AnalyzerProgressEventViewModel.statementSucceeded(
+                                    statement,
                                     resultSummary,
-                                    null,
-                                    totalCount,
-                                    analyzed,
-                                    succeeded,
-                                    failed));
+                                    new AnalyzerProgressCounts(totalCount, analyzed, succeeded, failed)));
 
                     String cleanupQuery = buildCleanupQuery(session, statement);
                     if (cleanupQuery != null) {
@@ -334,18 +280,11 @@ public class AnalyzerExecutionRunner {
                                     AnalyzerFailureStage.JDBC);
                     notifyProgress(
                             progressListener,
-                            new AnalyzerProgressEventViewModel(
-                                    AnalyzerProgressStage.STATEMENT_FAILED,
-                                    "[FAIL] " + failureMessage,
-                                    statement.getType(),
-                                    statement.getId(),
-                                    statement.getSQL(),
+                            AnalyzerProgressEventViewModel.statementFailed(
+                                    statement,
                                     ex.toString(),
                                     AnalyzerFailureStage.JDBC,
-                                    totalCount,
-                                    analyzed,
-                                    succeeded,
-                                    failed));
+                                    new AnalyzerProgressCounts(totalCount, analyzed, succeeded, failed)));
                 }
             }
             if (!cleanupQueries.isEmpty()) {
@@ -354,10 +293,7 @@ public class AnalyzerExecutionRunner {
                         cleanupQueries,
                         session,
                         progressListener,
-                        totalCount,
-                        analyzed,
-                        succeeded,
-                        failed);
+                        new AnalyzerProgressCounts(totalCount, analyzed, succeeded, failed));
             }
         } catch (Exception ex) {
             throw new RuntimeException("JDBC execution failed to start: " + ex.getMessage(), ex);
@@ -373,7 +309,8 @@ public class AnalyzerExecutionRunner {
                 analyzed,
                 succeeded,
                 failed);
-        notifyAnalysisCompleted(progressListener, analyzed, succeeded, failed);
+        notifyAnalysisCompleted(progressListener,
+                new AnalyzerProgressCounts(analyzed, analyzed, succeeded, failed));
     }
 
     private String executeJdbcStatement(Connection connection, AnalyzerStatement statement)
@@ -409,10 +346,7 @@ public class AnalyzerExecutionRunner {
             List<String> cleanupQueries,
             AnalyzerSession session,
             AnalyzerProgressListener progressListener,
-            int totalCount,
-            int completedCount,
-            int succeededCount,
-            int failedCount) {
+            AnalyzerProgressCounts counts) {
         for (int i = cleanupQueries.size() - 1; i >= 0; i--) {
             String cleanupQuery = cleanupQueries.get(i);
             String cleanupId = "CLEANUP_" + (cleanupQueries.size() - i);
@@ -429,18 +363,7 @@ public class AnalyzerExecutionRunner {
                                 null);
                 notifyProgress(
                         progressListener,
-                        new AnalyzerProgressEventViewModel(
-                                AnalyzerProgressStage.CLEANUP_SUCCEEDED,
-                                "[CLEANUP OK] " + cleanupQuery,
-                                "CLEANUP",
-                                cleanupId,
-                                cleanupQuery,
-                                "cleanup executed",
-                                null,
-                                totalCount,
-                                completedCount,
-                                succeededCount,
-                                failedCount));
+                        AnalyzerProgressEventViewModel.cleanupSucceeded(cleanupId, cleanupQuery, counts));
             } catch (Exception ex) {
                 String failureMessage = "CLEANUP : " + cleanupQuery + " : " + ex.toString();
                 LOG.warn("JDBC cleanup failed. cleanupId={}", cleanupId, ex);
@@ -462,18 +385,12 @@ public class AnalyzerExecutionRunner {
                                 AnalyzerFailureStage.CLEANUP);
                 notifyProgress(
                         progressListener,
-                        new AnalyzerProgressEventViewModel(
-                                AnalyzerProgressStage.CLEANUP_FAILED,
+                        AnalyzerProgressEventViewModel.cleanupFailed(
                                 "[CLEANUP FAIL] " + failureMessage,
-                                "CLEANUP",
                                 cleanupId,
                                 cleanupQuery,
                                 ex.toString(),
-                                AnalyzerFailureStage.CLEANUP,
-                                totalCount,
-                                completedCount,
-                                succeededCount,
-                                failedCount));
+                                counts));
             }
         }
     }
@@ -584,15 +501,7 @@ public class AnalyzerExecutionRunner {
             return helper.getPlcsqlFunctionDropDDL(function, config.isAddUserSchema());
         }
 
-        if (AnalyzerStatementTypes.TYPE_DDL_PK.equals(statement.getType())
-                || AnalyzerStatementTypes.TYPE_DDL_FK.equals(statement.getType())
-                || AnalyzerStatementTypes.TYPE_DDL_INDEX.equals(statement.getType())
-                || AnalyzerStatementTypes.TYPE_DDL_VIEW_ALTER.equals(statement.getType())
-                || AnalyzerStatementTypes.TYPE_DDL_PROC_BODY.equals(statement.getType())
-                || AnalyzerStatementTypes.TYPE_DDL_FUNC_BODY.equals(statement.getType())) {
-            return null;
-        }
-
+        // Remaining DDL types do not require an independent cleanup query.
         return null;
     }
 
@@ -603,10 +512,7 @@ public class AnalyzerExecutionRunner {
     private void objectUnsupportedFailure(
             AnalyzerSession session,
             AnalyzerProgressListener progressListener,
-            int totalCount,
-            int analyzed,
-            int succeeded,
-            int failed,
+            AnalyzerProgressCounts counts,
             AnalyzerStatement statement) {
         String failureMessage = buildFailureMessage(
                 statement.getType(), statement.getId(), TRIGGER_UNSUPPORTED_REASON);
@@ -631,18 +537,11 @@ public class AnalyzerExecutionRunner {
                         AnalyzerFailureStage.UNSUPPORTED);
         notifyProgress(
                 progressListener,
-                new AnalyzerProgressEventViewModel(
-                        AnalyzerProgressStage.STATEMENT_FAILED,
-                        "[FAIL] " + failureMessage,
-                        statement.getType(),
-                        statement.getId(),
-                        statement.getSQL(),
+                AnalyzerProgressEventViewModel.statementFailed(
+                        statement,
                         TRIGGER_UNSUPPORTED_REASON,
                         AnalyzerFailureStage.UNSUPPORTED,
-                        totalCount,
-                        analyzed,
-                        succeeded,
-                        failed));
+                        counts));
     }
 
     private int parseStatementIndex(String id, String prefix) {
@@ -654,26 +553,8 @@ public class AnalyzerExecutionRunner {
     }
 
     private void notifyAnalysisCompleted(
-            AnalyzerProgressListener progressListener, int analyzed, int succeeded, int failed) {
-        notifyProgress(
-                progressListener,
-                new AnalyzerProgressEventViewModel(
-                        AnalyzerProgressStage.COMPLETED,
-                        "Analysis completed. Total="
-                                + analyzed
-                                + ", Success="
-                                + succeeded
-                                + ", Failed="
-                                + failed,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        analyzed,
-                        analyzed,
-                        succeeded,
-                        failed));
+            AnalyzerProgressListener progressListener, AnalyzerProgressCounts counts) {
+        notifyProgress(progressListener, AnalyzerProgressEventViewModel.completed(counts));
     }
 
     private void notifyProgress(AnalyzerProgressListener progressListener, AnalyzerProgressEventViewModel event) {
