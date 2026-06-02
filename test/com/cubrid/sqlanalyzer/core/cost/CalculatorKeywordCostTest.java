@@ -93,6 +93,32 @@ class CalculatorKeywordCostTest extends CostTestSupport {
         }
 
         @Test
+        @DisplayName("nested CHECK expressions are read through their matching parenthesis")
+        void shouldIgnoreNestedNullabilityCheckForTableDdl() {
+                float cost = estimateCost(
+                                AnalyzerStatementTypes.TYPE_DDL_TABLE,
+                                "CREATE TABLE t1 (\n"
+                                                + "    name VARCHAR(20) CHECK (TRIM(name) IS NOT NULL)\n"
+                                                + ")");
+
+                // The nullability-style CHECK is ignored. TABLE keyword weight is still +2.0.
+                assertEquals(2.1f, cost, DELTA);
+        }
+
+        @Test
+        @DisplayName("parentheses inside CHECK string literals do not end the expression")
+        void shouldIgnoreParenthesesInsideCheckStringLiterals() {
+                float cost = estimateCost(
+                                AnalyzerStatementTypes.TYPE_DDL_TABLE,
+                                "CREATE TABLE t1 (\n"
+                                                + "    name VARCHAR(20) CHECK (TRIM(name || ')') IS NOT NULL)\n"
+                                                + ")");
+
+                // The nullability-style CHECK is ignored. TABLE keyword weight is still +2.0.
+                assertEquals(2.1f, cost, DELTA);
+        }
+
+        @Test
         @DisplayName("ENCRYPT adds 20.0 cost for table DDL")
         void shouldAddEncryptCostForTableDdl() {
                 float cost = estimateCost(

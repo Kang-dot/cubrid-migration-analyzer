@@ -81,8 +81,6 @@ public class SqlMapHandler extends DefaultHandler2 implements LexicalHandler {
 	private int count = 0;
 	private int errorCount = 0;
 
-	private DatabaseManager databaseManager = null;
-
 	private OgnlHelper ognlHelper = null;
 
 	private String fileName = null;
@@ -91,9 +89,7 @@ public class SqlMapHandler extends DefaultHandler2 implements LexicalHandler {
 	
 	private QueryDictionary queryDict = null;
 
-	public SqlMapHandler(DatabaseManager databaseManager) {
-		this.databaseManager = databaseManager;
-		
+	public SqlMapHandler() {
 		ognlHelper = new OgnlHelper();
 		parameterMap= new HashMap<String, Object>();
 		queryDict = new QueryDictionary();

@@ -365,7 +365,8 @@ public class FailureCostCalculator implements AnalyzerCostCalculator {
                 continue;
             }
 
-            int nextCloseParenIndex = upperNormalizedSql.indexOf(")", nextOpenParenIndex);
+            int nextCloseParenIndex =
+                    findMatchingCloseParen(upperNormalizedSql, nextOpenParenIndex);
             if (nextCloseParenIndex < 0) {
                 count++;
                 fromIndex += "CHECK".length();
@@ -381,6 +382,48 @@ public class FailureCostCalculator implements AnalyzerCostCalculator {
         }
 
         return count;
+    }
+
+    /**
+     * Finds the closing parenthesis paired with the given opening parenthesis.
+     * Parentheses inside quoted SQL text do not affect the nesting depth.
+     */
+    private int findMatchingCloseParen(String text, int openParenIndex) {
+        int depth = 0;
+        boolean inSingleQuote = false;
+        boolean inDoubleQuote = false;
+
+        for (int i = openParenIndex; i < text.length(); i++) {
+            char ch = text.charAt(i);
+            if (inSingleQuote) {
+                if (ch == '\'' && i + 1 < text.length() && text.charAt(i + 1) == '\'') {
+                    i++;
+                } else if (ch == '\'') {
+                    inSingleQuote = false;
+                }
+                continue;
+            }
+            if (inDoubleQuote) {
+                if (ch == '"' && i + 1 < text.length() && text.charAt(i + 1) == '"') {
+                    i++;
+                } else if (ch == '"') {
+                    inDoubleQuote = false;
+                }
+                continue;
+            }
+
+            if (ch == '\'') {
+                inSingleQuote = true;
+            } else if (ch == '"') {
+                inDoubleQuote = true;
+            } else if (ch == '(') {
+                depth++;
+            } else if (ch == ')' && --depth == 0) {
+                return i;
+            }
+        }
+
+        return -1;
     }
 
     /**

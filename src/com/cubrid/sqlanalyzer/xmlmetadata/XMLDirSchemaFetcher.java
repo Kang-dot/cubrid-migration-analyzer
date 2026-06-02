@@ -19,7 +19,6 @@ import com.cubrid.cubridmigration.core.dbobject.Catalog;
 import com.cubrid.cubridmigration.core.dbobject.SchemaCatalog;
 //import com.cubrid.cubridmigration.core.dbobject.Catalog;
 import com.cubrid.sqlanalyzer.core.dbobject.AnalyzerCatalog;
-import com.cubrid.sqlanalyzer.dmlparser.DatabaseManager;
 import com.cubrid.sqlanalyzer.dmlparser.SqlMapHandler;
 
 public class XMLDirSchemaFetcher implements IDBSchemaInfoFetcher {
@@ -48,8 +47,6 @@ public class XMLDirSchemaFetcher implements IDBSchemaInfoFetcher {
         try {
             try {
                 SAXParserFactory sf = SAXParserFactory.newInstance();
-                DatabaseManager analyzerDBManager = new DatabaseManager();
-                
                 sf.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
         		sf.setNamespaceAware(true);
                 sf.setValidating(false);
@@ -59,7 +56,7 @@ public class XMLDirSchemaFetcher implements IDBSchemaInfoFetcher {
                 //				"http://apache.org/xml/features/continue-after-fatal-error",
                 //				true);
 //                MySQLXMLSchemaParser structReader = new MySQLXMLSchemaParser();
-                SqlMapHandler analyzerHandler = new SqlMapHandler(analyzerDBManager);
+                SqlMapHandler analyzerHandler = new SqlMapHandler();
                 
 //                InputSource is = new InputSource(reader);
                 
