@@ -49,7 +49,7 @@ public class PlcsqlChecker {
 
     private Path findPlcsqlJar() throws SQLParserException {
         String configuredPath = System.getProperty(PLCSQL_JAR_PROPERTY);
-    if (configuredPath != null && !configuredPath.isBlank()) {\
+        if (configuredPath != null && !configuredPath.isBlank()) {
             return requireExistingPath(Paths.get(configuredPath));
         }
 
