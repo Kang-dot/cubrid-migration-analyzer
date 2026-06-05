@@ -198,7 +198,7 @@ public class AnalyzerTuiRunner {
             loading.set(false);
             gui.getGUIThread().invokeLater(
                     () -> showObjectCount(window, gui, session, analyzerService, state));
-        } catch (RuntimeException ex) {
+        } catch (Throwable ex) {
             loading.set(false);
             LOG.error("Failed to load source metadata in TUI worker.", ex);
             gui.getGUIThread().invokeLater(() -> showError(window, ex));
@@ -242,7 +242,7 @@ public class AnalyzerTuiRunner {
                         content.addComponent(resultButton);
                         window.setFocusedInteractable(resultButton);
                     });
-        } catch (RuntimeException ex) {
+        } catch (Throwable ex) {
             LOG.error("Analysis failed in TUI worker.", ex);
             gui.getGUIThread().invokeLater(() -> showError(window, ex));
         }
@@ -256,7 +256,7 @@ public class AnalyzerTuiRunner {
         setContent(window, content, closeButton);
     }
 
-    private void showError(BasicWindow window, RuntimeException ex) {
+    private void showError(BasicWindow window, Throwable ex) {
         LOG.error("Showing TUI error page.", ex);
         Panel content = new Panel();
         content.setLayoutManager(new LinearLayout());

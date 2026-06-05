@@ -31,6 +31,7 @@ import com.cubrid.sqlanalyzer.core.plan.AnalyzerStatement;
 import com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes;
 import com.cubrid.sqlanalyzer.core.plan.CatalogDDLPlanBuilder;
 import com.cubrid.sqlanalyzer.core.plan.QueryDictionaryPlanBuilder;
+import com.cubrid.sqlanalyzer.core.runner.PlcsqlChecker;
 import com.cubrid.sqlanalyzer.core.runner.QueryParser;
 import com.cubrid.sqlanalyzer.core.runner.SQLParserException;
 import org.slf4j.Logger;
@@ -110,6 +111,7 @@ public class AnalyzerExecutionRunner {
             AnalyzerExecutionPlan executionPlan,
             AnalyzerProgressListener progressListener) {
         QueryParser queryParser = new QueryParser();
+        PlcsqlChecker plcsqlChecker = new PlcsqlChecker();
         int totalCount = executionPlan.getStatements().size();
         int analyzed = 0;
         int succeeded = 0;
@@ -128,7 +130,7 @@ public class AnalyzerExecutionRunner {
                 continue;
             }
             try {
-                queryParser.checkSQL(statement.getSQL());
+                checkStatement(queryParser, plcsqlChecker, statement);
                 succeeded++;
                 session.getReport()
                         .addStatementResult(
@@ -212,6 +214,17 @@ public class AnalyzerExecutionRunner {
                 failed);
         notifyAnalysisCompleted(progressListener,
                 new AnalyzerProgressCounts(analyzed, analyzed, succeeded, failed));
+    }
+
+    private void checkStatement(
+            QueryParser queryParser,
+            PlcsqlChecker plcsqlChecker,
+            AnalyzerStatement statement) throws SQLParserException {
+        if (isPlcsqlStatement(statement)) {
+            plcsqlChecker.checkSQL(statement.getSQL());
+            return;
+        }
+        queryParser.checkSQL(statement.getSQL());
     }
 
     private void runJdbcAnalysis(
@@ -507,6 +520,13 @@ public class AnalyzerExecutionRunner {
 
     private boolean isUnsupportedStatement(AnalyzerStatement statement) {
         return AnalyzerStatementTypes.TYPE_DDL_TRIGGER.equals(statement.getType());
+    }
+
+    private boolean isPlcsqlStatement(AnalyzerStatement statement) {
+        return AnalyzerStatementTypes.TYPE_DDL_PROC_HEADER.equals(statement.getType())
+                || AnalyzerStatementTypes.TYPE_DDL_PROC_BODY.equals(statement.getType())
+                || AnalyzerStatementTypes.TYPE_DDL_FUNC_HEADER.equals(statement.getType())
+                || AnalyzerStatementTypes.TYPE_DDL_FUNC_BODY.equals(statement.getType());
     }
 
     private void objectUnsupportedFailure(
