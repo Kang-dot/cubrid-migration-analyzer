@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.TimeZone;
 
 import com.cubrid.cubridmigration.cubrid.CUBRIDTimeUtil;
+import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerObjectCountPreviewViewModel;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerOverviewViewModel;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerSourceOverviewViewModel;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerTargetOverviewViewModel;
@@ -69,6 +70,7 @@ public class AnalyzerReport {
     private final List<AnalyzerFailure> failures = new ArrayList<AnalyzerFailure>();
     private final List<StatementResult> statementResults = new ArrayList<StatementResult>();
     private AnalyzerOverviewViewModel overview;
+    private AnalyzerObjectCountPreviewViewModel objectCountPreview;
 
     public AnalyzerSourceType getSourceType() {
         return sourceType;
@@ -160,6 +162,14 @@ public class AnalyzerReport {
         this.overview = overview;
     }
 
+    public AnalyzerObjectCountPreviewViewModel getObjectCountPreview() {
+        return objectCountPreview;
+    }
+
+    public void setObjectCountPreview(AnalyzerObjectCountPreviewViewModel objectCountPreview) {
+        this.objectCountPreview = objectCountPreview;
+    }
+
     public String saveResultReport() {
         try {
             File reportDir = getReportDirectory();
@@ -185,6 +195,7 @@ public class AnalyzerReport {
         StringBuilder sb = new StringBuilder();
 
         appendOverview(sb, lineSeparator);
+        appendObjectCountPreview(sb, lineSeparator);
 
         sb.append("Result summary").append(lineSeparator);
         sb.append("Source : ").append(sourceType).append(lineSeparator);
@@ -229,6 +240,57 @@ public class AnalyzerReport {
         appendSourceOverview(sb, overview.source(), lineSeparator);
         appendTargetOverview(sb, overview.source(), overview.target(), lineSeparator);
         sb.append("Mode        : ").append(overview.executionMode()).append(lineSeparator);
+        sb.append(lineSeparator);
+    }
+
+    private void appendObjectCountPreview(StringBuilder sb, String lineSeparator) {
+        if (objectCountPreview == null) {
+            return;
+        }
+
+        sb.append("Object count preview").append(lineSeparator);
+        if (objectCountPreview.sourceType() == AnalyzerSourceType.ORACLE) {
+            sb.append("Catalog schemas : ")
+                    .append(objectCountPreview.catalogSchemaCount())
+                    .append(lineSeparator);
+            sb.append("Target tables   : ")
+                    .append(objectCountPreview.targetTableCount())
+                    .append(lineSeparator);
+            sb.append("Target PKs      : ")
+                    .append(objectCountPreview.targetPkCount())
+                    .append(lineSeparator);
+            sb.append("Target FKs      : ")
+                    .append(objectCountPreview.targetFkCount())
+                    .append(lineSeparator);
+            sb.append("Target views    : ")
+                    .append(objectCountPreview.targetViewCount())
+                    .append(lineSeparator);
+            sb.append("Target serials  : ")
+                    .append(objectCountPreview.targetSerialCount())
+                    .append(lineSeparator);
+            sb.append("Target synonyms : ")
+                    .append(objectCountPreview.targetSynonymCount())
+                    .append(lineSeparator);
+            sb.append("Target grants   : ")
+                    .append(objectCountPreview.targetGrantCount())
+                    .append(lineSeparator);
+            sb.append("Target procs    : ")
+                    .append(objectCountPreview.targetProcedureCount())
+                    .append(lineSeparator);
+            sb.append("Target funcs    : ")
+                    .append(objectCountPreview.targetFunctionCount())
+                    .append(lineSeparator);
+            sb.append("Target triggers : ")
+                    .append(objectCountPreview.targetTriggerCount())
+                    .append(lineSeparator);
+            sb.append(lineSeparator);
+            return;
+        }
+
+        sb.append("SELECT count    : ").append(objectCountPreview.selectCount()).append(lineSeparator);
+        sb.append("INSERT count    : ").append(objectCountPreview.insertCount()).append(lineSeparator);
+        sb.append("UPDATE count    : ").append(objectCountPreview.updateCount()).append(lineSeparator);
+        sb.append("DELETE count    : ").append(objectCountPreview.deleteCount()).append(lineSeparator);
         sb.append(lineSeparator);
     }
 

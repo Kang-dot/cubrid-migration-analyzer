@@ -39,7 +39,6 @@ import org.slf4j.LoggerFactory;
 
 public class AnalyzerExecutionRunner {
     private static final Logger LOG = LoggerFactory.getLogger(AnalyzerExecutionRunner.class);
-    private static final String TRIGGER_UNSUPPORTED_REASON = "Trigger migration is not supported.";
 
     private final AnalyzerCostCalculator costCalculator = new FailureCostCalculator();
 
@@ -126,7 +125,8 @@ public class AnalyzerExecutionRunner {
                 objectUnsupportedFailure(
                         session, progressListener,
                         new AnalyzerProgressCounts(totalCount, analyzed, succeeded, failed),
-                        statement);
+                        statement,
+                        AnalyzerUnsupportedStatementPolicy.getUnsupportedReason(statement));
                 continue;
             }
             try {
@@ -248,7 +248,8 @@ public class AnalyzerExecutionRunner {
                     objectUnsupportedFailure(
                             session, progressListener,
                             new AnalyzerProgressCounts(totalCount, analyzed, succeeded, failed),
-                            statement);
+                            statement,
+                            AnalyzerUnsupportedStatementPolicy.getUnsupportedReason(statement));
                     continue;
                 }
                 try {
@@ -571,7 +572,7 @@ public class AnalyzerExecutionRunner {
     }
 
     private boolean isUnsupportedStatement(AnalyzerStatement statement) {
-        return AnalyzerStatementTypes.TYPE_DDL_TRIGGER.equals(statement.getType());
+        return AnalyzerUnsupportedStatementPolicy.getUnsupportedReason(statement) != null;
     }
 
     private boolean isPlcsqlStatement(AnalyzerStatement statement) {
@@ -585,19 +586,20 @@ public class AnalyzerExecutionRunner {
             AnalyzerSession session,
             AnalyzerProgressListener progressListener,
             AnalyzerProgressCounts counts,
-            AnalyzerStatement statement) {
+            AnalyzerStatement statement,
+            String reason) {
         String failureMessage = buildFailureMessage(
-                statement.getType(), statement.getId(), TRIGGER_UNSUPPORTED_REASON);
+                statement.getType(), statement.getId(), reason);
         LOG.warn(
                 "Analysis skipped unsupported statement. statementType={}, statementId={}, reason={}",
                 statement.getType(),
                 statement.getId(),
-                TRIGGER_UNSUPPORTED_REASON);
+                reason);
         session.addFailureMessage(failureMessage);
         session.addFailure(
                 buildFailure(
                         statement,
-                        TRIGGER_UNSUPPORTED_REASON,
+                        reason,
                         AnalyzerFailureStage.UNSUPPORTED));
         session.getReport()
                 .addStatementResult(
@@ -605,13 +607,13 @@ public class AnalyzerExecutionRunner {
                         statement.getId(),
                         statement.getSQL(),
                         false,
-                        TRIGGER_UNSUPPORTED_REASON,
+                        reason,
                         AnalyzerFailureStage.UNSUPPORTED);
         notifyProgress(
                 progressListener,
                 AnalyzerProgressEventViewModel.statementFailed(
                         statement,
-                        TRIGGER_UNSUPPORTED_REASON,
+                        reason,
                         AnalyzerFailureStage.UNSUPPORTED,
                         counts));
     }

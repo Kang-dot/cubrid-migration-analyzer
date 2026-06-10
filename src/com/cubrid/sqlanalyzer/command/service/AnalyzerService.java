@@ -193,6 +193,7 @@ public class AnalyzerService {
         LOG.info("Saving analyzer result report.");
         AnalyzerReport report = session.getReport();
         report.setOverview(viewModelBuilder.buildOverview(session));
+        report.setObjectCountPreview(viewModelBuilder.buildObjectCountPreview(session));
         String savedReportPath = report.saveResultReport();
         LOG.info("Analyzer result report saved. path={}", savedReportPath);
         return viewModelBuilder.buildResult(report, savedReportPath);

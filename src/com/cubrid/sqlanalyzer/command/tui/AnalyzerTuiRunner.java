@@ -31,13 +31,23 @@ public class AnalyzerTuiRunner {
     private static final int METADATA_LOADING_TICK_MILLIS = 1000;
     private static final Logger LOG = LoggerFactory.getLogger(AnalyzerTuiRunner.class);
 
+    private final TerminalSize initialTerminalSize;
     private final AnalyzerTuiOverviewPage overviewPage;
     private final AnalyzerTuiObjectCountPage objectCountPage;
     private final AnalyzerTuiProgressPage progressPage;
     private final AnalyzerTuiResultPage resultPage;
 
     public AnalyzerTuiRunner() {
+        this(DEFAULT_TERMINAL_SIZE);
+    }
+
+    public AnalyzerTuiRunner(int terminalWidth, int terminalHeight) {
+        this(new TerminalSize(terminalWidth, terminalHeight));
+    }
+
+    private AnalyzerTuiRunner(TerminalSize initialTerminalSize) {
         this(
+                initialTerminalSize,
                 new AnalyzerTuiOverviewPage(),
                 new AnalyzerTuiObjectCountPage(),
                 new AnalyzerTuiProgressPage(),
@@ -45,10 +55,12 @@ public class AnalyzerTuiRunner {
     }
 
     AnalyzerTuiRunner(
+            TerminalSize initialTerminalSize,
             AnalyzerTuiOverviewPage overviewPage,
             AnalyzerTuiObjectCountPage objectCountPage,
             AnalyzerTuiProgressPage progressPage,
             AnalyzerTuiResultPage resultPage) {
+        this.initialTerminalSize = initialTerminalSize;
         this.overviewPage = overviewPage;
         this.objectCountPage = objectCountPage;
         this.progressPage = progressPage;
@@ -58,7 +70,7 @@ public class AnalyzerTuiRunner {
     public void start(AnalyzerSession session, AnalyzerService analyzerService) throws IOException {
         LOG.info("Starting TUI runner.");
         try (Screen screen = new DefaultTerminalFactory()
-                .setInitialTerminalSize(DEFAULT_TERMINAL_SIZE)
+                .setInitialTerminalSize(initialTerminalSize)
                 .createScreen()) {
             screen.startScreen();
             MultiWindowTextGUI gui = new MultiWindowTextGUI(screen);
@@ -73,7 +85,7 @@ public class AnalyzerTuiRunner {
 
     public void showOverview(AnalyzerOverviewViewModel overview) throws IOException {
         try (Screen screen = new DefaultTerminalFactory()
-                .setInitialTerminalSize(DEFAULT_TERMINAL_SIZE)
+                .setInitialTerminalSize(initialTerminalSize)
                 .createScreen()) {
             screen.startScreen();
             MultiWindowTextGUI gui = new MultiWindowTextGUI(screen);

@@ -9,6 +9,8 @@ import com.beust.jcommander.ParameterException;
 
 public class AnalyzerArgumentsController {
     private static final String DEFAULT_XML_CHARSET = "UTF-8";
+    private static final int DEFAULT_TUI_WIDTH = 100;
+    private static final int DEFAULT_TUI_HEIGHT = 30;
 
     private boolean interactive = true;
 
@@ -20,6 +22,12 @@ public class AnalyzerArgumentsController {
 
     @Parameter(names = "-tui", description = "Shortcut for -ui tui")
     private boolean tuiMode;
+
+    @Parameter(names = { "-tw", "--tui-width" }, description = "TUI initial terminal width. Default: 100")
+    private int tuiWidth = DEFAULT_TUI_WIDTH;
+
+    @Parameter(names = { "-th", "--tui-height" }, description = "TUI initial terminal height. Default: 30")
+    private int tuiHeight = DEFAULT_TUI_HEIGHT;
 
     private AnalyzerUiMode uiMode = AnalyzerUiMode.CONSOLE;
     private AnalyzerSourceType sourceType;
@@ -111,6 +119,10 @@ public class AnalyzerArgumentsController {
                 + "  -ui <mode>   UI mode: console or tui. Default: console"
                 + System.lineSeparator()
                 + "  -tui         Shortcut for -ui tui" + System.lineSeparator()
+                + "  -tw <num>    TUI initial terminal width. Default: 100"
+                + System.lineSeparator()
+                + "  -th <num>    TUI initial terminal height. Default: 30"
+                + System.lineSeparator()
                 + "  -jr <path>   Optional JDBC driver repository directory"
                 + System.lineSeparator()
                 + "  -so          Source is Oracle JDBC" + System.lineSeparator()
@@ -138,6 +150,14 @@ public class AnalyzerArgumentsController {
 
     public boolean isTuiMode() {
         return uiMode == AnalyzerUiMode.TUI;
+    }
+
+    public int getTuiWidth() {
+        return tuiWidth;
+    }
+
+    public int getTuiHeight() {
+        return tuiHeight;
     }
 
     public AnalyzerSourceType getSourceType() {
@@ -259,6 +279,15 @@ public class AnalyzerArgumentsController {
     }
 
     private void validate() {
+        if (tuiWidth <= 0) {
+            throw new IllegalArgumentException(
+                    "-tw must be greater than 0." + System.lineSeparator() + usage());
+        }
+        if (tuiHeight <= 0) {
+            throw new IllegalArgumentException(
+                    "-th must be greater than 0." + System.lineSeparator() + usage());
+        }
+
         if (sourceType == null) {
             throw new IllegalArgumentException("Source option is required." + System.lineSeparator() + usage());
         }

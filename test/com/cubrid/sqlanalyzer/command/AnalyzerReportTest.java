@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerObjectCountPreviewViewModel;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerOverviewViewModel;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerSourceOverviewViewModel;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerTargetOverviewViewModel;
@@ -117,6 +118,88 @@ class AnalyzerReportTest {
         assertEquals(2, countOccurrences(resultText, "XML files   : 3"));
         assertTrue(resultText.contains("Mode        : DML"));
         assertTrue(resultText.contains("Result summary"));
+    }
+
+    @Test
+    @DisplayName("result text includes zero object counts for empty Oracle catalog")
+    void shouldBuildResultTextWithZeroOracleObjectCounts() {
+        AnalyzerReport report = new AnalyzerReport();
+        report.setSourceType(AnalyzerSourceType.ORACLE);
+        report.setTargetType(AnalyzerTargetType.PARSER);
+        report.setExecutionMode(AnalyzerExecutionMode.DDL);
+        report.setAnalyzedStatementCount(0);
+        report.setSucceededStatementCount(0);
+        report.setFailedStatementCount(0);
+        report.setObjectCountPreview(
+                new AnalyzerObjectCountPreviewViewModel(
+                        AnalyzerSourceType.ORACLE,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0));
+
+        String resultText = report.buildResultText();
+
+        assertTrue(resultText.contains("Object count preview"));
+        assertTrue(resultText.contains("Catalog schemas : 0"));
+        assertTrue(resultText.contains("Target tables   : 0"));
+        assertTrue(resultText.contains("Target PKs      : 0"));
+        assertTrue(resultText.contains("Target FKs      : 0"));
+        assertTrue(resultText.contains("Target views    : 0"));
+        assertTrue(resultText.contains("Target serials  : 0"));
+        assertTrue(resultText.contains("Target synonyms : 0"));
+        assertTrue(resultText.contains("Target grants   : 0"));
+        assertTrue(resultText.contains("Target procs    : 0"));
+        assertTrue(resultText.contains("Target funcs    : 0"));
+        assertTrue(resultText.contains("Target triggers : 0"));
+        assertTrue(resultText.contains("Object execution summary"));
+        assertTrue(resultText.contains("(none)"));
+    }
+
+    @Test
+    @DisplayName("result text includes zero query counts for empty XML source")
+    void shouldBuildResultTextWithZeroXmlQueryCounts() {
+        AnalyzerReport report = new AnalyzerReport();
+        report.setSourceType(AnalyzerSourceType.XML);
+        report.setTargetType(AnalyzerTargetType.PARSER);
+        report.setExecutionMode(AnalyzerExecutionMode.DML);
+        report.setObjectCountPreview(
+                new AnalyzerObjectCountPreviewViewModel(
+                        AnalyzerSourceType.XML,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0));
+
+        String resultText = report.buildResultText();
+
+        assertTrue(resultText.contains("Object count preview"));
+        assertTrue(resultText.contains("SELECT count    : 0"));
+        assertTrue(resultText.contains("INSERT count    : 0"));
+        assertTrue(resultText.contains("UPDATE count    : 0"));
+        assertTrue(resultText.contains("DELETE count    : 0"));
     }
 
     private int countOccurrences(String text, String pattern) {

@@ -4,11 +4,18 @@
 	<artifactId>SQLAnalyzer</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
   
-  	<repositories>
+	<repositories>
+		<repository>
+			<id>sqlanalyzer-local-cmt</id>
+			<url>file://${project.basedir}/lib/m2repo</url>
+		</repository>
 	    <repository>
 	        <id>eclipse-nebula</id>
 	        <url>https://download.eclipse.org/nebula/releases/latest</url>
 	        <layout>p2</layout>
+	        <snapshots>
+	        	<enabled>false</enabled>
+	        </snapshots>
 	    </repository>
 	</repositories>
 	
@@ -19,10 +26,25 @@
 			<version.surefire.plugin>3.3.1</version.surefire.plugin>
 			<cubrid.jdbc.version>11.3.2.0053</cubrid.jdbc.version>
 			<dist.dir>${project.build.directory}/analyzer</dist.dir>
-			<cmt.core.jar>${project.basedir}/../cubrid-migration/plugins/com.cubrid.cubridmigration.core/target/com.cubrid.cubridmigration.core-1.0.0-SNAPSHOT.jar</cmt.core.jar>
-			<cmt.configuration.jar>${project.basedir}/../cubrid-migration/plugins/com.cubrid.common.configuration/target/com.cubrid.common.configuration-1.0.0-SNAPSHOT.jar</cmt.configuration.jar>
-			<pl.server.jar>${project.basedir}/pl_server/pl_server.jar</pl.server.jar>
+			<cmt.version>1.0.0-analyzer-SNAPSHOT</cmt.version>
+			<pl.server.version>4.13.2-test</pl.server.version>
+			<antlr4.version>4.13.2</antlr4.version>
+			<antlr3.runtime.version>3.5.3</antlr3.runtime.version>
 	</properties>
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>org.antlr</groupId>
+				<artifactId>antlr4-runtime</artifactId>
+				<version>${antlr4.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.antlr</groupId>
+				<artifactId>antlr-runtime</artifactId>
+				<version>${antlr3.runtime.version}</version>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
 	<build>
 		<finalName>analyzer</finalName>
 		<sourceDirectory>src</sourceDirectory>
@@ -74,8 +96,27 @@
 						</goals>
 							<configuration>
 								<includeScope>runtime</includeScope>
-								<excludeArtifactIds>cubrid-jdbc</excludeArtifactIds>
+								<excludeArtifactIds>cubrid-jdbc,pl-server</excludeArtifactIds>
 								<outputDirectory>${dist.dir}/lib</outputDirectory>
+							</configuration>
+						</execution>
+						<execution>
+							<id>copy-pl-server</id>
+							<phase>package</phase>
+							<goals>
+								<goal>copy</goal>
+							</goals>
+							<configuration>
+								<artifactItems>
+									<artifactItem>
+										<groupId>com.cubrid</groupId>
+										<artifactId>pl-server</artifactId>
+										<version>${pl.server.version}</version>
+										<type>jar</type>
+										<outputDirectory>${dist.dir}/lib</outputDirectory>
+										<destFileName>pl_server.jar</destFileName>
+									</artifactItem>
+								</artifactItems>
 							</configuration>
 						</execution>
 						<execution>
@@ -98,47 +139,35 @@
 						</execution>
 				</executions>
 			</plugin>
-				<plugin>
-					<artifactId>maven-compiler-plugin</artifactId>
-					<version>3.13.0</version>
-					<configuration>
-						<release>21</release>
-					</configuration>
-				</plugin>
-				<plugin>
-					<groupId>org.codehaus.mojo</groupId>
-					<artifactId>exec-maven-plugin</artifactId>
-					<version>3.5.1</version>
-					<configuration>
-						<classpathScope>compile</classpathScope>
-						<includeProjectDependencies>true</includeProjectDependencies>
-					</configuration>
-					<executions>
-						<execution>
-							<id>build-linux-jni</id>
-							<phase>generate-resources</phase>
-							<goals>
-								<goal>exec</goal>
-							</goals>
-							<configuration>
-								<executable>make</executable>
-								<arguments>
-									<argument>-C</argument>
-									<argument>${project.basedir}/jni</argument>
-									<argument>all</argument>
-								</arguments>
-							</configuration>
-						</execution>
-					</executions>
-				</plugin>
-				<plugin>
-					<groupId>org.apache.maven.plugins</groupId>
-					<artifactId>maven-antrun-plugin</artifactId>
-					<version>3.1.0</version>
-					<executions>
-						<execution>
-							<id>prepare-dist</id>
-							<phase>prepare-package</phase>
+					<plugin>
+						<artifactId>maven-compiler-plugin</artifactId>
+						<version>3.13.0</version>
+						<configuration>
+							<release>21</release>
+						</configuration>
+					</plugin>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-antrun-plugin</artifactId>
+						<version>3.1.0</version>
+						<executions>
+							<execution>
+								<id>build-linux-jni</id>
+								<phase>generate-resources</phase>
+								<goals>
+									<goal>run</goal>
+								</goals>
+								<configuration>
+									<target>
+										<exec executable="make" dir="${project.basedir}/jni" failonerror="true">
+											<arg value="all"/>
+										</exec>
+									</target>
+								</configuration>
+							</execution>
+							<execution>
+								<id>prepare-dist</id>
+								<phase>prepare-package</phase>
 							<goals>
 								<goal>run</goal>
 							</goals>
@@ -146,15 +175,10 @@
 								<target>
 									<delete dir="${dist.dir}"/>
 									<mkdir dir="${dist.dir}/jni"/>
-									<mkdir dir="${dist.dir}/pl_server"/>
+									<mkdir dir="${dist.dir}/lib"/>
 									<mkdir dir="${dist.dir}/settings"/>
 									<copy file="${project.basedir}/jni/libsqlvalidator.so"
 										todir="${dist.dir}/jni"/>
-									<!-- Remove these copies after the temporary systemPath dependencies
-										are replaced with dependencies from a Maven repository. -->
-									<copy file="${cmt.core.jar}" todir="${dist.dir}/lib"/>
-									<copy file="${cmt.configuration.jar}" todir="${dist.dir}/lib"/>
-									<copy file="${pl.server.jar}" todir="${dist.dir}/pl_server"/>
 									<copy file="${project.basedir}/src/dist/analyzer.sh"
 										todir="${dist.dir}"/>
 									<copy file="${project.basedir}/src/dist/settings/setting.conf"
@@ -210,34 +234,38 @@
 		</plugins>
 	</build>
 	<dependencies>
-	    <!-- Temporary workspace-local fallback: consume cubrid-migration target jars directly. -->
 	    <dependency>
 	        <groupId>com.cubrid.cubridmigration</groupId>
 	        <artifactId>com.cubrid.cubridmigration.core</artifactId>
-	        <version>1.0.0-SNAPSHOT</version>
-	        <scope>system</scope>
-	        <systemPath>${cmt.core.jar}</systemPath>
+	        <version>${cmt.version}</version>
 	    </dependency>
 	    
 	    <dependency>
 	        <groupId>com.cubrid.cubridmigration</groupId>
 	        <artifactId>com.cubrid.common.configuration</artifactId>
-	        <version>1.0.0-SNAPSHOT</version>
-	        <scope>system</scope>
-	        <systemPath>${cmt.configuration.jar}</systemPath>
+	        <version>${cmt.version}</version>
 	    </dependency>
 
-	    <dependency>
-	        <groupId>org.apache.commons</groupId>
-	        <artifactId>commons-lang3</artifactId>
-	        <version>3.18.0</version>
-	    </dependency>
-	    
 	    <dependency>
 	        <groupId>com.beust</groupId>
 	        <artifactId>jcommander</artifactId>
 	        <version>1.82</version>
 	    </dependency>
+		<dependency>
+			<groupId>com.cubrid</groupId>
+			<artifactId>pl-server</artifactId>
+			<version>${pl.server.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.antlr</groupId>
+			<artifactId>antlr4-runtime</artifactId>
+			<version>${antlr4.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.antlr</groupId>
+			<artifactId>antlr-runtime</artifactId>
+			<version>${antlr3.runtime.version}</version>
+		</dependency>
 	    
 		<dependency>
 		    <groupId>org.mybatis</groupId>
@@ -252,18 +280,6 @@
 				<version>${cubrid.jdbc.version}</version>
 			</dependency>
 		
-		<dependency>
-		    <groupId>org.apache.commons</groupId>
-		    <artifactId>commons-collections4</artifactId>
-		    <version>4.5.0</version>
-		</dependency>
-
-		<!-- https://mvnrepository.com/artifact/jakarta.inject/jakarta.inject-api -->
-		<dependency>
-		    <groupId>jakarta.inject</groupId>
-		    <artifactId>jakarta.inject-api</artifactId>
-		    <version>2.0.1</version>
-		</dependency>
 		<dependency>
 			<groupId>org.slf4j</groupId>
 			<artifactId>slf4j-api</artifactId>
@@ -283,11 +299,6 @@
 			<groupId>org.mongodb</groupId>
 			<artifactId>bson</artifactId>
 			<version>5.6.0</version>
-		</dependency>
-		<dependency>
-			<groupId>org.antlr</groupId>
-			<artifactId>antlr4-runtime</artifactId>
-			<version>4.13.2</version>
 		</dependency>
 		<dependency>
 			<groupId>com.googlecode.lanterna</groupId>

@@ -25,6 +25,8 @@ class AnalyzerArgumentsControllerTest {
         assertEquals("/tmp/sqlmap", arguments.getXmlDirectory());
         assertEquals(AnalyzerTargetType.PARSER, arguments.getTargetType());
         assertEquals("UTF-8", arguments.getXmlCharset());
+        assertEquals(100, arguments.getTuiWidth());
+        assertEquals(30, arguments.getTuiHeight());
     }
 
     @Test
@@ -35,6 +37,27 @@ class AnalyzerArgumentsControllerTest {
 
         assertEquals(AnalyzerUiMode.TUI, arguments.getUiMode());
         assertTrue(arguments.isTuiMode());
+    }
+
+    @Test
+    @DisplayName("TUI terminal size options are parsed correctly")
+    void shouldParseTuiTerminalSizeOptions() {
+        AnalyzerArgumentsController arguments = AnalyzerArgumentsController.parse(
+                new String[] {
+                        "-ui",
+                        "tui",
+                        "-tw",
+                        "120",
+                        "-th",
+                        "40",
+                        "-sx",
+                        "-xd",
+                        "/tmp/sqlmap",
+                        "-tp"
+                });
+
+        assertEquals(120, arguments.getTuiWidth());
+        assertEquals(40, arguments.getTuiHeight());
     }
 
     @Test
@@ -66,5 +89,16 @@ class AnalyzerArgumentsControllerTest {
                         new String[] { "-sx", "-so", "-oj", "jdbc|user|pw", "-tp" }));
 
         assertTrue(exception.getMessage().contains("Only one source option is allowed"));
+    }
+
+    @Test
+    @DisplayName("non-positive TUI terminal size is rejected")
+    void shouldRejectNonPositiveTuiTerminalSize() {
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> AnalyzerArgumentsController.parse(
+                        new String[] { "-tui", "-tw", "0", "-sx", "-xd", "/tmp/sqlmap", "-tp" }));
+
+        assertTrue(exception.getMessage().contains("-tw must be greater than 0."));
     }
 }
