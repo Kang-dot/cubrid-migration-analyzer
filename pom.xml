@@ -5,10 +5,6 @@
 	<version>0.0.1-SNAPSHOT</version>
   
 	<repositories>
-		<repository>
-			<id>sqlanalyzer-local-cmt</id>
-			<url>file://${project.basedir}/lib/m2repo</url>
-		</repository>
 	    <repository>
 	        <id>eclipse-nebula</id>
 	        <url>https://download.eclipse.org/nebula/releases/latest</url>
@@ -26,25 +22,9 @@
 			<version.surefire.plugin>3.3.1</version.surefire.plugin>
 			<cubrid.jdbc.version>11.3.2.0053</cubrid.jdbc.version>
 			<dist.dir>${project.build.directory}/analyzer</dist.dir>
-			<cmt.version>1.0.0-analyzer-SNAPSHOT</cmt.version>
-			<pl.server.version>4.13.2-test</pl.server.version>
-			<antlr4.version>4.13.2</antlr4.version>
-			<antlr3.runtime.version>3.5.3</antlr3.runtime.version>
+			<cmt.version>1.0.0-SNAPSHOT</cmt.version>
+			<pl.server.jar>${project.basedir}/pl_server/pl_server.jar</pl.server.jar>
 	</properties>
-	<dependencyManagement>
-		<dependencies>
-			<dependency>
-				<groupId>org.antlr</groupId>
-				<artifactId>antlr4-runtime</artifactId>
-				<version>${antlr4.version}</version>
-			</dependency>
-			<dependency>
-				<groupId>org.antlr</groupId>
-				<artifactId>antlr-runtime</artifactId>
-				<version>${antlr3.runtime.version}</version>
-			</dependency>
-		</dependencies>
-	</dependencyManagement>
 	<build>
 		<finalName>analyzer</finalName>
 		<sourceDirectory>src</sourceDirectory>
@@ -96,27 +76,8 @@
 						</goals>
 							<configuration>
 								<includeScope>runtime</includeScope>
-								<excludeArtifactIds>cubrid-jdbc,pl-server</excludeArtifactIds>
+								<excludeArtifactIds>cubrid-jdbc</excludeArtifactIds>
 								<outputDirectory>${dist.dir}/lib</outputDirectory>
-							</configuration>
-						</execution>
-						<execution>
-							<id>copy-pl-server</id>
-							<phase>package</phase>
-							<goals>
-								<goal>copy</goal>
-							</goals>
-							<configuration>
-								<artifactItems>
-									<artifactItem>
-										<groupId>com.cubrid</groupId>
-										<artifactId>pl-server</artifactId>
-										<version>${pl.server.version}</version>
-										<type>jar</type>
-										<outputDirectory>${dist.dir}/lib</outputDirectory>
-										<destFileName>pl_server.jar</destFileName>
-									</artifactItem>
-								</artifactItems>
 							</configuration>
 						</execution>
 						<execution>
@@ -187,6 +148,11 @@
 										todir="${dist.dir}/settings"/>
 									<copy file="${project.basedir}/src/dist/settings/logback.xml"
 										todir="${dist.dir}/settings"/>
+									<available file="${pl.server.jar}" property="pl.server.jar.exists"/>
+									<fail unless="pl.server.jar.exists"
+										message="pl_server jar is missing: ${pl.server.jar}"/>
+									<copy file="${pl.server.jar}"
+										tofile="${dist.dir}/lib/pl_server.jar"/>
 									<chmod file="${dist.dir}/analyzer.sh" perm="755"/>
 									<chmod file="${dist.dir}/jni/libsqlvalidator.so" perm="755"/>
 								</target>
@@ -233,6 +199,17 @@
 				</plugin>
 		</plugins>
 	</build>
+	<profiles>
+		<profile>
+			<id>dev-prebuilt-artifacts</id>
+			<repositories>
+				<repository>
+					<id>sqlanalyzer-local-artifacts</id>
+					<url>file://${project.basedir}/lib/m2repo</url>
+				</repository>
+			</repositories>
+		</profile>
+	</profiles>
 	<dependencies>
 	    <dependency>
 	        <groupId>com.cubrid.cubridmigration</groupId>
@@ -251,22 +228,7 @@
 	        <artifactId>jcommander</artifactId>
 	        <version>1.82</version>
 	    </dependency>
-		<dependency>
-			<groupId>com.cubrid</groupId>
-			<artifactId>pl-server</artifactId>
-			<version>${pl.server.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.antlr</groupId>
-			<artifactId>antlr4-runtime</artifactId>
-			<version>${antlr4.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.antlr</groupId>
-			<artifactId>antlr-runtime</artifactId>
-			<version>${antlr3.runtime.version}</version>
-		</dependency>
-	    
+
 		<dependency>
 		    <groupId>org.mybatis</groupId>
 		    <artifactId>mybatis</artifactId>
