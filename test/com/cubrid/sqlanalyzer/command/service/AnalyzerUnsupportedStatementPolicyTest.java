@@ -14,8 +14,7 @@ class AnalyzerUnsupportedStatementPolicyTest {
         AnalyzerStatement statement = new AnalyzerStatement(
                 AnalyzerStatementTypes.TYPE_DDL_TRIGGER,
                 "TRIGGER_1",
-                "CREATE TRIGGER trg BEFORE INSERT ON t EXECUTE PRINT 'x';",
-                1);
+                "CREATE TRIGGER trg BEFORE INSERT ON t EXECUTE PRINT 'x';");
 
         assertEquals(
                 AnalyzerUnsupportedStatementPolicy.TRIGGER_UNSUPPORTED_REASON,
@@ -31,8 +30,7 @@ class AnalyzerUnsupportedStatementPolicyTest {
                         + "    PRAGMA AUTONOMOUS_TRANSACTION;\n"
                         + "BEGIN\n"
                         + "    NULL;\n"
-                        + "END;",
-                1);
+                        + "END;");
 
         assertNull(AnalyzerUnsupportedStatementPolicy.getUnsupportedReason(statement));
     }
@@ -50,8 +48,7 @@ class AnalyzerUnsupportedStatementPolicyTest {
                 "CREATE OR REPLACE PROCEDURE P AS\n"
                         + "BEGIN\n"
                         + "    NULL;\n"
-                        + "END;",
-                1);
+                        + "END;");
 
         assertNull(AnalyzerUnsupportedStatementPolicy.getUnsupportedReason(statement));
     }

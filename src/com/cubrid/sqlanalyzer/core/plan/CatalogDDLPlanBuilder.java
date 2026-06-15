@@ -1,5 +1,19 @@
 package com.cubrid.sqlanalyzer.core.plan;
 
+import static com.cubrid.sqlanalyzer.core.plan.AnalyzerExecutionPhase.DDL_FOREIGN_KEY;
+import static com.cubrid.sqlanalyzer.core.plan.AnalyzerExecutionPhase.DDL_FUNCTION_BODY;
+import static com.cubrid.sqlanalyzer.core.plan.AnalyzerExecutionPhase.DDL_FUNCTION_HEADER;
+import static com.cubrid.sqlanalyzer.core.plan.AnalyzerExecutionPhase.DDL_GRANT;
+import static com.cubrid.sqlanalyzer.core.plan.AnalyzerExecutionPhase.DDL_INDEX;
+import static com.cubrid.sqlanalyzer.core.plan.AnalyzerExecutionPhase.DDL_PRIMARY_KEY;
+import static com.cubrid.sqlanalyzer.core.plan.AnalyzerExecutionPhase.DDL_PROCEDURE_BODY;
+import static com.cubrid.sqlanalyzer.core.plan.AnalyzerExecutionPhase.DDL_PROCEDURE_HEADER;
+import static com.cubrid.sqlanalyzer.core.plan.AnalyzerExecutionPhase.DDL_SEQUENCE;
+import static com.cubrid.sqlanalyzer.core.plan.AnalyzerExecutionPhase.DDL_SYNONYM;
+import static com.cubrid.sqlanalyzer.core.plan.AnalyzerExecutionPhase.DDL_TABLE;
+import static com.cubrid.sqlanalyzer.core.plan.AnalyzerExecutionPhase.DDL_TRIGGER;
+import static com.cubrid.sqlanalyzer.core.plan.AnalyzerExecutionPhase.DDL_VIEW_ALTER;
+import static com.cubrid.sqlanalyzer.core.plan.AnalyzerExecutionPhase.DDL_VIEW_CREATE;
 import static com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes.TYPE_DDL_FK;
 import static com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes.TYPE_DDL_FUNC_BODY;
 import static com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes.TYPE_DDL_FUNC_HEADER;
@@ -39,7 +53,9 @@ public class CatalogDDLPlanBuilder implements AnalyzerExecutionPlanBuilder {
         int seq = 0;
         for (Table table : config.getTargetTableSchema()) {
             String sql = helper.getTableDDL(table, config.isAddUserSchema());
-            plan.add(new AnalyzerStatement(TYPE_DDL_TABLE, "TABLE_" + (++seq), sql, 1000 + seq));
+            plan.add(
+                    DDL_TABLE,
+                    new AnalyzerStatement(TYPE_DDL_TABLE, "TABLE_" + (++seq), sql));
         }
 
         seq = 0;
@@ -55,7 +71,9 @@ public class CatalogDDLPlanBuilder implements AnalyzerExecutionPlanBuilder {
                             pk.getName(),
                             pk.getPkColumns(),
                             config.isAddUserSchema());
-            plan.add(new AnalyzerStatement(TYPE_DDL_PK, "PK_" + (++seq), sql, 1100 + seq));
+            plan.add(
+                    DDL_PRIMARY_KEY,
+                    new AnalyzerStatement(TYPE_DDL_PK, "PK_" + (++seq), sql));
         }
 
         seq = 0;
@@ -64,7 +82,9 @@ public class CatalogDDLPlanBuilder implements AnalyzerExecutionPlanBuilder {
                 String sql =
                         helper.getFKDDL(
                                 table.getOwner(), table.getName(), fk, config.isAddUserSchema());
-                plan.add(new AnalyzerStatement(TYPE_DDL_FK, "FK_" + (++seq), sql, 1200 + seq));
+                plan.add(
+                        DDL_FOREIGN_KEY,
+                        new AnalyzerStatement(TYPE_DDL_FK, "FK_" + (++seq), sql));
             }
         }
 
@@ -79,7 +99,8 @@ public class CatalogDDLPlanBuilder implements AnalyzerExecutionPlanBuilder {
                                 "",
                                 config.isAddUserSchema());
                 plan.add(
-                        new AnalyzerStatement(TYPE_DDL_INDEX, "INDEX_" + (++seq), sql, 1300 + seq));
+                        DDL_INDEX,
+                        new AnalyzerStatement(TYPE_DDL_INDEX, "INDEX_" + (++seq), sql));
             }
         }
 
@@ -87,14 +108,16 @@ public class CatalogDDLPlanBuilder implements AnalyzerExecutionPlanBuilder {
         for (Sequence sequence : config.getTargetSerialSchema()) {
             String sql = helper.getSequenceDDL(sequence, config.isAddUserSchema());
             plan.add(
-                    new AnalyzerStatement(TYPE_DDL_SEQUENCE, "SEQ_" + (++seq), sql, 1400 + seq));
+                    DDL_SEQUENCE,
+                    new AnalyzerStatement(TYPE_DDL_SEQUENCE, "SEQ_" + (++seq), sql));
         }
 
         seq = 0;
         for (View view : config.getTargetViewSchema()) {
             String sql = helper.getViewDDL(view, config.isAddUserSchema());
             plan.add(
-                    new AnalyzerStatement(TYPE_DDL_VIEW_CREATE, "VIEW_" + (++seq), sql, 2000 + seq));
+                    DDL_VIEW_CREATE,
+                    new AnalyzerStatement(TYPE_DDL_VIEW_CREATE, "VIEW_" + (++seq), sql));
         }
 
         seq = 0;
@@ -104,16 +127,18 @@ public class CatalogDDLPlanBuilder implements AnalyzerExecutionPlanBuilder {
                 continue;
             }
             plan.add(
+                    DDL_VIEW_ALTER,
                     new AnalyzerStatement(
-                            TYPE_DDL_VIEW_ALTER, "VIEW_ALTER_" + (++seq), sql, 2100 + seq));
+                            TYPE_DDL_VIEW_ALTER, "VIEW_ALTER_" + (++seq), sql));
         }
 
         seq = 0;
         for (Synonym synonym : config.getTargetSynonymSchema()) {
             String sql = helper.getSynonymDDL(synonym, config.isAddUserSchema());
             plan.add(
+                    DDL_SYNONYM,
                     new AnalyzerStatement(
-                            TYPE_DDL_SYNONYM, "SYNONYM_" + (++seq), sql, 3000 + seq));
+                            TYPE_DDL_SYNONYM, "SYNONYM_" + (++seq), sql));
         }
 
         seq = 0;
@@ -123,39 +148,45 @@ public class CatalogDDLPlanBuilder implements AnalyzerExecutionPlanBuilder {
                 continue;
             }
             String sql = helper.getGrantDDL(grant, config.isAddUserSchema());
-            plan.add(new AnalyzerStatement(TYPE_DDL_GRANT, "GRANT_" + (++seq), sql, 3100 + seq));
+            plan.add(
+                    DDL_GRANT,
+                    new AnalyzerStatement(TYPE_DDL_GRANT, "GRANT_" + (++seq), sql));
         }
 
         seq = 0;
         for (PlcsqlProcedure procedure : config.getTargetPlcsqlProcedureSchema()) {
             String sql = helper.getPlcsqlProcedureHeaderDDL(procedure, config.isAddUserSchema());
             plan.add(
+                    DDL_PROCEDURE_HEADER,
                     new AnalyzerStatement(
-                            TYPE_DDL_PROC_HEADER, "PROC_" + (++seq), sql, 4000 + seq));
+                            TYPE_DDL_PROC_HEADER, "PROC_" + (++seq), sql));
         }
 
         seq = 0;
         for (PlcsqlProcedure procedure : config.getTargetPlcsqlProcedureSchema()) {
             String sql = helper.getPlcsqlProcedureDDL(procedure, config.isAddUserSchema());
             plan.add(
+                    DDL_PROCEDURE_BODY,
                     new AnalyzerStatement(
-                            TYPE_DDL_PROC_BODY, "PROC_BODY_" + (++seq), sql, 4100 + seq));
+                            TYPE_DDL_PROC_BODY, "PROC_BODY_" + (++seq), sql));
         }
 
         seq = 0;
         for (PlcsqlFunction function : config.getTargetPlcsqlFunctionSchema()) {
             String sql = helper.getPlcsqlFunctionHeaderDDL(function, config.isAddUserSchema());
             plan.add(
+                    DDL_FUNCTION_HEADER,
                     new AnalyzerStatement(
-                            TYPE_DDL_FUNC_HEADER, "FUNC_" + (++seq), sql, 4200 + seq));
+                            TYPE_DDL_FUNC_HEADER, "FUNC_" + (++seq), sql));
         }
 
         seq = 0;
         for (PlcsqlFunction function : config.getTargetPlcsqlFunctionSchema()) {
             String sql = helper.getPlcsqlFunctionDDL(function, config.isAddUserSchema());
             plan.add(
+                    DDL_FUNCTION_BODY,
                     new AnalyzerStatement(
-                            TYPE_DDL_FUNC_BODY, "FUNC_BODY_" + (++seq), sql, 4300 + seq));
+                            TYPE_DDL_FUNC_BODY, "FUNC_BODY_" + (++seq), sql));
         }
 
         seq = 0;
@@ -169,8 +200,9 @@ public class CatalogDDLPlanBuilder implements AnalyzerExecutionPlanBuilder {
                 sql = triggerConfig;
             }
             plan.add(
+                    DDL_TRIGGER,
                     new AnalyzerStatement(
-                            TYPE_DDL_TRIGGER, "TRIGGER_" + (++seq), sql, 5000 + seq));
+                            TYPE_DDL_TRIGGER, "TRIGGER_" + (++seq), sql));
         }
 
         return plan;

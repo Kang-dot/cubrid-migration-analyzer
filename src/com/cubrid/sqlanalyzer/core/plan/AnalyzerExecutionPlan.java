@@ -2,24 +2,41 @@ package com.cubrid.sqlanalyzer.core.plan;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 public class AnalyzerExecutionPlan {
-    private final List<AnalyzerStatement> statements = new ArrayList<>();
+    private final Map<AnalyzerExecutionPhase, List<AnalyzerStatement>> statementsByPhase =
+            new EnumMap<>(AnalyzerExecutionPhase.class);
+    private int statementCount;
+    private List<AnalyzerStatement> orderedStatements;
 
-    public void add(AnalyzerStatement stmt) {
-        if (stmt != null) {
-            statements.add(stmt);
+    public void add(AnalyzerExecutionPhase phase, AnalyzerStatement statement) {
+        Objects.requireNonNull(phase, "phase");
+        if (statement != null) {
+            statementsByPhase
+                    .computeIfAbsent(phase, ignored -> new ArrayList<>())
+                    .add(statement);
+            statementCount++;
+            orderedStatements = null;
         }
     }
 
     public List<AnalyzerStatement> getStatements() {
-        statements.sort(Comparator.comparingInt(AnalyzerStatement::getOrder));
-        return Collections.unmodifiableList(statements);
+        if (orderedStatements == null) {
+            List<AnalyzerStatement> statements = new ArrayList<>(statementCount);
+            for (AnalyzerExecutionPhase phase : AnalyzerExecutionPhase.values()) {
+                statements.addAll(
+                        statementsByPhase.getOrDefault(phase, Collections.emptyList()));
+            }
+            orderedStatements = Collections.unmodifiableList(statements);
+        }
+        return orderedStatements;
     }
 
     public boolean isEmpty() {
-        return statements.isEmpty();
+        return statementCount == 0;
     }
 }

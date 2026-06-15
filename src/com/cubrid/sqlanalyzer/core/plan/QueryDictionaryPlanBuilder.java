@@ -1,5 +1,10 @@
 package com.cubrid.sqlanalyzer.core.plan;
 
+import static com.cubrid.sqlanalyzer.core.plan.AnalyzerExecutionPhase.DML_DELETE;
+import static com.cubrid.sqlanalyzer.core.plan.AnalyzerExecutionPhase.DML_INSERT;
+import static com.cubrid.sqlanalyzer.core.plan.AnalyzerExecutionPhase.DML_SELECT;
+import static com.cubrid.sqlanalyzer.core.plan.AnalyzerExecutionPhase.DML_UPDATE;
+
 import com.cubrid.sqlanalyzer.core.AnalyzerConfiguration;
 import com.cubrid.sqlanalyzer.core.dbobject.QueryDictionary;
 
@@ -13,13 +18,13 @@ public class QueryDictionaryPlanBuilder implements AnalyzerExecutionPlanBuilder 
         }
 
         dict.getSelectQueryMap().forEach((id, sql) ->
-                plan.add(new AnalyzerStatement("SELECT", id, sql, 1000)));
+                plan.add(DML_SELECT, new AnalyzerStatement("SELECT", id, sql)));
         dict.getInsertQueryMap().forEach((id, sql) ->
-                plan.add(new AnalyzerStatement("INSERT", id, sql, 2000)));
+                plan.add(DML_INSERT, new AnalyzerStatement("INSERT", id, sql)));
         dict.getUpdateQueryMap().forEach((id, sql) ->
-                plan.add(new AnalyzerStatement("UPDATE", id, sql, 3000)));
+                plan.add(DML_UPDATE, new AnalyzerStatement("UPDATE", id, sql)));
         dict.getDeleteQueryMap().forEach((id, sql) ->
-                plan.add(new AnalyzerStatement("DELETE", id, sql, 4000)));
+                plan.add(DML_DELETE, new AnalyzerStatement("DELETE", id, sql)));
 
         return plan;
     }

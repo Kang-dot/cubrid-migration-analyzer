@@ -39,7 +39,7 @@ class AnalyzerTuiProgressPageTest {
         for (int i = 1; i <= 6; i++) {
             progressView.update(
                     AnalyzerProgressEventViewModel.statementSucceeded(
-                            new AnalyzerStatement("SELECT", "q" + i, "select " + i, i),
+                            new AnalyzerStatement("SELECT", "q" + i, "select " + i),
                             "parsed",
                             new AnalyzerProgressCounts(6, i, i, 0)));
         }
