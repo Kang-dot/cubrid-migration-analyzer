@@ -1,5 +1,6 @@
 package com.cubrid.sqlanalyzer.core.runner;
 
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -8,13 +9,14 @@ import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-public class PlcsqlChecker {
+public class PlcsqlChecker implements AutoCloseable {
     private static final int PLCSQL_SYNTAX_ERROR_CODE = -1;
     private static final String PLCSQL_JAR_PROPERTY = "sqlanalyzer.plcsql.jar";
     private static final String PLCSQL_COMPILER_MAIN = "com.cubrid.plcsql.compiler.PlcsqlCompilerMain";
     private static final String PLCSQL_SYNTAX_ERROR = "com.cubrid.plcsql.compiler.error.SyntaxError";
 
     private volatile PlcsqlBridge bridge;
+    private volatile boolean closed;
 
     public void checkSQL(String query) throws SQLParserException {
         try {
@@ -37,12 +39,19 @@ public class PlcsqlChecker {
     }
 
     private PlcsqlBridge getBridge() throws SQLParserException {
+        if (closed) {
+            throw new SQLParserException("PL/CSQL checker is closed.");
+        }
+
         PlcsqlBridge current = bridge;
         if (current != null) {
             return current;
         }
 
         synchronized (this) {
+            if (closed) {
+                throw new SQLParserException("PL/CSQL checker is closed.");
+            }
             if (bridge == null) {
                 bridge = createBridge();
             }
@@ -52,15 +61,30 @@ public class PlcsqlChecker {
 
     private PlcsqlBridge createBridge() throws SQLParserException {
         Path jarPath = resolvePlcsqlJar();
+        ChildFirstClassLoader loader = null;
         try {
-            ChildFirstClassLoader loader =
+            loader =
                     new ChildFirstClassLoader(
                             new URL[] {jarPath.toUri().toURL()}, PlcsqlChecker.class.getClassLoader());
             Class<?> compilerMain = Class.forName(PLCSQL_COMPILER_MAIN, true, loader);
             Method checkSyntax = compilerMain.getMethod("checkSyntax", String.class);
             return new PlcsqlBridge(loader, checkSyntax);
         } catch (ReflectiveOperationException | RuntimeException | java.io.IOException e) {
+            closeQuietly(loader);
             throw new SQLParserException("Failed to load PL/CSQL checker from: " + jarPath, e);
+        }
+    }
+
+    @Override
+    public void close() {
+        PlcsqlBridge current;
+        synchronized (this) {
+            closed = true;
+            current = bridge;
+            bridge = null;
+        }
+        if (current != null) {
+            current.close();
         }
     }
 
@@ -115,10 +139,10 @@ public class PlcsqlChecker {
     }
 
     private static final class PlcsqlBridge {
-        private final ClassLoader loader;
+        private final ChildFirstClassLoader loader;
         private final Method checkSyntax;
 
-        private PlcsqlBridge(ClassLoader loader, Method checkSyntax) {
+        private PlcsqlBridge(ChildFirstClassLoader loader, Method checkSyntax) {
             this.loader = loader;
             this.checkSyntax = checkSyntax;
         }
@@ -132,6 +156,20 @@ public class PlcsqlChecker {
             } finally {
                 thread.setContextClassLoader(originalClassLoader);
             }
+        }
+
+        private void close() {
+            closeQuietly(loader);
+        }
+    }
+
+    private static void closeQuietly(ChildFirstClassLoader loader) {
+        if (loader == null) {
+            return;
+        }
+        try {
+            loader.close();
+        } catch (IOException ignored) {
         }
     }
 
