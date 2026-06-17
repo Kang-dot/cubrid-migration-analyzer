@@ -6,6 +6,7 @@ import java.util.List;
 import com.cubrid.cubridmigration.core.dbobject.Catalog;
 import com.cubrid.sqlanalyzer.core.AnalyzerConfiguration;
 import com.cubrid.sqlanalyzer.core.dbobject.AnalyzerCatalog;
+import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerTableSizeViewModel;
 
 public class AnalyzerSession {
     private final AnalyzerConfiguration config = new AnalyzerConfiguration();
@@ -28,6 +29,7 @@ public class AnalyzerSession {
 
     private Catalog sourceCatalog;
     private AnalyzerCatalog analyzerCatalog;
+    private List<AnalyzerTableSizeViewModel> oracleTableSizes = List.of();
     private int analyzedStatementCount;
     private int succeededStatementCount;
     private int failedStatementCount;
@@ -142,6 +144,15 @@ public class AnalyzerSession {
 
     public void setAnalyzerCatalog(AnalyzerCatalog analyzerCatalog) {
         this.analyzerCatalog = analyzerCatalog;
+    }
+
+    public List<AnalyzerTableSizeViewModel> getOracleTableSizes() {
+        return oracleTableSizes;
+    }
+
+    public void setOracleTableSizes(List<AnalyzerTableSizeViewModel> oracleTableSizes) {
+        this.oracleTableSizes =
+                oracleTableSizes == null ? List.of() : List.copyOf(oracleTableSizes);
     }
 
     public int getAnalyzedStatementCount() {

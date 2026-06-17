@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 
 import com.cubrid.sqlanalyzer.command.AnalyzerSourceType;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerObjectCountPreviewViewModel;
+import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerTableSizeViewModel;
 import com.googlecode.lanterna.gui2.Component;
 import com.googlecode.lanterna.gui2.Label;
 import com.googlecode.lanterna.gui2.Panel;
@@ -72,6 +73,43 @@ class AnalyzerTuiObjectCountPageTest {
         String screenText = String.join(System.lineSeparator(), collectLabelTexts(panel));
 
         assertTrue(screenText.contains("Target triggers : 11"));
+    }
+
+    @Test
+    @DisplayName("object count TUI page renders Oracle table sizes")
+    void shouldRenderOracleTableSizes() {
+        AnalyzerObjectCountPreviewViewModel preview =
+                new AnalyzerObjectCountPreviewViewModel(
+                        AnalyzerSourceType.ORACLE,
+                        1,
+                        2,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        3_145_728L,
+                        List.of(
+                                new AnalyzerTableSizeViewModel("EMP", 2_097_152L),
+                                new AnalyzerTableSizeViewModel("DEPT", 1_048_576L)));
+
+        Panel panel = new AnalyzerTuiObjectCountPage().build(preview);
+        String screenText = String.join(System.lineSeparator(), collectLabelTexts(panel));
+
+        assertTrue(screenText.contains("Oracle table size total : 3.00 MB"));
+        assertTrue(screenText.contains("Oracle table sizes"));
+        assertTrue(screenText.contains("EMP"));
+        assertTrue(screenText.contains("2.00 MB"));
+        assertTrue(screenText.contains("DEPT"));
+        assertTrue(screenText.contains("1.00 MB"));
     }
 
     private List<String> collectLabelTexts(Panel panel) {

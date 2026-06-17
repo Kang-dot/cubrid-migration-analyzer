@@ -16,7 +16,9 @@ import java.util.TimeZone;
 import com.cubrid.cubridmigration.cubrid.CUBRIDTimeUtil;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerObjectCountPreviewViewModel;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerOverviewViewModel;
+import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerProgressObjectCount;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerSourceOverviewViewModel;
+import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerTableSizeViewModel;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerTargetOverviewViewModel;
 
 public class AnalyzerReport {
@@ -154,6 +156,35 @@ public class AnalyzerReport {
                         statementType, statementId, sql, success, detail, failureStage));
     }
 
+    public List<AnalyzerProgressObjectCount> getObjectExecutionCounts() {
+        Map<String, StatementTypeSummary> summaries = new LinkedHashMap<String, StatementTypeSummary>();
+        for (StatementResult statementResult : statementResults) {
+            if ("CLEANUP".equals(statementResult.statementType)) {
+                continue;
+            }
+
+            String objectType = displayObjectType(statementResult.statementType);
+            StatementTypeSummary summary = summaries.get(objectType);
+            if (summary == null) {
+                summary = new StatementTypeSummary();
+                summaries.put(objectType, summary);
+            }
+            summary.add(statementResult.success);
+        }
+
+        List<AnalyzerProgressObjectCount> objectExecutionCounts = new ArrayList<AnalyzerProgressObjectCount>();
+        for (Map.Entry<String, StatementTypeSummary> entry : summaries.entrySet()) {
+            StatementTypeSummary summary = entry.getValue();
+            objectExecutionCounts.add(
+                    new AnalyzerProgressObjectCount(
+                            entry.getKey(),
+                            summary.totalCount,
+                            summary.succeededCount,
+                            summary.failedCount));
+        }
+        return objectExecutionCounts;
+    }
+
     public AnalyzerOverviewViewModel getOverview() {
         return overview;
     }
@@ -195,60 +226,46 @@ public class AnalyzerReport {
         StringBuilder sb = new StringBuilder();
 
         appendOverview(sb, lineSeparator);
-        appendObjectCountPreview(sb, lineSeparator);
-
-        sb.append("Result summary").append(lineSeparator);
-        sb.append("Source : ").append(sourceType).append(lineSeparator);
-        sb.append("Target : ").append(targetType).append(lineSeparator);
-        sb.append("Mode   : ").append(executionMode).append(lineSeparator);
-        sb.append("Total  : ").append(analyzedStatementCount).append(lineSeparator);
-        sb.append("OK     : ").append(succeededStatementCount).append(lineSeparator);
-        sb.append("FAIL   : ").append(failedStatementCount).append(lineSeparator);
-        sb.append("Cost   : ").append(formatEstimatedCost(getTotalEstimatedFailureCost()))
-                .append(lineSeparator);
-
-        appendObjectExecutionSummary(sb, lineSeparator);
-
-        if (!failures.isEmpty()) {
-            sb.append(lineSeparator).append("Failed statements").append(lineSeparator);
-            for (AnalyzerFailure failure : failures) {
-                appendFailureBlock(sb, failure, lineSeparator);
-            }
-            sb.append("----------------------------------------").append(lineSeparator);
-        } else if (!failureMessages.isEmpty()) {
-            sb.append(lineSeparator).append("Failed statements").append(lineSeparator);
-            for (String failureMessage : failureMessages) {
-                sb.append("----------------------------------------").append(lineSeparator);
-                sb.append("- ").append(safeText(failureMessage)).append(lineSeparator);
-            }
-            sb.append("----------------------------------------").append(lineSeparator);
-        } else {
-            sb.append(lineSeparator).append("Failed statements").append(lineSeparator);
-            sb.append("(none)").append(lineSeparator);
-        }
+        appendAnalysisSummary(sb, lineSeparator);
+        appendFailedStatements(sb, lineSeparator);
 
         return sb.toString();
     }
 
     private void appendOverview(StringBuilder sb, String lineSeparator) {
-        if (overview == null) {
-            return;
-        }
-
         sb.append("Overview").append(lineSeparator);
-        sb.append("Program     : ").append(formatText(overview.programVersion())).append(lineSeparator);
-        appendSourceOverview(sb, overview.source(), lineSeparator);
-        appendTargetOverview(sb, overview.source(), overview.target(), lineSeparator);
-        sb.append("Mode        : ").append(overview.executionMode()).append(lineSeparator);
+        if (overview != null) {
+            sb.append("Program     : ").append(formatText(overview.programVersion())).append(lineSeparator);
+            appendSourceOverview(sb, overview.source(), lineSeparator);
+            appendTargetOverview(sb, overview.source(), overview.target(), lineSeparator);
+            sb.append("Mode        : ").append(overview.executionMode()).append(lineSeparator);
+        } else {
+            sb.append("Source      : ").append(sourceType).append(lineSeparator);
+            sb.append("Target      : ").append(targetType).append(lineSeparator);
+            sb.append("Mode        : ").append(executionMode).append(lineSeparator);
+        }
+        sb.append("Total       : ").append(analyzedStatementCount).append(lineSeparator);
+        sb.append("OK          : ").append(succeededStatementCount).append(lineSeparator);
+        sb.append("FAIL        : ").append(failedStatementCount).append(lineSeparator);
+        sb.append("Cost        : ").append(formatEstimatedCost(getTotalEstimatedFailureCost()))
+                .append(lineSeparator);
         sb.append(lineSeparator);
     }
 
-    private void appendObjectCountPreview(StringBuilder sb, String lineSeparator) {
+    private void appendAnalysisSummary(StringBuilder sb, String lineSeparator) {
+        sb.append("Analysis summary").append(lineSeparator);
+        appendObjectCounts(sb, lineSeparator);
+        appendObjectExecutionSummary(sb, lineSeparator);
+        sb.append(lineSeparator);
+    }
+
+    private void appendObjectCounts(StringBuilder sb, String lineSeparator) {
+        sb.append("Object counts").append(lineSeparator);
         if (objectCountPreview == null) {
+            sb.append("(none)").append(lineSeparator).append(lineSeparator);
             return;
         }
 
-        sb.append("Object count preview").append(lineSeparator);
         if (objectCountPreview.sourceType() == AnalyzerSourceType.ORACLE) {
             sb.append("Catalog schemas : ")
                     .append(objectCountPreview.catalogSchemaCount())
@@ -284,6 +301,8 @@ public class AnalyzerReport {
                     .append(objectCountPreview.targetTriggerCount())
                     .append(lineSeparator);
             sb.append(lineSeparator);
+            appendOracleTableSizes(sb, lineSeparator);
+            sb.append(lineSeparator);
             return;
         }
 
@@ -292,6 +311,30 @@ public class AnalyzerReport {
         sb.append("UPDATE count    : ").append(objectCountPreview.updateCount()).append(lineSeparator);
         sb.append("DELETE count    : ").append(objectCountPreview.deleteCount()).append(lineSeparator);
         sb.append(lineSeparator);
+    }
+
+    private void appendOracleTableSizes(StringBuilder sb, String lineSeparator) {
+        sb.append("Oracle table size total : ")
+                .append(formatBytes(objectCountPreview.totalTableBytes()))
+                .append(lineSeparator);
+        sb.append("Oracle table sizes").append(lineSeparator);
+        if (objectCountPreview.tableSizes().isEmpty()) {
+            sb.append("  (none)").append(lineSeparator);
+            return;
+        }
+
+        sb.append(String.format(Locale.US, "  %-32s %12s %12s", "Table", "Size", "Est. rows"))
+                .append(lineSeparator);
+        for (AnalyzerTableSizeViewModel tableSize : objectCountPreview.tableSizes()) {
+            sb.append(
+                            String.format(
+                                    Locale.US,
+                                    "  %-32s %12s %12s",
+                                    fitText(tableSize.tableName(), 32),
+                                    formatBytes(tableSize.bytes()),
+                                    formatNumber(tableSize.estimatedRows())))
+                    .append(lineSeparator);
+        }
     }
 
     private void appendSourceOverview(
@@ -354,21 +397,11 @@ public class AnalyzerReport {
 
         if (target.type() == AnalyzerTargetType.PARSER) {
             sb.append("Parser      : ").append(formatText(target.parserVersion())).append(lineSeparator);
-            if (source != null
-                    && source.xmlDirectory() != null
-                    && !source.xmlDirectory().isEmpty()) {
-                sb.append("XML dir     : ")
-                        .append(formatText(source.xmlDirectory()))
-                        .append(lineSeparator);
-                sb.append("XML files   : ")
-                        .append(source.xmlFileCount())
-                        .append(lineSeparator);
-            }
         }
     }
 
     private void appendObjectExecutionSummary(StringBuilder sb, String lineSeparator) {
-        sb.append(lineSeparator).append("Object execution summary").append(lineSeparator);
+        sb.append("Execution results").append(lineSeparator);
         Map<String, StatementTypeSummary> summaries = buildStatementTypeSummaries();
         if (summaries.isEmpty()) {
             sb.append("(none)").append(lineSeparator);
@@ -388,6 +421,26 @@ public class AnalyzerReport {
                             summary.succeededCount,
                             summary.failedCount))
                     .append(lineSeparator);
+        }
+    }
+
+    private void appendFailedStatements(StringBuilder sb, String lineSeparator) {
+        if (!failures.isEmpty()) {
+            sb.append("Failed statements").append(lineSeparator);
+            for (AnalyzerFailure failure : failures) {
+                appendFailureBlock(sb, failure, lineSeparator);
+            }
+            sb.append("----------------------------------------").append(lineSeparator);
+        } else if (!failureMessages.isEmpty()) {
+            sb.append("Failed statements").append(lineSeparator);
+            for (String failureMessage : failureMessages) {
+                sb.append("----------------------------------------").append(lineSeparator);
+                sb.append("- ").append(safeText(failureMessage)).append(lineSeparator);
+            }
+            sb.append("----------------------------------------").append(lineSeparator);
+        } else {
+            sb.append("Failed statements").append(lineSeparator);
+            sb.append("(none)").append(lineSeparator);
         }
     }
 
@@ -411,6 +464,18 @@ public class AnalyzerReport {
             summary.add(statementResult.success);
         }
         return summaries;
+    }
+
+    private String displayObjectType(String statementType) {
+        String type = safeText(statementType);
+        if (type.isEmpty()) {
+            return "UNKNOWN";
+        }
+
+        if (type.startsWith("DDL_")) {
+            return type.substring("DDL_".length());
+        }
+        return type;
     }
 
     private File getReportDirectory() {
@@ -496,5 +561,33 @@ public class AnalyzerReport {
 
     private String formatEstimatedCost(float estimatedCost) {
         return String.format(Locale.US, "%.1f", estimatedCost);
+    }
+
+    private String formatBytes(long bytes) {
+        long safeBytes = Math.max(0L, bytes);
+        if (safeBytes < 1024L) {
+            return safeBytes + " B";
+        }
+
+        double value = safeBytes;
+        String[] units = { "B", "KB", "MB", "GB", "TB", "PB" };
+        int unitIndex = 0;
+        while (value >= 1024.0 && unitIndex < units.length - 1) {
+            value /= 1024.0;
+            unitIndex++;
+        }
+        return String.format(Locale.US, "%.2f %s", value, units[unitIndex]);
+    }
+
+    private String formatNumber(long value) {
+        return String.format(Locale.US, "%,d", Math.max(0L, value));
+    }
+
+    private String fitText(String value, int maxLength) {
+        String text = value == null ? "" : value;
+        if (text.length() <= maxLength) {
+            return text;
+        }
+        return text.substring(0, maxLength - 1) + ".";
     }
 }

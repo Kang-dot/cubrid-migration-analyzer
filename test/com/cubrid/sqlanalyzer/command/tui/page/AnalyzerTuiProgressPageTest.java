@@ -86,6 +86,29 @@ class AnalyzerTuiProgressPageTest {
     }
 
     @Test
+    @DisplayName("progress TUI page renders every object summary row")
+    void shouldRenderEveryObjectSummaryRow() {
+        ProgressView progressView = new AnalyzerTuiProgressPage().buildView();
+        List<AnalyzerProgressObjectCount> objectCounts = new ArrayList<AnalyzerProgressObjectCount>();
+        for (int i = 1; i <= 10; i++) {
+            objectCounts.add(new AnalyzerProgressObjectCount("TYPE_" + i, 1, 0, 0));
+        }
+
+        progressView.update(
+                AnalyzerProgressEventViewModel.statementSucceeded(
+                        new AnalyzerStatement("TYPE_10", "ID_10", "select 1"),
+                        "parsed",
+                        new AnalyzerProgressCounts(10, 1, 1, 0, objectCounts)));
+
+        String screenText = String.join(
+                System.lineSeparator(), collectLabelTexts(progressView.getPanel()));
+
+        assertTrue(screenText.contains("TYPE_1"));
+        assertTrue(screenText.contains("TYPE_10"));
+        assertFalse(screenText.contains("more"));
+    }
+
+    @Test
     @DisplayName("progress TUI page renders completion state")
     void shouldRenderCompletionState() {
         ProgressView progressView = new AnalyzerTuiProgressPage().buildView();

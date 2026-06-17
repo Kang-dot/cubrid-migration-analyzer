@@ -35,14 +35,22 @@ public class AnalyzerService {
 
     private final AnalyzerViewModelBuilder viewModelBuilder;
     private final AnalyzerExecutionRunner executionRunner;
+    private final AnalyzerOracleTableSizeFetcher oracleTableSizeFetcher;
 
     public AnalyzerService() {
-        this(new AnalyzerViewModelBuilder(), new AnalyzerExecutionRunner());
+        this(
+                new AnalyzerViewModelBuilder(),
+                new AnalyzerExecutionRunner(),
+                new AnalyzerOracleTableSizeFetcher());
     }
 
-    AnalyzerService(AnalyzerViewModelBuilder viewModelBuilder, AnalyzerExecutionRunner executionRunner) {
+    AnalyzerService(
+            AnalyzerViewModelBuilder viewModelBuilder,
+            AnalyzerExecutionRunner executionRunner,
+            AnalyzerOracleTableSizeFetcher oracleTableSizeFetcher) {
         this.viewModelBuilder = viewModelBuilder;
         this.executionRunner = executionRunner;
+        this.oracleTableSizeFetcher = oracleTableSizeFetcher;
     }
 
     public void applyArguments(AnalyzerSession session, AnalyzerArgumentsController arguments) {
@@ -212,6 +220,7 @@ public class AnalyzerService {
         session.setSourceCatalog(catalog);
         config.setSrcCatalog(catalog, false);
         config.parsingProcedureFunction(true);
+        session.setOracleTableSizes(oracleTableSizeFetcher.fetch(config.getSourceConParams()));
         LOG.info("Oracle source schema fetched. schemaCount={}", catalog.getSchemas().size());
     }
 

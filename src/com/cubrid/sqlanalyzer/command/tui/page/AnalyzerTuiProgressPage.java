@@ -15,7 +15,6 @@ import com.googlecode.lanterna.gui2.ProgressBar;
 
 public class AnalyzerTuiProgressPage {
     private static final int RECENT_EVENT_LIMIT = 5;
-    private static final int OBJECT_SUMMARY_ROW_LIMIT = 8;
 
     public Panel build() {
         return buildView().getPanel();
@@ -32,6 +31,7 @@ public class AnalyzerTuiProgressPage {
         private final Label failLabel;
         private final Label currentLabel;
         private final Label statusLabel;
+        private final Label objectSummarySpacer;
         private final ProgressBar progressBar;
         private final List<Label> objectSummaryLabels = new ArrayList<Label>();
         private final List<Label> recentLabels = new ArrayList<Label>();
@@ -44,6 +44,7 @@ public class AnalyzerTuiProgressPage {
             failLabel = new Label("FAIL     : 0");
             currentLabel = new Label("Current  : Waiting for analysis to start.");
             statusLabel = new Label("Analysis is running...");
+            objectSummarySpacer = new Label("");
             progressBar = new ProgressBar(0, 100, 0);
             progressBar.setPreferredWidth(40);
 
@@ -59,12 +60,7 @@ public class AnalyzerTuiProgressPage {
             panel.addComponent(new Label("Object summary"));
             panel.addComponent(new Label(
                     "  Type             Total   OK FAIL"));
-            for (int i = 0; i < OBJECT_SUMMARY_ROW_LIMIT; i++) {
-                Label objectSummaryLabel = new Label("  ");
-                objectSummaryLabels.add(objectSummaryLabel);
-                panel.addComponent(objectSummaryLabel);
-            }
-            panel.addComponent(new Label(""));
+            panel.addComponent(objectSummarySpacer);
             panel.addComponent(new Label("Recent"));
             for (int i = 0; i < RECENT_EVENT_LIMIT; i++) {
                 Label recentLabel = new Label("  ");
@@ -106,29 +102,24 @@ public class AnalyzerTuiProgressPage {
         }
 
         private void updateObjectSummary(List<AnalyzerProgressObjectCount> objectCounts) {
-            int rowIndex = 0;
-            int itemIndex = 0;
-            while (rowIndex < objectSummaryLabels.size()) {
-                if (objectCounts == null || itemIndex >= objectCounts.size()) {
-                    objectSummaryLabels.get(rowIndex).setText("  ");
-                    rowIndex++;
-                    continue;
-                }
+            int objectCountSize = objectCounts == null ? 0 : objectCounts.size();
+            resizeObjectSummaryLabels(objectCountSize);
 
-                String row = "  " + formatObjectSummary(objectCounts.get(itemIndex));
-                itemIndex++;
+            for (int i = 0; i < objectCountSize; i++) {
+                objectSummaryLabels.get(i).setText("  " + formatObjectSummary(objectCounts.get(i)));
+            }
+        }
 
-                objectSummaryLabels.get(rowIndex).setText(row);
-                rowIndex++;
+        private void resizeObjectSummaryLabels(int objectCountSize) {
+            while (objectSummaryLabels.size() > objectCountSize) {
+                Label removedLabel = objectSummaryLabels.remove(objectSummaryLabels.size() - 1);
+                panel.removeComponent(removedLabel);
             }
 
-            if (objectCounts != null
-                    && itemIndex < objectCounts.size()
-                    && !objectSummaryLabels.isEmpty()) {
-                int remainingCount = objectCounts.size() - itemIndex;
-                objectSummaryLabels
-                        .get(objectSummaryLabels.size() - 1)
-                        .setText("  ... " + remainingCount + " more");
+            while (objectSummaryLabels.size() < objectCountSize) {
+                Label objectSummaryLabel = new Label("  ");
+                objectSummaryLabels.add(objectSummaryLabel);
+                panel.addComponent(panel.getChildrenList().indexOf(objectSummarySpacer), objectSummaryLabel);
             }
         }
 

@@ -10,7 +10,10 @@ import org.junit.jupiter.api.Test;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerObjectCountPreviewViewModel;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerOverviewViewModel;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerSourceOverviewViewModel;
+import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerTableSizeViewModel;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerTargetOverviewViewModel;
+
+import java.util.List;
 
 class AnalyzerReportTest {
     @Test
@@ -51,13 +54,15 @@ class AnalyzerReportTest {
 
         String resultText = report.buildResultText();
 
-        assertTrue(resultText.contains("Result summary"));
-        assertTrue(resultText.contains("Source : XML"));
-        assertTrue(resultText.contains("Target : PARSER"));
-        assertTrue(resultText.contains("Mode   : DML"));
-        assertTrue(resultText.contains("FAIL   : 1"));
-        assertTrue(resultText.contains("Cost   : 0.7"));
-        assertTrue(resultText.contains("Object execution summary"));
+        assertTrue(resultText.contains("Overview"));
+        assertTrue(resultText.contains("Source      : XML"));
+        assertTrue(resultText.contains("Target      : PARSER"));
+        assertTrue(resultText.contains("Mode        : DML"));
+        assertTrue(resultText.contains("FAIL        : 1"));
+        assertTrue(resultText.contains("Cost        : 0.7"));
+        assertTrue(resultText.contains("Analysis summary"));
+        assertTrue(resultText.contains("Object counts"));
+        assertTrue(resultText.contains("Execution results"));
         assertTrue(resultText.contains("Type"));
         assertTrue(resultText.contains("Total"));
         assertTrue(resultText.contains("OK"));
@@ -69,6 +74,7 @@ class AnalyzerReportTest {
         assertTrue(resultText.contains("Base DML : count=1, unit=0.2, total=0.2"));
         assertTrue(resultText.contains("JOIN detected : count=1, unit=0.5, total=0.5"));
         assertTrue(resultText.contains("----------------------------------------"));
+        assertFalse(resultText.contains("Result summary"));
         assertFalse(resultText.contains("Statement results"));
         assertFalse(resultText.contains("SELECT Q0"));
     }
@@ -115,9 +121,10 @@ class AnalyzerReportTest {
         assertTrue(resultText.contains("XML files   : 3"));
         assertTrue(resultText.contains("Target      : PARSER"));
         assertTrue(resultText.contains("Parser      : CUBRID parser"));
-        assertEquals(2, countOccurrences(resultText, "XML files   : 3"));
+        assertEquals(1, countOccurrences(resultText, "XML files   : 3"));
         assertTrue(resultText.contains("Mode        : DML"));
-        assertTrue(resultText.contains("Result summary"));
+        assertTrue(resultText.contains("Total       : 0"));
+        assertFalse(resultText.contains("Result summary"));
     }
 
     @Test
@@ -151,7 +158,8 @@ class AnalyzerReportTest {
 
         String resultText = report.buildResultText();
 
-        assertTrue(resultText.contains("Object count preview"));
+        assertTrue(resultText.contains("Analysis summary"));
+        assertTrue(resultText.contains("Object counts"));
         assertTrue(resultText.contains("Catalog schemas : 0"));
         assertTrue(resultText.contains("Target tables   : 0"));
         assertTrue(resultText.contains("Target PKs      : 0"));
@@ -163,8 +171,51 @@ class AnalyzerReportTest {
         assertTrue(resultText.contains("Target procs    : 0"));
         assertTrue(resultText.contains("Target funcs    : 0"));
         assertTrue(resultText.contains("Target triggers : 0"));
-        assertTrue(resultText.contains("Object execution summary"));
+        assertTrue(resultText.contains("Execution results"));
         assertTrue(resultText.contains("(none)"));
+    }
+
+    @Test
+    @DisplayName("result text includes Oracle table size summary")
+    void shouldBuildResultTextWithOracleTableSizes() {
+        AnalyzerReport report = new AnalyzerReport();
+        report.setSourceType(AnalyzerSourceType.ORACLE);
+        report.setTargetType(AnalyzerTargetType.PARSER);
+        report.setExecutionMode(AnalyzerExecutionMode.DDL);
+        report.setObjectCountPreview(
+                new AnalyzerObjectCountPreviewViewModel(
+                        AnalyzerSourceType.ORACLE,
+                        1,
+                        2,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        3_145_728L,
+                        List.of(
+                                new AnalyzerTableSizeViewModel("EMP", 2_097_152L, 1_234L),
+                                new AnalyzerTableSizeViewModel("DEPT", 1_048_576L, 56L))));
+
+        String resultText = report.buildResultText();
+
+        assertTrue(resultText.contains("Oracle table size total : 3.00 MB"));
+        assertTrue(resultText.contains("Oracle table sizes"));
+        assertTrue(resultText.contains("Est. rows"));
+        assertTrue(resultText.contains("EMP"));
+        assertTrue(resultText.contains("2.00 MB"));
+        assertTrue(resultText.contains("1,234"));
+        assertTrue(resultText.contains("DEPT"));
+        assertTrue(resultText.contains("1.00 MB"));
+        assertTrue(resultText.contains("56"));
     }
 
     @Test
@@ -195,7 +246,7 @@ class AnalyzerReportTest {
 
         String resultText = report.buildResultText();
 
-        assertTrue(resultText.contains("Object count preview"));
+        assertTrue(resultText.contains("Object counts"));
         assertTrue(resultText.contains("SELECT count    : 0"));
         assertTrue(resultText.contains("INSERT count    : 0"));
         assertTrue(resultText.contains("UPDATE count    : 0"));

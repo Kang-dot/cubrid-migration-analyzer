@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
+import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerProgressObjectCount;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerResultViewModel;
 import com.googlecode.lanterna.gui2.Label;
 import com.googlecode.lanterna.gui2.Panel;
@@ -29,6 +30,17 @@ public class AnalyzerTuiResultPage {
         lines.add("Cost   : " + formatCost(result.totalEstimatedFailureCost()));
 
         lines.add("");
+        lines.add("Object execution summary");
+        if (result.objectExecutionCounts().isEmpty()) {
+            lines.add("(none)");
+        } else {
+            lines.add("  Type             Total   OK FAIL");
+            for (AnalyzerProgressObjectCount objectCount : result.objectExecutionCounts()) {
+                lines.add("  " + formatObjectSummary(objectCount));
+            }
+        }
+
+        lines.add("");
         lines.add("Report : " + formatText(result.savedReportPath()));
         lines.add("See the report file for detailed execution logs.");
         return lines;
@@ -40,5 +52,23 @@ public class AnalyzerTuiResultPage {
 
     private String formatText(String value) {
         return value == null ? "" : value;
+    }
+
+    private String formatObjectSummary(AnalyzerProgressObjectCount objectCount) {
+        return String.format(
+                Locale.US,
+                "%-15s %5d %4d %4d",
+                fitText(objectCount.objectType(), 15),
+                Math.max(0, objectCount.totalCount()),
+                Math.max(0, objectCount.succeededCount()),
+                Math.max(0, objectCount.failedCount()));
+    }
+
+    private String fitText(String value, int maxLength) {
+        String text = value == null ? "" : value;
+        if (text.length() <= maxLength) {
+            return text;
+        }
+        return text.substring(0, maxLength - 1) + ".";
     }
 }

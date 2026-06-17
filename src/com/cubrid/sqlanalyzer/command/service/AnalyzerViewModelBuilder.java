@@ -21,6 +21,7 @@ import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerObjectCountPreviewViewMo
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerOverviewViewModel;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerResultViewModel;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerSourceOverviewViewModel;
+import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerTableSizeViewModel;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerTargetOverviewViewModel;
 import com.cubrid.sqlanalyzer.core.AnalyzerConfiguration;
 import com.cubrid.sqlanalyzer.core.dbobject.QueryDictionary;
@@ -56,7 +57,9 @@ public class AnalyzerViewModelBuilder {
                     0,
                     0,
                     0,
-                    0);
+                    0,
+                    sumTableBytes(session.getOracleTableSizes()),
+                    session.getOracleTableSizes());
         }
 
         QueryDictionary dict = config.getQueryDict();
@@ -90,7 +93,8 @@ public class AnalyzerViewModelBuilder {
                 report.getTotalEstimatedFailureCost(),
                 savedReportPath,
                 report.getFailureMessages(),
-                report.getFailures());
+                report.getFailures(),
+                report.getObjectExecutionCounts());
     }
 
     private AnalyzerSourceOverviewViewModel buildSourceOverview(AnalyzerSession session) {
@@ -177,6 +181,14 @@ public class AnalyzerViewModelBuilder {
         }
 
         return count;
+    }
+
+    private long sumTableBytes(List<AnalyzerTableSizeViewModel> tableSizes) {
+        long totalBytes = 0;
+        for (AnalyzerTableSizeViewModel tableSize : tableSizes) {
+            totalBytes += Math.max(0L, tableSize.bytes());
+        }
+        return totalBytes;
     }
 
     private String getProgramVersion() {
