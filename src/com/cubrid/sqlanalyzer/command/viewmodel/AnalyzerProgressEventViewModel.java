@@ -21,18 +21,26 @@ public record AnalyzerProgressEventViewModel(
     }
 
     public static AnalyzerProgressEventViewModel planning(int totalCount) {
+        return planning(AnalyzerProgressCounts.initial(totalCount));
+    }
+
+    public static AnalyzerProgressEventViewModel planning(AnalyzerProgressCounts counts) {
         return new AnalyzerProgressEventViewModel(
                 AnalyzerProgressStage.PLANNING,
-                "Generated SQL statements: " + totalCount,
+                "Generated SQL statements: " + counts.totalCount(),
                 null,
                 null,
                 null,
                 null,
                 null,
-                AnalyzerProgressCounts.initial(totalCount));
+                counts);
     }
 
     public static AnalyzerProgressEventViewModel empty(int totalCount) {
+        return empty(AnalyzerProgressCounts.initial(totalCount));
+    }
+
+    public static AnalyzerProgressEventViewModel empty(AnalyzerProgressCounts counts) {
         return new AnalyzerProgressEventViewModel(
                 AnalyzerProgressStage.EMPTY,
                 "No SQL statements were generated for the selected source/mode.",
@@ -41,7 +49,7 @@ public record AnalyzerProgressEventViewModel(
                 null,
                 null,
                 null,
-                AnalyzerProgressCounts.initial(totalCount));
+                counts);
     }
 
     public static AnalyzerProgressEventViewModel statementSucceeded(

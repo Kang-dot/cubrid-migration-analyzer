@@ -5,7 +5,9 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import com.cubrid.cubridmigration.core.dbobject.PlcsqlFunction;
 import com.cubrid.cubridmigration.core.dbobject.PlcsqlProcedure;
@@ -23,6 +25,7 @@ import com.cubrid.sqlanalyzer.command.AnalyzerSourceType;
 import com.cubrid.sqlanalyzer.command.AnalyzerTargetType;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerProgressEventViewModel;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerProgressCounts;
+import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerProgressObjectCount;
 import com.cubrid.sqlanalyzer.core.AnalyzerConfiguration;
 import com.cubrid.sqlanalyzer.core.cost.AnalyzerCostCalculator;
 import com.cubrid.sqlanalyzer.core.cost.FailureCostCalculator;
@@ -51,10 +54,12 @@ public class AnalyzerExecutionRunner {
                 session.getExecutionMode());
         AnalyzerExecutionPlan executionPlan = buildExecutionPlan(session);
         int totalCount = executionPlan.getStatements().size();
+        ObjectProgressTracker objectProgressTracker = ObjectProgressTracker.from(executionPlan);
         LOG.info("Analysis execution plan built. statementCount={}", totalCount);
         notifyProgress(
                 progressListener,
-                AnalyzerProgressEventViewModel.planning(totalCount));
+                AnalyzerProgressEventViewModel.planning(
+                        objectProgressTracker.snapshot(0, 0, 0)));
         costCalculator.analyzeBeforeExecution(executionPlan, session.getReport());
         if (executionPlan.isEmpty()) {
             LOG.info("Analysis execution ended without statements.");
@@ -64,19 +69,20 @@ public class AnalyzerExecutionRunner {
             session.clearFailures();
             notifyProgress(
                     progressListener,
-                    AnalyzerProgressEventViewModel.empty(totalCount));
+                    AnalyzerProgressEventViewModel.empty(
+                            objectProgressTracker.snapshot(0, 0, 0)));
             return;
         }
 
         if (session.getTargetType() == AnalyzerTargetType.PARSER) {
             LOG.info("Running parser analysis.");
-            runParserAnalysis(session, executionPlan, progressListener);
+            runParserAnalysis(session, executionPlan, objectProgressTracker, progressListener);
             return;
         }
 
         if (session.getTargetType() == AnalyzerTargetType.JDBC) {
             LOG.info("Running JDBC analysis.");
-            runJdbcAnalysis(session, executionPlan, progressListener);
+            runJdbcAnalysis(session, executionPlan, objectProgressTracker, progressListener);
             return;
         }
 
@@ -108,97 +114,102 @@ public class AnalyzerExecutionRunner {
     private void runParserAnalysis(
             AnalyzerSession session,
             AnalyzerExecutionPlan executionPlan,
+            ObjectProgressTracker objectProgressTracker,
             AnalyzerProgressListener progressListener) {
         QueryParser queryParser = new QueryParser();
-        PlcsqlChecker plcsqlChecker = new PlcsqlChecker();
-        int totalCount = executionPlan.getStatements().size();
         int analyzed = 0;
         int succeeded = 0;
         int failed = 0;
 
         session.clearFailures();
 
-        for (AnalyzerStatement statement : executionPlan.getStatements()) {
-            analyzed++;
-            if (isUnsupportedStatement(statement)) {
-                failed++;
-                objectUnsupportedFailure(
-                        session, progressListener,
-                        new AnalyzerProgressCounts(totalCount, analyzed, succeeded, failed),
-                        statement,
-                        AnalyzerUnsupportedStatementPolicy.getUnsupportedReason(statement));
-                continue;
-            }
-            try {
-                checkStatement(queryParser, plcsqlChecker, statement);
-                succeeded++;
-                session.getReport()
-                        .addStatementResult(
-                                statement.getType(),
-                                statement.getId(),
-                                statement.getSQL(),
-                                true,
-                                "parsed",
-                                null);
-                notifyProgress(
-                        progressListener,
-                        AnalyzerProgressEventViewModel.statementSucceeded(
-                                statement,
-                                "parsed",
-                                new AnalyzerProgressCounts(totalCount, analyzed, succeeded, failed)));
-            } catch (SQLParserException ex) {
-                failed++;
-                String failureMessage = buildFailureMessage(statement.getType(), statement.getId(), ex.getMessage());
-                LOG.warn(
-                        "Parser analysis failed for statement. statementType={}, statementId={}, reason={}",
-                        statement.getType(),
-                        statement.getId(),
-                        ex.getMessage(),
-                        ex);
-                session.addFailureMessage(failureMessage);
-                session.addFailure(
-                        buildFailure(statement, ex.getMessage(), AnalyzerFailureStage.PARSER));
-                session.getReport()
-                        .addStatementResult(
-                                statement.getType(),
-                                statement.getId(),
-                                statement.getSQL(),
-                                false,
-                                ex.getMessage(),
-                                AnalyzerFailureStage.PARSER);
-                notifyProgress(
-                        progressListener,
-                        AnalyzerProgressEventViewModel.statementFailed(
-                                statement,
-                                ex.getMessage(),
-                                AnalyzerFailureStage.PARSER,
-                                new AnalyzerProgressCounts(totalCount, analyzed, succeeded, failed)));
-            } catch (Exception ex) {
-                failed++;
-                String failureMessage = buildFailureMessage(statement.getType(), statement.getId(), ex.toString());
-                LOG.warn(
-                        "Unexpected parser analysis exception for statement. statementType={}, statementId={}",
-                        statement.getType(),
-                        statement.getId(),
-                        ex);
-                session.addFailureMessage(failureMessage);
-                session.addFailure(
-                        buildFailure(statement, ex.toString(), AnalyzerFailureStage.PARSER));
-                session.getReport()
-                        .addStatementResult(
-                                statement.getType(),
-                                statement.getId(),
-                                statement.getSQL(),
-                                false,
-                                ex.toString(),
-                                AnalyzerFailureStage.PARSER);
-                notifyProgress(
-                        progressListener,
-                        AnalyzerProgressEventViewModel.statementFailed(
-                                statement,
-                                ex.toString(),
-                                AnalyzerFailureStage.PARSER,
-                                new AnalyzerProgressCounts(totalCount, analyzed, succeeded, failed)));
+        try (PlcsqlChecker plcsqlChecker = new PlcsqlChecker()) {
+            for (AnalyzerStatement statement : executionPlan.getStatements()) {
+                analyzed++;
+                if (isUnsupportedStatement(statement)) {
+                    failed++;
+                    objectProgressTracker.record(statement, false);
+                    objectUnsupportedFailure(
+                            session, progressListener,
+                            objectProgressTracker.snapshot(analyzed, succeeded, failed),
+                            statement,
+                            AnalyzerUnsupportedStatementPolicy.getUnsupportedReason(statement));
+                    continue;
+                }
+                try {
+                    checkStatement(queryParser, plcsqlChecker, statement);
+                    succeeded++;
+                    objectProgressTracker.record(statement, true);
+                    session.getReport()
+                            .addStatementResult(
+                                    statement.getType(),
+                                    statement.getId(),
+                                    statement.getSQL(),
+                                    true,
+                                    "parsed",
+                                    null);
+                    notifyProgress(
+                            progressListener,
+                            AnalyzerProgressEventViewModel.statementSucceeded(
+                                    statement,
+                                    "parsed",
+                                    objectProgressTracker.snapshot(analyzed, succeeded, failed)));
+                } catch (SQLParserException ex) {
+                    failed++;
+                    objectProgressTracker.record(statement, false);
+                    String failureMessage = buildFailureMessage(statement.getType(), statement.getId(), ex.getMessage());
+                    LOG.warn(
+                            "Parser analysis failed for statement. statementType={}, statementId={}, reason={}",
+                            statement.getType(),
+                            statement.getId(),
+                            ex.getMessage(),
+                            ex);
+                    session.addFailureMessage(failureMessage);
+                    session.addFailure(
+                            buildFailure(statement, ex.getMessage(), AnalyzerFailureStage.PARSER));
+                    session.getReport()
+                            .addStatementResult(
+                                    statement.getType(),
+                                    statement.getId(),
+                                    statement.getSQL(),
+                                    false,
+                                    ex.getMessage(),
+                                    AnalyzerFailureStage.PARSER);
+                    notifyProgress(
+                            progressListener,
+                            AnalyzerProgressEventViewModel.statementFailed(
+                                    statement,
+                                    ex.getMessage(),
+                                    AnalyzerFailureStage.PARSER,
+                                    objectProgressTracker.snapshot(analyzed, succeeded, failed)));
+                } catch (Exception ex) {
+                    failed++;
+                    objectProgressTracker.record(statement, false);
+                    String failureMessage = buildFailureMessage(statement.getType(), statement.getId(), ex.toString());
+                    LOG.warn(
+                            "Unexpected parser analysis exception for statement. statementType={}, statementId={}",
+                            statement.getType(),
+                            statement.getId(),
+                            ex);
+                    session.addFailureMessage(failureMessage);
+                    session.addFailure(
+                            buildFailure(statement, ex.toString(), AnalyzerFailureStage.PARSER));
+                    session.getReport()
+                            .addStatementResult(
+                                    statement.getType(),
+                                    statement.getId(),
+                                    statement.getSQL(),
+                                    false,
+                                    ex.toString(),
+                                    AnalyzerFailureStage.PARSER);
+                    notifyProgress(
+                            progressListener,
+                            AnalyzerProgressEventViewModel.statementFailed(
+                                    statement,
+                                    ex.toString(),
+                                    AnalyzerFailureStage.PARSER,
+                                    objectProgressTracker.snapshot(analyzed, succeeded, failed)));
+                }
             }
         }
 
@@ -213,7 +224,7 @@ public class AnalyzerExecutionRunner {
                 succeeded,
                 failed);
         notifyAnalysisCompleted(progressListener,
-                new AnalyzerProgressCounts(analyzed, analyzed, succeeded, failed));
+                objectProgressTracker.snapshot(analyzed, succeeded, failed));
     }
 
     private void checkStatement(
@@ -230,24 +241,25 @@ public class AnalyzerExecutionRunner {
     private void runJdbcAnalysis(
             AnalyzerSession session,
             AnalyzerExecutionPlan executionPlan,
+            ObjectProgressTracker objectProgressTracker,
             AnalyzerProgressListener progressListener) {
-        PlcsqlChecker plcsqlChecker = new PlcsqlChecker();
         List<String> cleanupQueries = new ArrayList<String>();
-        int totalCount = executionPlan.getStatements().size();
         int analyzed = 0;
         int succeeded = 0;
         int failed = 0;
 
         session.clearFailures();
 
-        try (Connection connection = session.getConfig().getTargetConParams().createConnection()) {
+        try (PlcsqlChecker plcsqlChecker = new PlcsqlChecker();
+                Connection connection = session.getConfig().getTargetConParams().createConnection()) {
             for (AnalyzerStatement statement : executionPlan.getStatements()) {
                 analyzed++;
                 if (isUnsupportedStatement(statement)) {
                     failed++;
+                    objectProgressTracker.record(statement, false);
                     objectUnsupportedFailure(
                             session, progressListener,
-                            new AnalyzerProgressCounts(totalCount, analyzed, succeeded, failed),
+                            objectProgressTracker.snapshot(analyzed, succeeded, failed),
                             statement,
                             AnalyzerUnsupportedStatementPolicy.getUnsupportedReason(statement));
                     continue;
@@ -256,13 +268,15 @@ public class AnalyzerExecutionRunner {
                     if (isPlcsqlStatement(statement)) {
                         plcsqlChecker.checkSQL(statement.getSQL());
                         succeeded++;
+                        objectProgressTracker.record(statement, true);
                         recordParsedStatement(session, progressListener, statement,
-                                new AnalyzerProgressCounts(totalCount, analyzed, succeeded, failed));
+                                objectProgressTracker.snapshot(analyzed, succeeded, failed));
                         continue;
                     }
 
                     String resultSummary = executeJdbcStatement(connection, statement);
                     succeeded++;
+                    objectProgressTracker.record(statement, true);
                     session.getReport()
                             .addStatementResult(
                                     statement.getType(),
@@ -276,7 +290,7 @@ public class AnalyzerExecutionRunner {
                             AnalyzerProgressEventViewModel.statementSucceeded(
                                     statement,
                                     resultSummary,
-                                    new AnalyzerProgressCounts(totalCount, analyzed, succeeded, failed)));
+                                    objectProgressTracker.snapshot(analyzed, succeeded, failed)));
 
                     String cleanupQuery = buildCleanupQuery(session, statement);
                     if (cleanupQuery != null) {
@@ -284,6 +298,7 @@ public class AnalyzerExecutionRunner {
                     }
                 } catch (SQLParserException ex) {
                     failed++;
+                    objectProgressTracker.record(statement, false);
                     LOG.warn(
                             "PL/CSQL parser analysis failed for JDBC statement. statementType={}, statementId={}, reason={}",
                             statement.getType(),
@@ -296,9 +311,10 @@ public class AnalyzerExecutionRunner {
                             statement,
                             ex.getMessage(),
                             AnalyzerFailureStage.PARSER,
-                            new AnalyzerProgressCounts(totalCount, analyzed, succeeded, failed));
+                            objectProgressTracker.snapshot(analyzed, succeeded, failed));
                 } catch (Exception ex) {
                     failed++;
+                    objectProgressTracker.record(statement, false);
                     LOG.warn(
                             "JDBC analysis failed for statement. statementType={}, statementId={}",
                             statement.getType(),
@@ -310,7 +326,7 @@ public class AnalyzerExecutionRunner {
                             statement,
                             ex.toString(),
                             AnalyzerFailureStage.JDBC,
-                            new AnalyzerProgressCounts(totalCount, analyzed, succeeded, failed));
+                            objectProgressTracker.snapshot(analyzed, succeeded, failed));
                 }
             }
             if (!cleanupQueries.isEmpty()) {
@@ -319,7 +335,7 @@ public class AnalyzerExecutionRunner {
                         cleanupQueries,
                         session,
                         progressListener,
-                        new AnalyzerProgressCounts(totalCount, analyzed, succeeded, failed));
+                        objectProgressTracker.snapshot(analyzed, succeeded, failed));
             }
         } catch (Exception ex) {
             throw new RuntimeException("JDBC execution failed to start: " + ex.getMessage(), ex);
@@ -336,7 +352,7 @@ public class AnalyzerExecutionRunner {
                 succeeded,
                 failed);
         notifyAnalysisCompleted(progressListener,
-                new AnalyzerProgressCounts(analyzed, analyzed, succeeded, failed));
+                objectProgressTracker.snapshot(analyzed, succeeded, failed));
     }
 
     private void recordParsedStatement(
@@ -645,5 +661,80 @@ public class AnalyzerExecutionRunner {
         if (progressListener != null) {
             progressListener.onProgress(event);
         }
+    }
+
+    private static class ObjectProgressTracker {
+        private final int totalCount;
+        private final Map<String, MutableObjectProgressCount> objectCounts =
+                new LinkedHashMap<String, MutableObjectProgressCount>();
+
+        private ObjectProgressTracker(int totalCount) {
+            this.totalCount = totalCount;
+        }
+
+        static ObjectProgressTracker from(AnalyzerExecutionPlan executionPlan) {
+            ObjectProgressTracker tracker =
+                    new ObjectProgressTracker(executionPlan.getStatements().size());
+            for (AnalyzerStatement statement : executionPlan.getStatements()) {
+                tracker.getOrCreate(displayObjectType(statement)).totalCount++;
+            }
+            return tracker;
+        }
+
+        void record(AnalyzerStatement statement, boolean success) {
+            MutableObjectProgressCount count = getOrCreate(displayObjectType(statement));
+            if (success) {
+                count.succeededCount++;
+                return;
+            }
+            count.failedCount++;
+        }
+
+        AnalyzerProgressCounts snapshot(int completedCount, int succeededCount, int failedCount) {
+            List<AnalyzerProgressObjectCount> snapshots =
+                    new ArrayList<AnalyzerProgressObjectCount>();
+            for (Map.Entry<String, MutableObjectProgressCount> entry : objectCounts.entrySet()) {
+                MutableObjectProgressCount count = entry.getValue();
+                snapshots.add(
+                        new AnalyzerProgressObjectCount(
+                                entry.getKey(),
+                                count.totalCount,
+                                count.succeededCount,
+                                count.failedCount));
+            }
+            return new AnalyzerProgressCounts(
+                    totalCount,
+                    completedCount,
+                    succeededCount,
+                    failedCount,
+                    snapshots);
+        }
+
+        private MutableObjectProgressCount getOrCreate(String objectType) {
+            MutableObjectProgressCount count = objectCounts.get(objectType);
+            if (count == null) {
+                count = new MutableObjectProgressCount();
+                objectCounts.put(objectType, count);
+            }
+            return count;
+        }
+
+        private static String displayObjectType(AnalyzerStatement statement) {
+            if (statement == null || statement.getType() == null || statement.getType().isEmpty()) {
+                return "UNKNOWN";
+            }
+
+            String type = statement.getType();
+            if (type.startsWith("DDL_")) {
+                return type.substring("DDL_".length());
+            }
+            return type;
+        }
+    }
+
+    private static class MutableObjectProgressCount {
+        private int totalCount;
+        private int succeededCount;
+        private int failedCount;
     }
 }

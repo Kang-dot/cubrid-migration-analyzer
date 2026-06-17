@@ -4,8 +4,10 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
+import java.util.Locale;
 
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerProgressEventViewModel;
+import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerProgressObjectCount;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerProgressStage;
 import com.googlecode.lanterna.gui2.Label;
 import com.googlecode.lanterna.gui2.Panel;
@@ -13,6 +15,7 @@ import com.googlecode.lanterna.gui2.ProgressBar;
 
 public class AnalyzerTuiProgressPage {
     private static final int RECENT_EVENT_LIMIT = 5;
+    private static final int OBJECT_SUMMARY_ROW_LIMIT = 8;
 
     public Panel build() {
         return buildView().getPanel();
@@ -30,6 +33,7 @@ public class AnalyzerTuiProgressPage {
         private final Label currentLabel;
         private final Label statusLabel;
         private final ProgressBar progressBar;
+        private final List<Label> objectSummaryLabels = new ArrayList<Label>();
         private final List<Label> recentLabels = new ArrayList<Label>();
         private final Deque<String> recentMessages = new ArrayDeque<String>();
 
@@ -51,6 +55,16 @@ public class AnalyzerTuiProgressPage {
             panel.addComponent(progressBar);
             panel.addComponent(new Label(""));
             panel.addComponent(currentLabel);
+            panel.addComponent(new Label(""));
+            panel.addComponent(new Label("Object summary"));
+            panel.addComponent(new Label(
+                    "  Type             Total   OK FAIL"));
+            for (int i = 0; i < OBJECT_SUMMARY_ROW_LIMIT; i++) {
+                Label objectSummaryLabel = new Label("  ");
+                objectSummaryLabels.add(objectSummaryLabel);
+                panel.addComponent(objectSummaryLabel);
+            }
+            panel.addComponent(new Label(""));
             panel.addComponent(new Label("Recent"));
             for (int i = 0; i < RECENT_EVENT_LIMIT; i++) {
                 Label recentLabel = new Label("  ");
@@ -80,6 +94,7 @@ public class AnalyzerTuiProgressPage {
             failLabel.setText("FAIL     : " + Math.max(0, event.failedCount()));
             progressBar.setMax(progressMax);
             progressBar.setValue(progressValue);
+            updateObjectSummary(event.counts().objectCounts());
 
             String message = formatMessage(event);
             if (!message.isEmpty()) {
@@ -88,6 +103,51 @@ public class AnalyzerTuiProgressPage {
                     addRecentMessage(message);
                 }
             }
+        }
+
+        private void updateObjectSummary(List<AnalyzerProgressObjectCount> objectCounts) {
+            int rowIndex = 0;
+            int itemIndex = 0;
+            while (rowIndex < objectSummaryLabels.size()) {
+                if (objectCounts == null || itemIndex >= objectCounts.size()) {
+                    objectSummaryLabels.get(rowIndex).setText("  ");
+                    rowIndex++;
+                    continue;
+                }
+
+                String row = "  " + formatObjectSummary(objectCounts.get(itemIndex));
+                itemIndex++;
+
+                objectSummaryLabels.get(rowIndex).setText(row);
+                rowIndex++;
+            }
+
+            if (objectCounts != null
+                    && itemIndex < objectCounts.size()
+                    && !objectSummaryLabels.isEmpty()) {
+                int remainingCount = objectCounts.size() - itemIndex;
+                objectSummaryLabels
+                        .get(objectSummaryLabels.size() - 1)
+                        .setText("  ... " + remainingCount + " more");
+            }
+        }
+
+        private String formatObjectSummary(AnalyzerProgressObjectCount objectCount) {
+            return String.format(
+                    Locale.US,
+                    "%-15s %5d %4d %4d",
+                    fitText(objectCount.objectType(), 15),
+                    Math.max(0, objectCount.totalCount()),
+                    Math.max(0, objectCount.succeededCount()),
+                    Math.max(0, objectCount.failedCount()));
+        }
+
+        private String fitText(String value, int maxLength) {
+            String text = value == null ? "" : value;
+            if (text.length() <= maxLength) {
+                return text;
+            }
+            return text.substring(0, maxLength - 1) + ".";
         }
 
         public void markCompleted() {

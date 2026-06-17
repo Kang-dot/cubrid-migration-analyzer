@@ -149,12 +149,7 @@ public class AnalyzerConnectionManager {
     public void addConnection(AnalyzerConnectionInfo connectionInfo) {
         if (connectionInfo != null && connectionInfo.getName() != null) {
             // Check for duplicate names
-            for (AnalyzerConnectionInfo existing : connections) {
-                if (existing.getName().equals(connectionInfo.getName())) {
-                    connections.remove(existing);
-                    break;
-                }
-            }
+            connections.removeIf(existing -> existing.getName().equals(connectionInfo.getName()));
             connections.add(connectionInfo);
         }
     }

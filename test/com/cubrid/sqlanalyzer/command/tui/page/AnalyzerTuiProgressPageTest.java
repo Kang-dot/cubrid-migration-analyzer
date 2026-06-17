@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import com.cubrid.sqlanalyzer.command.tui.page.AnalyzerTuiProgressPage.ProgressView;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerProgressCounts;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerProgressEventViewModel;
+import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerProgressObjectCount;
 import com.cubrid.sqlanalyzer.core.plan.AnalyzerStatement;
 import com.googlecode.lanterna.gui2.Component;
 import com.googlecode.lanterna.gui2.Label;
@@ -28,6 +29,7 @@ class AnalyzerTuiProgressPageTest {
         assertTrue(screenText.contains("Progress : 0 / 0"));
         assertTrue(screenText.contains("OK       : 0"));
         assertTrue(screenText.contains("FAIL     : 0"));
+        assertTrue(screenText.contains("Object summary"));
         assertTrue(screenText.contains("Analysis is running..."));
     }
 
@@ -54,6 +56,33 @@ class AnalyzerTuiProgressPageTest {
         assertFalse(screenText.contains("[OK] SELECT q1"));
         assertTrue(screenText.contains("[OK] SELECT q2"));
         assertTrue(screenText.contains("[OK] SELECT q6"));
+    }
+
+    @Test
+    @DisplayName("progress TUI page renders object summary counts")
+    void shouldRenderObjectSummaryCounts() {
+        ProgressView progressView = new AnalyzerTuiProgressPage().buildView();
+
+        progressView.update(
+                AnalyzerProgressEventViewModel.statementFailed(
+                        new AnalyzerStatement("DDL_TABLE", "TABLE_2", "create table t2(c int)"),
+                        "syntax error",
+                        null,
+                        new AnalyzerProgressCounts(
+                                4,
+                                2,
+                                1,
+                                1,
+                                List.of(
+                                        new AnalyzerProgressObjectCount("TABLE", 2, 1, 1),
+                                        new AnalyzerProgressObjectCount("VIEW_CREATE", 2, 0, 0)))));
+
+        String screenText = String.join(
+                System.lineSeparator(), collectLabelTexts(progressView.getPanel()));
+
+        assertTrue(screenText.contains("TABLE"));
+        assertTrue(screenText.contains("VIEW_CREATE"));
+        assertTrue(screenText.contains("    2    1    1"));
     }
 
     @Test
