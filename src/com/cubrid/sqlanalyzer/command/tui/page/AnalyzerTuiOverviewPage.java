@@ -25,10 +25,22 @@ public class AnalyzerTuiOverviewPage {
         lines.add("CUBRID SQL Analyzer");
         lines.add("[1/4] Overview");
         lines.add("Program     : " + formatText(overview.programVersion()));
-        appendSource(lines, overview.source());
+        appendSources(lines, overview);
         appendTarget(lines, overview.source(), overview.target());
         lines.add("Mode        : " + overview.executionMode());
+        appendSourceStatus(lines, overview);
         return lines;
+    }
+
+    private void appendSources(List<String> lines, AnalyzerOverviewViewModel overview) {
+        if (overview.sources().isEmpty()) {
+            lines.add("Source      : (none)");
+            return;
+        }
+
+        for (AnalyzerSourceOverviewViewModel source : overview.sources()) {
+            appendSource(lines, source);
+        }
     }
 
     private void appendSource(List<String> lines, AnalyzerSourceOverviewViewModel source) {
@@ -65,6 +77,17 @@ public class AnalyzerTuiOverviewPage {
                 && !source.xmlDirectory().isEmpty()) {
             lines.add("XML dir     : " + formatText(source.xmlDirectory()));
             lines.add("XML files   : " + source.xmlFileCount());
+        }
+    }
+
+    private void appendSourceStatus(List<String> lines, AnalyzerOverviewViewModel overview) {
+        if (overview.sourceStatusMessages().isEmpty()) {
+            return;
+        }
+
+        lines.add("Source status");
+        for (String message : overview.sourceStatusMessages()) {
+            lines.add("  - " + formatText(message));
         }
     }
 

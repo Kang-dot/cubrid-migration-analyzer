@@ -22,7 +22,9 @@ public record AnalyzerObjectCountPreviewViewModel(
         int updateCount,
         int deleteCount,
         long totalTableBytes,
-        List<AnalyzerTableSizeViewModel> tableSizes) {
+        List<AnalyzerTableSizeViewModel> tableSizes,
+        boolean oracleSourceLoaded,
+        boolean xmlSourceLoaded) {
 
     public AnalyzerObjectCountPreviewViewModel(
             AnalyzerSourceType sourceType,
@@ -59,7 +61,51 @@ public record AnalyzerObjectCountPreviewViewModel(
                 updateCount,
                 deleteCount,
                 0,
-                List.of());
+                List.of(),
+                sourceType == AnalyzerSourceType.ORACLE || sourceType == AnalyzerSourceType.ALL,
+                sourceType == AnalyzerSourceType.XML || sourceType == AnalyzerSourceType.ALL);
+    }
+
+    public AnalyzerObjectCountPreviewViewModel(
+            AnalyzerSourceType sourceType,
+            int catalogSchemaCount,
+            int targetTableCount,
+            long targetPkCount,
+            long targetFkCount,
+            int targetViewCount,
+            int targetSerialCount,
+            int targetSynonymCount,
+            int targetGrantCount,
+            int targetProcedureCount,
+            int targetFunctionCount,
+            int targetTriggerCount,
+            int selectCount,
+            int insertCount,
+            int updateCount,
+            int deleteCount,
+            long totalTableBytes,
+            List<AnalyzerTableSizeViewModel> tableSizes) {
+        this(
+                sourceType,
+                catalogSchemaCount,
+                targetTableCount,
+                targetPkCount,
+                targetFkCount,
+                targetViewCount,
+                targetSerialCount,
+                targetSynonymCount,
+                targetGrantCount,
+                targetProcedureCount,
+                targetFunctionCount,
+                targetTriggerCount,
+                selectCount,
+                insertCount,
+                updateCount,
+                deleteCount,
+                totalTableBytes,
+                tableSizes,
+                sourceType == AnalyzerSourceType.ORACLE || sourceType == AnalyzerSourceType.ALL,
+                sourceType == AnalyzerSourceType.XML || sourceType == AnalyzerSourceType.ALL);
     }
 
     public AnalyzerObjectCountPreviewViewModel {

@@ -4,25 +4,49 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-import com.cubrid.sqlanalyzer.command.AnalyzerSourceType;
+import com.googlecode.lanterna.TerminalSize;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerObjectCountPreviewViewModel;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerTableSizeViewModel;
 import com.googlecode.lanterna.gui2.Label;
 import com.googlecode.lanterna.gui2.Panel;
+import com.googlecode.lanterna.gui2.table.Table;
 
 public class AnalyzerTuiObjectCountPage {
+    private static final int TABLE_SIZE_VISIBLE_ROWS = 8;
+    private static final int TABLE_NAME_WIDTH = 44;
+
     public Panel build(AnalyzerObjectCountPreviewViewModel preview) {
         Panel panel = new Panel();
-        for (String line : buildLines(preview)) {
+        for (String line : buildSummaryLines(preview)) {
+            panel.addComponent(new Label(line));
+        }
+        if (preview.oracleSourceLoaded() && !preview.tableSizes().isEmpty()) {
+            panel.addComponent(buildTableSizeTable(preview.tableSizes()));
+        }
+        for (String line : buildDmlLines(preview)) {
             panel.addComponent(new Label(line));
         }
         return panel;
     }
 
     List<String> buildLines(AnalyzerObjectCountPreviewViewModel preview) {
+        List<String> lines = buildSummaryLines(preview);
+        if (preview.oracleSourceLoaded() && !preview.tableSizes().isEmpty()) {
+            lines.add("  No.  Table                                         Size       Est. rows");
+            int rowNumber = 1;
+            for (AnalyzerTableSizeViewModel tableSize : preview.tableSizes()) {
+                lines.add(formatTableSizeRow(rowNumber++, tableSize));
+            }
+        }
+        lines.addAll(buildDmlLines(preview));
+        return lines;
+    }
+
+    private List<String> buildSummaryLines(AnalyzerObjectCountPreviewViewModel preview) {
         List<String> lines = new ArrayList<String>();
         lines.add("[2/4] Object count preview");
-        if (preview.sourceType() == AnalyzerSourceType.ORACLE) {
+        lines.add("DDL objects");
+        if (preview.oracleSourceLoaded()) {
             lines.add("Catalog schemas : " + preview.catalogSchemaCount());
             lines.add("Target tables   : " + preview.targetTableCount());
             lines.add("Target PKs      : " + preview.targetPkCount());
@@ -39,25 +63,55 @@ public class AnalyzerTuiObjectCountPage {
             lines.add("Oracle table sizes");
             if (preview.tableSizes().isEmpty()) {
                 lines.add("  (none)");
-            } else {
-                lines.add("  Table                         Size");
-                for (AnalyzerTableSizeViewModel tableSize : preview.tableSizes()) {
-                    lines.add(
-                            String.format(
-                                    Locale.US,
-                                    "  %-28s %10s",
-                                    fitText(tableSize.tableName(), 28),
-                                    formatBytes(tableSize.bytes())));
-                }
             }
-            return lines;
+        } else {
+            lines.add("  (none)");
         }
 
-        lines.add("SELECT count    : " + preview.selectCount());
-        lines.add("INSERT count    : " + preview.insertCount());
-        lines.add("UPDATE count    : " + preview.updateCount());
-        lines.add("DELETE count    : " + preview.deleteCount());
         return lines;
+    }
+
+    private List<String> buildDmlLines(AnalyzerObjectCountPreviewViewModel preview) {
+        List<String> lines = new ArrayList<String>();
+        lines.add("DML statements");
+        if (preview.xmlSourceLoaded()) {
+            lines.add("SELECT count    : " + preview.selectCount());
+            lines.add("INSERT count    : " + preview.insertCount());
+            lines.add("UPDATE count    : " + preview.updateCount());
+            lines.add("DELETE count    : " + preview.deleteCount());
+        } else {
+            lines.add("  (none)");
+        }
+        return lines;
+    }
+
+    private Table<String> buildTableSizeTable(List<AnalyzerTableSizeViewModel> tableSizes) {
+        Table<String> table = new Table<String>("No.", "Table", "Size", "Est. rows");
+        int rowNumber = 1;
+        for (AnalyzerTableSizeViewModel tableSize : tableSizes) {
+            table.getTableModel().addRow(
+                    String.valueOf(rowNumber++),
+                    fitText(tableSize.tableName(), TABLE_NAME_WIDTH),
+                    formatBytes(tableSize.bytes()),
+                    formatNumber(tableSize.estimatedRows()));
+        }
+        table.setVisibleRows(Math.min(TABLE_SIZE_VISIBLE_ROWS, tableSizes.size()));
+        table.setVisibleColumns(4);
+        table.setPreferredSize(
+                new TerminalSize(
+                        74,
+                        Math.min(TABLE_SIZE_VISIBLE_ROWS, tableSizes.size()) + 2));
+        return table;
+    }
+
+    private String formatTableSizeRow(int rowNumber, AnalyzerTableSizeViewModel tableSize) {
+        return String.format(
+                Locale.US,
+                "  %3d  %-44s %10s %15s",
+                rowNumber,
+                fitText(tableSize.tableName(), TABLE_NAME_WIDTH),
+                formatBytes(tableSize.bytes()),
+                formatNumber(tableSize.estimatedRows()));
     }
 
     private String formatBytes(long bytes) {
@@ -82,5 +136,9 @@ public class AnalyzerTuiObjectCountPage {
             return text;
         }
         return text.substring(0, maxLength - 1) + ".";
+    }
+
+    private String formatNumber(long number) {
+        return String.format(Locale.US, "%,d", Math.max(0L, number));
     }
 }

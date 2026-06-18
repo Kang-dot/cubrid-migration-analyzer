@@ -15,6 +15,10 @@ public class AnalyzerSession {
     private AnalyzerSourceType sourceType;
     private AnalyzerTargetType targetType;
     private AnalyzerExecutionMode executionMode;
+    private boolean oracleSourceRequested;
+    private boolean xmlSourceRequested;
+    private boolean oracleSourceLoaded;
+    private boolean xmlSourceLoaded;
 
     private String sourceJdbcUrl;
     private String sourceUser;
@@ -34,6 +38,7 @@ public class AnalyzerSession {
     private int succeededStatementCount;
     private int failedStatementCount;
     private final List<String> failureMessages = new ArrayList<String>();
+    private final List<String> sourceStatusMessages = new ArrayList<String>();
 
     public AnalyzerConfiguration getConfig() {
         return config;
@@ -46,6 +51,42 @@ public class AnalyzerSession {
     public void setSourceType(AnalyzerSourceType sourceType) {
         this.sourceType = sourceType;
         report.setSourceType(sourceType);
+    }
+
+    public boolean isOracleSourceRequested() {
+        return oracleSourceRequested;
+    }
+
+    public void setOracleSourceRequested(boolean oracleSourceRequested) {
+        this.oracleSourceRequested = oracleSourceRequested;
+        refreshSourceType();
+    }
+
+    public boolean isXmlSourceRequested() {
+        return xmlSourceRequested;
+    }
+
+    public void setXmlSourceRequested(boolean xmlSourceRequested) {
+        this.xmlSourceRequested = xmlSourceRequested;
+        refreshSourceType();
+    }
+
+    public boolean isOracleSourceLoaded() {
+        return oracleSourceLoaded;
+    }
+
+    public void setOracleSourceLoaded(boolean oracleSourceLoaded) {
+        this.oracleSourceLoaded = oracleSourceLoaded;
+        refreshSourceType();
+    }
+
+    public boolean isXmlSourceLoaded() {
+        return xmlSourceLoaded;
+    }
+
+    public void setXmlSourceLoaded(boolean xmlSourceLoaded) {
+        this.xmlSourceLoaded = xmlSourceLoaded;
+        refreshSourceType();
     }
 
     public AnalyzerTargetType getTargetType() {
@@ -200,7 +241,36 @@ public class AnalyzerSession {
         report.addFailure(failure);
     }
 
+    public List<String> getSourceStatusMessages() {
+        return report.getSourceStatusMessages();
+    }
+
+    public void clearSourceStatusMessages() {
+        sourceStatusMessages.clear();
+        report.clearSourceStatusMessages();
+    }
+
+    public void addSourceStatusMessage(String sourceStatusMessage) {
+        sourceStatusMessages.add(sourceStatusMessage);
+        report.addSourceStatusMessage(sourceStatusMessage);
+    }
+
     public AnalyzerReport getReport() {
         return report;
+    }
+
+    private void refreshSourceType() {
+        AnalyzerSourceType resolvedSourceType = null;
+        boolean hasOracle = oracleSourceLoaded || oracleSourceRequested;
+        boolean hasXml = xmlSourceLoaded || xmlSourceRequested;
+        if (hasOracle && hasXml) {
+            resolvedSourceType = AnalyzerSourceType.ALL;
+        } else if (hasOracle) {
+            resolvedSourceType = AnalyzerSourceType.ORACLE;
+        } else if (hasXml) {
+            resolvedSourceType = AnalyzerSourceType.XML;
+        }
+        sourceType = resolvedSourceType;
+        report.setSourceType(resolvedSourceType);
     }
 }

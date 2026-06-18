@@ -60,43 +60,36 @@ public class AnalyzerService {
                 arguments.getTargetType(),
                 arguments.getUiMode());
         session.setSourceType(arguments.getSourceType());
-        if (AnalyzerSourceType.ORACLE.equals(arguments.getSourceType())) {
+        session.setOracleSourceRequested(arguments.isOracleSourceRequested());
+        session.setXmlSourceRequested(arguments.isXmlSourceRequested());
+        for (String message : arguments.getSourceInputMessages()) {
+            session.addSourceStatusMessage(message);
+        }
+
+        if (arguments.isOracleSourceRequested()) {
             session.setSourceJdbcUrl(arguments.getSourceJdbcUrl());
             session.setSourceUser(arguments.getSourceUser());
             session.setSourcePassword(arguments.getSourcePassword());
-            validateOracleSourceConnection(session);
-        } else if (AnalyzerSourceType.XML.equals(arguments.getSourceType())) {
+        }
+        if (arguments.isXmlSourceRequested()) {
             session.setXmlDirectory(arguments.getXmlDirectory());
             session.setXmlCharset(arguments.getXmlCharset());
         }
 
-        session.setTargetType(arguments.getTargetType());
-        if (AnalyzerTargetType.JDBC.equals(arguments.getTargetType())) {
-            session.setTargetJdbcUrl(arguments.getTargetJdbcUrl());
-            session.setTargetUser(arguments.getTargetUser());
-            session.setTargetPassword(arguments.getTargetPassword());
-            validateJdbcTargetConnection(session);
-        }
+        session.setTargetType(AnalyzerTargetType.PARSER);
 
         applyExecutionMode(session);
         LOG.info("Analyzer arguments applied. executionMode={}", session.getExecutionMode());
     }
 
     public void applyExecutionMode(AnalyzerSession session) {
-        LOG.info("Resolving execution mode. sourceType={}", session.getSourceType());
-        if (AnalyzerSourceType.ORACLE.equals(session.getSourceType())) {
-            session.setExecutionMode(AnalyzerExecutionMode.DDL);
-            LOG.info("Execution mode resolved. executionMode={}", session.getExecutionMode());
-            return;
-        }
-
-        if (AnalyzerSourceType.XML.equals(session.getSourceType())) {
-            session.setExecutionMode(AnalyzerExecutionMode.DML);
-            LOG.info("Execution mode resolved. executionMode={}", session.getExecutionMode());
-            return;
-        }
-
-        throw new IllegalStateException("Unsupported source type: " + session.getSourceType());
+        LOG.info(
+                "Resolving execution mode. oracleRequested={}, xmlRequested={}",
+                session.isOracleSourceRequested(),
+                session.isXmlSourceRequested());
+        session.setExecutionMode(AnalyzerExecutionMode.ALL);
+        session.setTargetType(AnalyzerTargetType.PARSER);
+        LOG.info("Execution mode resolved. executionMode={}", session.getExecutionMode());
     }
 
     public void validateOracleSourceConnection(AnalyzerSession session) {
@@ -129,49 +122,45 @@ public class AnalyzerService {
                 session.getExecutionMode());
         AnalyzerConfiguration config = session.getConfig();
 
-        if (session.getSourceType() == AnalyzerSourceType.ORACLE) {
-            config.setSourceType(AnalyzerConfiguration.SOURCE_TYPE_DB);
-            config.setSourceConParams(
-                    ORACLE_CONN_PARAMETERS_FACTORY.create(
-                            SOURCE_CONNECTION_NAME,
-                            AnalyzerJdbcConnectionSupport.parseOracleProfile(
-                                    session.getSourceJdbcUrl(),
-                                    session.getSourceUser(),
-                                    session.getSourcePassword())));
-        } else if (session.getSourceType() == AnalyzerSourceType.XML) {
-            config.setSourceType(AnalyzerConfiguration.SOURCE_TYPE_XML);
-        }
-
-        if (session.getTargetType() == AnalyzerTargetType.PARSER) {
-            config.setDestType(AnalyzerConfiguration.TARGET_TYPE_PARSER);
-        } else {
-            config.setDestType(AnalyzerConfiguration.TARGET_TYPE_CUBRID);
-            config.setTargetConParams(
-                    CUBRID_CONN_PARAMETERS_FACTORY.create(
-                            TARGET_CONNECTION_NAME,
-                            AnalyzerJdbcConnectionSupport.parseCubridProfile(
-                                    session.getTargetJdbcUrl(),
-                                    session.getTargetUser(),
-                                    session.getTargetPassword())));
-        }
+        config.setDestType(AnalyzerConfiguration.TARGET_TYPE_PARSER);
         LOG.info("Analyzer configuration prepared.");
     }
 
     public void loadSourceCatalog(AnalyzerSession session) {
-        LOG.info("Loading source catalog. sourceType={}", session.getSourceType());
-        if (session.getSourceType() == AnalyzerSourceType.ORACLE) {
-            loadOracleSourceCatalog(session);
-            LOG.info("Oracle source catalog loaded.");
-            return;
+        LOG.info(
+                "Loading source catalog. oracleRequested={}, xmlRequested={}",
+                session.isOracleSourceRequested(),
+                session.isXmlSourceRequested());
+
+        if (session.isOracleSourceRequested()) {
+            try {
+                loadOracleSourceCatalog(session);
+                session.setOracleSourceLoaded(true);
+                session.addSourceStatusMessage("Oracle source loaded.");
+                LOG.info("Oracle source catalog loaded.");
+            } catch (RuntimeException ex) {
+                session.setOracleSourceLoaded(false);
+                session.addSourceStatusMessage("Oracle source skipped: " + ex.getMessage());
+                LOG.warn("Oracle source catalog skipped.", ex);
+            }
         }
 
-        if (session.getSourceType() == AnalyzerSourceType.XML) {
-            loadXmlQueryDictionary(session);
-            LOG.info("XML query dictionary loaded.");
-            return;
+        if (session.isXmlSourceRequested()) {
+            try {
+                loadXmlQueryDictionary(session);
+                session.setXmlSourceLoaded(true);
+                session.addSourceStatusMessage("XML source loaded.");
+                LOG.info("XML query dictionary loaded.");
+            } catch (RuntimeException ex) {
+                session.setXmlSourceLoaded(false);
+                session.addSourceStatusMessage("XML source skipped: " + ex.getMessage());
+                LOG.warn("XML query dictionary skipped.", ex);
+            }
         }
 
-        throw new IllegalStateException("Unsupported source type: " + session.getSourceType());
+        if (!session.isOracleSourceLoaded() && !session.isXmlSourceLoaded()) {
+            throw new IllegalStateException("No analyzer source could be loaded.");
+        }
     }
 
     public AnalyzerOverviewViewModel getOverview(AnalyzerSession session) {
@@ -210,6 +199,21 @@ public class AnalyzerService {
     private void loadOracleSourceCatalog(AnalyzerSession session) {
         LOG.info("Fetching Oracle source schema.");
         AnalyzerConfiguration config = session.getConfig();
+        if (session.getSourceJdbcUrl() == null
+                || session.getSourceJdbcUrl().isEmpty()
+                || session.getSourceUser() == null
+                || session.getSourceUser().isEmpty()) {
+            throw new RuntimeException("Oracle JDBC URL and user are required.");
+        }
+
+        config.setSourceType(AnalyzerConfiguration.SOURCE_TYPE_DB);
+        config.setSourceConParams(
+                ORACLE_CONN_PARAMETERS_FACTORY.create(
+                        SOURCE_CONNECTION_NAME,
+                        AnalyzerJdbcConnectionSupport.parseOracleProfile(
+                                session.getSourceJdbcUrl(),
+                                session.getSourceUser(),
+                                session.getSourcePassword())));
         JDBCDBSchemaFetcherFacade fetcher = new JDBCDBSchemaFetcherFacade();
         Catalog catalog = fetcher.fetchSchema(config.getSourceConParams(), null);
 
@@ -220,7 +224,13 @@ public class AnalyzerService {
         session.setSourceCatalog(catalog);
         config.setSrcCatalog(catalog, false);
         config.parsingProcedureFunction(true);
-        session.setOracleTableSizes(oracleTableSizeFetcher.fetch(config.getSourceConParams()));
+        try {
+            session.setOracleTableSizes(oracleTableSizeFetcher.fetch(config.getSourceConParams()));
+        } catch (RuntimeException ex) {
+            session.setOracleTableSizes(null);
+            session.addSourceStatusMessage("Oracle table sizes skipped: " + ex.getMessage());
+            LOG.warn("Oracle table sizes skipped.", ex);
+        }
         LOG.info("Oracle source schema fetched. schemaCount={}", catalog.getSchemas().size());
     }
 
@@ -230,6 +240,11 @@ public class AnalyzerService {
                 session.getXmlDirectory(),
                 session.getXmlCharset());
         AnalyzerConfiguration config = session.getConfig();
+        if (session.getXmlDirectory() == null || session.getXmlDirectory().isEmpty()) {
+            throw new RuntimeException("XML directory is required.");
+        }
+
+        config.setSourceType(AnalyzerConfiguration.SOURCE_TYPE_XML);
         XMLDirSource source = new XMLDirSource(session.getXmlDirectory(), session.getXmlCharset());
         XMLDirSchemaFetcher fetcher = new XMLDirSchemaFetcher();
         AnalyzerCatalog catalog = fetcher.fetchSchema(source, null);

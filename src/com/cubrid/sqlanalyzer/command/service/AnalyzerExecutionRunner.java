@@ -94,21 +94,14 @@ public class AnalyzerExecutionRunner {
                 "Building execution plan. sourceType={}, executionMode={}",
                 session.getSourceType(),
                 session.getExecutionMode());
-        if (session.getSourceType() == AnalyzerSourceType.XML) {
-            if (session.getExecutionMode() == AnalyzerExecutionMode.DDL) {
-                return new AnalyzerExecutionPlan();
-            }
-            return new QueryDictionaryPlanBuilder().build(session.getConfig());
+        AnalyzerExecutionPlan plan = new AnalyzerExecutionPlan();
+        if (session.isOracleSourceLoaded()) {
+            plan.addAll(new CatalogDDLPlanBuilder().build(session.getConfig()));
         }
-
-        if (session.getSourceType() == AnalyzerSourceType.ORACLE) {
-            if (session.getExecutionMode() == AnalyzerExecutionMode.DML) {
-                return new AnalyzerExecutionPlan();
-            }
-            return new CatalogDDLPlanBuilder().build(session.getConfig());
+        if (session.isXmlSourceLoaded()) {
+            plan.addAll(new QueryDictionaryPlanBuilder().build(session.getConfig()));
         }
-
-        throw new IllegalStateException("Unsupported source type: " + session.getSourceType());
+        return plan;
     }
 
     private void runParserAnalysis(

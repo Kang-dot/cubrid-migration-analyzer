@@ -94,12 +94,11 @@ public final class AnalyzerSettingsLoader {
         String source = getFirst(properties, "source.type", "source");
         if (source != null) {
             addSource(tokens, properties, source);
+        } else {
+            addAvailableSources(tokens, properties);
         }
 
-        String target = getFirst(properties, "target.type", "target");
-        if (target != null) {
-            addTarget(tokens, properties, target);
-        }
+        addTarget(tokens, properties, getFirst(properties, "target.type", "target"));
 
         return tokens.toArray(new String[tokens.size()]);
     }
@@ -116,44 +115,75 @@ public final class AnalyzerSettingsLoader {
 
     private static void addSource(List<String> tokens, Properties properties, String source) {
         String normalized = source.toLowerCase(Locale.ENGLISH);
+        if ("all".equals(normalized) || "unified".equals(normalized)) {
+            addOracleSource(tokens, properties);
+            addXmlSource(tokens, properties);
+            return;
+        }
+
         if ("oracle".equals(normalized)) {
-            tokens.add("-so");
-            addRequiredOption(
-                    tokens,
-                    "-oj",
-                    buildConnectionSpec(properties, "source", "oracle"),
-                    "source.jdbc");
+            addOracleSource(tokens, properties);
+            addXmlSourceIfConfigured(tokens, properties);
             return;
         }
 
         if ("xml".equals(normalized)) {
-            tokens.add("-sx");
-            addRequiredOption(
-                    tokens,
-                    "-xd",
-                    getFirst(properties, "xml.directory", "xmlDirectory"),
-                    "xml.directory");
-            addOption(tokens, "-xc", getFirst(properties, "xml.charset", "xmlCharset"));
+            addXmlSource(tokens, properties);
+            addOracleSourceIfConfigured(tokens, properties);
             return;
         }
 
         throw new IllegalArgumentException("Unsupported source.type in setting.conf: " + source);
     }
 
+    private static void addAvailableSources(List<String> tokens, Properties properties) {
+        addOracleSourceIfConfigured(tokens, properties);
+        addXmlSourceIfConfigured(tokens, properties);
+    }
+
+    private static void addOracleSourceIfConfigured(List<String> tokens, Properties properties) {
+        String spec = buildConnectionSpec(properties, "source", "oracle");
+        if (spec == null) {
+            return;
+        }
+
+        tokens.add("-so");
+        addOption(tokens, "-oj", spec);
+    }
+
+    private static void addOracleSource(List<String> tokens, Properties properties) {
+        tokens.add("-so");
+        addOption(tokens, "-oj", buildConnectionSpec(properties, "source", "oracle"));
+    }
+
+    private static void addXmlSourceIfConfigured(List<String> tokens, Properties properties) {
+        String xmlDirectory = getFirst(properties, "xml.directory", "xmlDirectory");
+        if (xmlDirectory == null) {
+            return;
+        }
+
+        tokens.add("-sx");
+        addOption(tokens, "-xd", xmlDirectory);
+        addOption(tokens, "-xc", getFirst(properties, "xml.charset", "xmlCharset"));
+    }
+
+    private static void addXmlSource(List<String> tokens, Properties properties) {
+        tokens.add("-sx");
+        addOption(tokens, "-xd", getFirst(properties, "xml.directory", "xmlDirectory"));
+        addOption(tokens, "-xc", getFirst(properties, "xml.charset", "xmlCharset"));
+    }
+
     private static void addTarget(List<String> tokens, Properties properties, String target) {
-        String normalized = target.toLowerCase(Locale.ENGLISH);
-        if ("parser".equals(normalized)) {
+        if (target == null) {
             tokens.add("-tp");
             return;
         }
 
-        if ("jdbc".equals(normalized) || "cubrid".equals(normalized)) {
-            tokens.add("-tc");
-            addRequiredOption(
-                    tokens,
-                    "-cj",
-                    buildConnectionSpec(properties, "target", "cubrid"),
-                    "target.jdbc");
+        String normalized = target.toLowerCase(Locale.ENGLISH);
+        if ("parser".equals(normalized)
+                || "jdbc".equals(normalized)
+                || "cubrid".equals(normalized)) {
+            tokens.add("-tp");
             return;
         }
 
@@ -209,16 +239,6 @@ public final class AnalyzerSettingsLoader {
 
         tokens.add(option);
         tokens.add(value);
-    }
-
-    private static void addRequiredOption(
-            List<String> tokens, String option, String value, String propertyName) {
-        if (value == null) {
-            throw new IllegalArgumentException(
-                    "Missing required setting.conf property: " + propertyName);
-        }
-
-        addOption(tokens, option, value);
     }
 
     private static StartupArguments extractSettingsOption(String[] args) {

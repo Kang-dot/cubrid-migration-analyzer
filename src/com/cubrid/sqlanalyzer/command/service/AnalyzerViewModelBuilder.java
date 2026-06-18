@@ -4,6 +4,7 @@ import java.io.File;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -33,58 +34,50 @@ public class AnalyzerViewModelBuilder {
     public AnalyzerOverviewViewModel buildOverview(AnalyzerSession session) {
         return new AnalyzerOverviewViewModel(
                 getProgramVersion(),
-                buildSourceOverview(session),
+                buildSourceOverviews(session),
                 buildTargetOverview(session),
-                session.getExecutionMode());
+                session.getExecutionMode(),
+                session.getSourceStatusMessages());
     }
 
     public AnalyzerObjectCountPreviewViewModel buildObjectCountPreview(AnalyzerSession session) {
         AnalyzerConfiguration config = session.getConfig();
-        if (session.getSourceType() == AnalyzerSourceType.ORACLE) {
-            return new AnalyzerObjectCountPreviewViewModel(
-                    session.getSourceType(),
-                    session.getSourceCatalog().getSchemas().size(),
-                    config.getTargetTableSchema().size(),
-                    countTargetPrimaryKeys(config.getTargetTableSchema()),
-                    countTargetForeignKeys(config.getTargetTableSchema()),
-                    config.getTargetViewSchema().size(),
-                    config.getTargetSerialSchema().size(),
-                    config.getTargetSynonymSchema().size(),
-                    config.getExpGrantCfg().size(),
-                    config.getTargetPlcsqlProcedureSchema().size(),
-                    config.getTargetPlcsqlFunctionSchema().size(),
-                    config.getExpTriggerCfg().size(),
-                    0,
-                    0,
-                    0,
-                    0,
-                    sumTableBytes(session.getOracleTableSizes()),
-                    session.getOracleTableSizes());
-        }
-
         QueryDictionary dict = config.getQueryDict();
+        int catalogSchemaCount = session.getSourceCatalog() == null ? 0 : session.getSourceCatalog().getSchemas().size();
+        int selectCount = dict == null ? 0 : dict.getSelectQueryMap().size();
+        int insertCount = dict == null ? 0 : dict.getInsertQueryMap().size();
+        int updateCount = dict == null ? 0 : dict.getUpdateQueryMap().size();
+        int deleteCount = dict == null ? 0 : dict.getDeleteQueryMap().size();
         return new AnalyzerObjectCountPreviewViewModel(
                 session.getSourceType(),
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                dict.getSelectQueryMap().size(),
-                dict.getInsertQueryMap().size(),
-                dict.getUpdateQueryMap().size(),
-                dict.getDeleteQueryMap().size());
+                catalogSchemaCount,
+                config.getTargetTableSchema().size(),
+                countTargetPrimaryKeys(config.getTargetTableSchema()),
+                countTargetForeignKeys(config.getTargetTableSchema()),
+                config.getTargetViewSchema().size(),
+                config.getTargetSerialSchema().size(),
+                config.getTargetSynonymSchema().size(),
+                config.getExpGrantCfg().size(),
+                config.getTargetPlcsqlProcedureSchema().size(),
+                config.getTargetPlcsqlFunctionSchema().size(),
+                config.getExpTriggerCfg().size(),
+                selectCount,
+                insertCount,
+                updateCount,
+                deleteCount,
+                sumTableBytes(session.getOracleTableSizes()),
+                session.getOracleTableSizes(),
+                session.isOracleSourceLoaded(),
+                session.isXmlSourceLoaded());
     }
 
     public AnalyzerResultViewModel buildResult(AnalyzerReport report, String savedReportPath) {
         return new AnalyzerResultViewModel(
-                report.getSourceType(),
+                report.getSourceType() == null
+                        ? List.of()
+                        : report.getSourceType() == AnalyzerSourceType.ALL
+                                ? List.of(AnalyzerSourceType.ORACLE, AnalyzerSourceType.XML)
+                                : List.of(report.getSourceType()),
                 report.getTargetType(),
                 report.getExecutionMode(),
                 report.getAnalyzedStatementCount(),
@@ -92,36 +85,53 @@ public class AnalyzerViewModelBuilder {
                 report.getFailedStatementCount(),
                 report.getTotalEstimatedFailureCost(),
                 savedReportPath,
+                report.getSourceStatusMessages(),
                 report.getFailureMessages(),
                 report.getFailures(),
                 report.getObjectExecutionCounts());
     }
 
-    private AnalyzerSourceOverviewViewModel buildSourceOverview(AnalyzerSession session) {
-        if (session.getSourceType() == AnalyzerSourceType.ORACLE) {
-            AnalyzerJdbcConnectionInfo profile = AnalyzerJdbcConnectionSupport.parseOracleProfile(
+    private List<AnalyzerSourceOverviewViewModel> buildSourceOverviews(AnalyzerSession session) {
+        List<AnalyzerSourceOverviewViewModel> sources = new ArrayList<AnalyzerSourceOverviewViewModel>();
+        if (session.isOracleSourceRequested() || session.isOracleSourceLoaded()) {
+            sources.add(buildOracleSourceOverview(session));
+        }
+        if (session.isXmlSourceRequested() || session.isXmlSourceLoaded()) {
+            sources.add(buildXmlSourceOverview(session));
+        }
+        return sources;
+    }
+
+    private AnalyzerSourceOverviewViewModel buildOracleSourceOverview(AnalyzerSession session) {
+        AnalyzerJdbcConnectionInfo profile = null;
+        try {
+            profile = AnalyzerJdbcConnectionSupport.parseOracleProfile(
                     session.getSourceJdbcUrl(),
                     session.getSourceUser(),
                     session.getSourcePassword());
-            Catalog catalog = session.getSourceCatalog();
-            String version = catalog == null || catalog.getVersion() == null
-                    ? null
-                    : getOracleVersionName(catalog.getVersion());
-            return new AnalyzerSourceOverviewViewModel(
-                    session.getSourceType(),
-                    session.getSourceJdbcUrl(),
-                    profile.getHost(),
-                    profile.getPort(),
-                    profile.getDatabaseName(),
-                    session.getSourceUser(),
-                    version,
-                    null,
-                    null,
-                    0);
+        } catch (RuntimeException ex) {
+            // The first overview page is rendered before source validation.
         }
-
+        Catalog catalog = session.getSourceCatalog();
+        String version = catalog == null || catalog.getVersion() == null
+                ? null
+                : getOracleVersionName(catalog.getVersion());
         return new AnalyzerSourceOverviewViewModel(
-                session.getSourceType(),
+                AnalyzerSourceType.ORACLE,
+                session.getSourceJdbcUrl(),
+                profile == null ? null : profile.getHost(),
+                profile == null ? 0 : profile.getPort(),
+                profile == null ? null : profile.getDatabaseName(),
+                session.getSourceUser(),
+                version,
+                null,
+                null,
+                0);
+    }
+
+    private AnalyzerSourceOverviewViewModel buildXmlSourceOverview(AnalyzerSession session) {
+        return new AnalyzerSourceOverviewViewModel(
+                AnalyzerSourceType.XML,
                 null,
                 null,
                 0,

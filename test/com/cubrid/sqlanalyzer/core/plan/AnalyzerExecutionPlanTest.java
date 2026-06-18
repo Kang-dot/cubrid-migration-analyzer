@@ -56,6 +56,25 @@ class AnalyzerExecutionPlanTest {
                 statementIds(plan.getStatements()));
     }
 
+    @Test
+    void shouldMergePlansWhilePreservingPhaseOrder() {
+        AnalyzerExecutionPlan ddlPlan = new AnalyzerExecutionPlan();
+        ddlPlan.add(
+                AnalyzerExecutionPhase.DDL_TABLE,
+                new AnalyzerStatement(AnalyzerStatementTypes.TYPE_DDL_TABLE, "TABLE_1", "table"));
+
+        AnalyzerExecutionPlan dmlPlan = new AnalyzerExecutionPlan();
+        dmlPlan.add(
+                AnalyzerExecutionPhase.DML_SELECT,
+                new AnalyzerStatement("SELECT", "SELECT_1", "select 1"));
+
+        AnalyzerExecutionPlan plan = new AnalyzerExecutionPlan();
+        plan.addAll(dmlPlan);
+        plan.addAll(ddlPlan);
+
+        assertEquals(List.of("TABLE_1", "SELECT_1"), statementIds(plan.getStatements()));
+    }
+
     private List<String> statementIds(List<AnalyzerStatement> statements) {
         return statements.stream()
                 .map(AnalyzerStatement::getId)

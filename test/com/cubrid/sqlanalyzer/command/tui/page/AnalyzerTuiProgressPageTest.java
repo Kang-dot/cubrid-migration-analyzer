@@ -17,6 +17,7 @@ import com.cubrid.sqlanalyzer.core.plan.AnalyzerStatement;
 import com.googlecode.lanterna.gui2.Component;
 import com.googlecode.lanterna.gui2.Label;
 import com.googlecode.lanterna.gui2.Panel;
+import com.googlecode.lanterna.gui2.table.Table;
 
 class AnalyzerTuiProgressPageTest {
     @Test
@@ -34,28 +35,30 @@ class AnalyzerTuiProgressPageTest {
     }
 
     @Test
-    @DisplayName("progress TUI page keeps only the latest five events")
-    void shouldRenderOnlyLatestFiveEvents() {
+    @DisplayName("progress TUI page keeps every recent event in a scrollable table")
+    void shouldRenderRecentEventsInScrollableTable() {
         ProgressView progressView = new AnalyzerTuiProgressPage().buildView();
 
-        for (int i = 1; i <= 6; i++) {
+        for (int i = 1; i <= 12; i++) {
             progressView.update(
                     AnalyzerProgressEventViewModel.statementSucceeded(
                             new AnalyzerStatement("SELECT", "q" + i, "select " + i),
                             "parsed",
-                            new AnalyzerProgressCounts(6, i, i, 0)));
+                            new AnalyzerProgressCounts(12, i, i, 0)));
         }
 
         String screenText = String.join(
                 System.lineSeparator(), collectLabelTexts(progressView.getPanel()));
+        Table<?> recentTable = collectTables(progressView.getPanel()).get(0);
+        String tableText = collectTableText(progressView.getPanel());
 
-        assertTrue(screenText.contains("Progress : 6 / 6"));
-        assertTrue(screenText.contains("OK       : 6"));
+        assertTrue(screenText.contains("Progress : 12 / 12"));
+        assertTrue(screenText.contains("OK       : 12"));
         assertTrue(screenText.contains("FAIL     : 0"));
-        assertTrue(screenText.contains("Current  : [OK] SELECT q6"));
-        assertFalse(screenText.contains("[OK] SELECT q1"));
-        assertTrue(screenText.contains("[OK] SELECT q2"));
-        assertTrue(screenText.contains("[OK] SELECT q6"));
+        assertTrue(screenText.contains("Current  : [OK] SELECT q12"));
+        assertTrue(tableText.contains("[OK] SELECT q1"));
+        assertTrue(tableText.contains("[OK] SELECT q12"));
+        assertTrue(recentTable.getVisibleRows() < recentTable.getTableModel().getRowCount());
     }
 
     @Test
@@ -129,5 +132,27 @@ class AnalyzerTuiProgressPageTest {
             }
         }
         return texts;
+    }
+
+    private List<Table<?>> collectTables(Panel panel) {
+        List<Table<?>> tables = new ArrayList<Table<?>>();
+        for (Component component : panel.getChildren()) {
+            if (component instanceof Table<?>) {
+                tables.add((Table<?>) component);
+            }
+        }
+        return tables;
+    }
+
+    private String collectTableText(Panel panel) {
+        List<String> values = new ArrayList<String>();
+        for (Table<?> table : collectTables(panel)) {
+            for (List<?> row : table.getTableModel().getRows()) {
+                for (Object cell : row) {
+                    values.add(String.valueOf(cell));
+                }
+            }
+        }
+        return String.join(System.lineSeparator(), values);
     }
 }

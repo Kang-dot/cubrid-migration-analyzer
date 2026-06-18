@@ -31,7 +31,7 @@ public class AnalyzerArgumentsController {
 
     private AnalyzerUiMode uiMode = AnalyzerUiMode.CONSOLE;
     private AnalyzerSourceType sourceType;
-    private AnalyzerTargetType targetType;
+    private AnalyzerTargetType targetType = AnalyzerTargetType.PARSER;
     private String sourceJdbcUrl;
     private String sourceUser;
     private String sourcePassword;
@@ -40,6 +40,9 @@ public class AnalyzerArgumentsController {
     private String targetJdbcUrl;
     private String targetUser;
     private String targetPassword;
+    private boolean oracleSourceRequested;
+    private boolean xmlSourceRequested;
+    private final List<String> sourceInputMessages = new ArrayList<String>();
 
     /**
      * Buffer for arguments without an option name, e.g. legacy JDBC repository
@@ -102,13 +105,11 @@ public class AnalyzerArgumentsController {
 
     public static String usage() {
         return "Usage:" + System.lineSeparator()
-                + "  java -jar analyzer.jar -so -oj <jdbcUrl|user|password> -tp"
+                + "  java -jar analyzer.jar -so -oj <jdbcUrl|user|password>"
                 + System.lineSeparator()
-                + "  java -jar analyzer.jar -so -oj <jdbcUrl|user|password> -tc -cj <jdbcUrl|user|password>"
+                + "  java -jar analyzer.jar -sx -xd <xmlDirectory>"
                 + System.lineSeparator()
-                + "  java -jar analyzer.jar -sx -xd <xmlDirectory> -tp"
-                + System.lineSeparator()
-                + "  java -jar analyzer.jar -sx -xd <xmlDirectory> -tc -cj <jdbcUrl|user|password>"
+                + "  java -jar analyzer.jar -so -oj <jdbcUrl|user|password> -sx -xd <xmlDirectory>"
                 + System.lineSeparator()
                 + "  java -jar analyzer.jar -conf <settingsFile>"
                 + System.lineSeparator()
@@ -125,15 +126,16 @@ public class AnalyzerArgumentsController {
                 + System.lineSeparator()
                 + "  -jr <path>   Optional JDBC driver repository directory"
                 + System.lineSeparator()
-                + "  -so          Source is Oracle JDBC" + System.lineSeparator()
+                + "  -so          Enable Oracle JDBC source for DDL" + System.lineSeparator()
                 + "  -oj <spec>   Oracle connection spec: <jdbcUrl|user|password>"
                 + System.lineSeparator()
-                + "  -sx          Source is XML directory" + System.lineSeparator()
+                + "  -sx          Enable XML directory source for DML" + System.lineSeparator()
                 + "  -xd <path>   XML directory path" + System.lineSeparator()
                 + "  -xc <name>   XML charset. Default: UTF-8" + System.lineSeparator()
-                + "  -tp          Target is embedded parser" + System.lineSeparator()
-                + "  -tc          Target is CUBRID JDBC" + System.lineSeparator()
-                + "  -cj <spec>   CUBRID connection spec: <jdbcUrl|user|password>";
+                + "  -tp          Use embedded parser target (default)" + System.lineSeparator()
+                + "  -tc          CUBRID JDBC target option is deferred; parser is used"
+                + System.lineSeparator()
+                + "  -cj <spec>   CUBRID connection spec is currently ignored";
     }
 
     public boolean isInteractive() {
@@ -166,6 +168,18 @@ public class AnalyzerArgumentsController {
 
     public AnalyzerTargetType getTargetType() {
         return targetType;
+    }
+
+    public boolean isOracleSourceRequested() {
+        return oracleSourceRequested;
+    }
+
+    public boolean isXmlSourceRequested() {
+        return xmlSourceRequested;
+    }
+
+    public List<String> getSourceInputMessages() {
+        return sourceInputMessages;
     }
 
     public String getSourceJdbcUrl() {
@@ -219,43 +233,34 @@ public class AnalyzerArgumentsController {
 
         interactive = false;
         applyUiMode();
-        if (countOptions(args, "-so", "-sx") > 1) {
-            throw new IllegalArgumentException(
-                    "Only one source option is allowed." + System.lineSeparator() + usage());
-        }
-        if (countOptions(args, "-tp", "-tc") > 1) {
-            throw new IllegalArgumentException(
-                    "Only one target option is allowed." + System.lineSeparator() + usage());
-        }
+        oracleSourceRequested = oracleSource || oracleConnectionSpec != null;
+        xmlSourceRequested = xmlSource || parsedXmlDirectory != null;
 
-        if (oracleSource) {
+        if (oracleSourceRequested && xmlSourceRequested) {
+            sourceType = AnalyzerSourceType.ALL;
+        } else if (oracleSourceRequested) {
             sourceType = AnalyzerSourceType.ORACLE;
-        } else if (xmlSource) {
+        } else if (xmlSourceRequested) {
             sourceType = AnalyzerSourceType.XML;
         }
 
-        if (parserTarget) {
-            targetType = AnalyzerTargetType.PARSER;
-        } else if (jdbcTarget) {
-            targetType = AnalyzerTargetType.JDBC;
-        }
+        targetType = AnalyzerTargetType.PARSER;
 
         if (oracleConnectionSpec != null) {
-            String[] values = splitConnectionSpec(oracleConnectionSpec, "-oj");
-            sourceJdbcUrl = values[0];
-            sourceUser = values[1];
-            sourcePassword = values[2];
+            String[] values = splitConnectionSpec(oracleConnectionSpec, "-oj", sourceInputMessages);
+            if (values != null) {
+                sourceJdbcUrl = values[0];
+                sourceUser = values[1];
+                sourcePassword = values[2];
+            }
         }
 
         xmlDirectory = parsedXmlDirectory;
         xmlCharset = parsedXmlCharset;
 
-        if (cubridConnectionSpec != null) {
-            String[] values = splitConnectionSpec(cubridConnectionSpec, "-cj");
-            targetJdbcUrl = values[0];
-            targetUser = values[1];
-            targetPassword = values[2];
-        }
+        targetJdbcUrl = null;
+        targetUser = null;
+        targetPassword = null;
     }
 
     private void applyUiMode() {
@@ -288,54 +293,23 @@ public class AnalyzerArgumentsController {
                     "-th must be greater than 0." + System.lineSeparator() + usage());
         }
 
-        if (sourceType == null) {
+        if (!oracleSourceRequested && !xmlSourceRequested) {
             throw new IllegalArgumentException("Source option is required." + System.lineSeparator() + usage());
         }
-        if (targetType == null) {
-            throw new IllegalArgumentException("Target option is required." + System.lineSeparator() + usage());
-        }
-
-        if (AnalyzerSourceType.ORACLE.equals(sourceType)) {
-            if (sourceJdbcUrl == null || sourceUser == null || sourcePassword == null) {
-                throw new IllegalArgumentException(
-                        "-so requires -oj <jdbcUrl|user|password>." + System.lineSeparator() + usage());
-            }
-        } else if (AnalyzerSourceType.XML.equals(sourceType)) {
-            if (xmlDirectory == null || xmlDirectory.isEmpty()) {
-                throw new IllegalArgumentException(
-                        "-sx requires -xd <xmlDirectory>." + System.lineSeparator() + usage());
-            }
-        }
-
-        if (AnalyzerTargetType.JDBC.equals(targetType)
-                && (targetJdbcUrl == null || targetUser == null || targetPassword == null)) {
-            throw new IllegalArgumentException(
-                    "-tc requires -cj <jdbcUrl|user|password>." + System.lineSeparator() + usage());
-        }
     }
 
-    private static int countOptions(String[] args, String firstOption, String secondOption) {
-        int count = 0;
-        for (String arg : args) {
-            if (firstOption.equals(arg) || secondOption.equals(arg)) {
-                count++;
-            }
-        }
-        return count;
-    }
-
-    private static String[] splitConnectionSpec(String spec, String option) {
+    private static String[] splitConnectionSpec(String spec, String option, List<String> messages) {
         String[] values = spec.split("\\|", 3);
         if (values.length != 3) {
             values = spec.split(",", 3);
         }
         if (values.length != 3) {
-            throw new IllegalArgumentException(
-                    option + " must be <jdbcUrl|user|password>." + System.lineSeparator() + usage());
+            messages.add(option + " is invalid and will be skipped. Expected <jdbcUrl|user|password>.");
+            return null;
         }
         if (values[0].isEmpty() || values[1].isEmpty()) {
-            throw new IllegalArgumentException(
-                    option + " must include jdbcUrl and user." + System.lineSeparator() + usage());
+            messages.add(option + " is invalid and will be skipped. jdbcUrl and user are required.");
+            return null;
         }
         return values;
     }

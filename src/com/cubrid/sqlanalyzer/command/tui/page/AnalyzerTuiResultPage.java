@@ -29,6 +29,14 @@ public class AnalyzerTuiResultPage {
         lines.add("FAIL   : " + result.failedStatementCount());
         lines.add("Cost   : " + formatCost(result.totalEstimatedFailureCost()));
 
+        if (!result.sourceStatusMessages().isEmpty()) {
+            lines.add("");
+            lines.add("Source status");
+            for (String message : result.sourceStatusMessages()) {
+                lines.add("  - " + formatText(message));
+            }
+        }
+
         lines.add("");
         lines.add("Object execution summary");
         if (result.objectExecutionCounts().isEmpty()) {

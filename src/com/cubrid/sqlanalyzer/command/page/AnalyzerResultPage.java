@@ -28,6 +28,14 @@ public class AnalyzerResultPage {
                                 "%.1f",
                                 result.totalEstimatedFailureCost()));
 
+        if (!result.sourceStatusMessages().isEmpty()) {
+            io.println("");
+            io.println("Source status");
+            for (String message : result.sourceStatusMessages()) {
+                io.println("  - " + message);
+            }
+        }
+
         if (!result.failures().isEmpty()) {
             io.println("");
             io.println("Failed statements");

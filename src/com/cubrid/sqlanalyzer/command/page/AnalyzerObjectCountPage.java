@@ -1,6 +1,5 @@
 package com.cubrid.sqlanalyzer.command.page;
 
-import com.cubrid.sqlanalyzer.command.AnalyzerSourceType;
 import com.cubrid.sqlanalyzer.command.ConsoleIO;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerObjectCountPreviewViewModel;
 
@@ -14,7 +13,8 @@ public class AnalyzerObjectCountPage {
     public void render(AnalyzerObjectCountPreviewViewModel preview) {
         io.println("");
         io.println("Object count preview");
-        if (preview.sourceType() == AnalyzerSourceType.ORACLE) {
+        io.println("DDL objects");
+        if (preview.oracleSourceLoaded()) {
             io.println("Catalog schemas : " + preview.catalogSchemaCount());
             io.println("Target tables   : " + preview.targetTableCount());
             io.println("Target PKs      : " + preview.targetPkCount());
@@ -27,10 +27,17 @@ public class AnalyzerObjectCountPage {
             io.println("Target funcs    : " + preview.targetFunctionCount());
             io.println("Target triggers : " + preview.targetTriggerCount());
         } else {
+            io.println("  (none)");
+        }
+
+        io.println("DML statements");
+        if (preview.xmlSourceLoaded()) {
             io.println("SELECT count    : " + preview.selectCount());
             io.println("INSERT count    : " + preview.insertCount());
             io.println("UPDATE count    : " + preview.updateCount());
             io.println("DELETE count    : " + preview.deleteCount());
+        } else {
+            io.println("  (none)");
         }
     }
 }

@@ -24,6 +24,19 @@ public class AnalyzerExecutionPlan {
         }
     }
 
+    public void addAll(AnalyzerExecutionPlan plan) {
+        if (plan == null) {
+            return;
+        }
+
+        for (AnalyzerExecutionPhase phase : AnalyzerExecutionPhase.values()) {
+            for (AnalyzerStatement statement :
+                    plan.statementsByPhase.getOrDefault(phase, Collections.emptyList())) {
+                add(phase, statement);
+            }
+        }
+    }
+
     public List<AnalyzerStatement> getStatements() {
         if (orderedStatements == null) {
             List<AnalyzerStatement> statements = new ArrayList<>(statementCount);

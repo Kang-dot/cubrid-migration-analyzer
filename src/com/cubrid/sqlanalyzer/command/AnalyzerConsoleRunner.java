@@ -37,8 +37,8 @@ public class AnalyzerConsoleRunner {
         AnalyzerSession session = new AnalyzerSession();
 
         try {
-            selectSource(session);
-            selectTarget(session);
+            configureSources(session);
+            session.setTargetType(AnalyzerTargetType.PARSER);
             analyzerService.applyExecutionMode(session);
             analyzerService.prepareConfiguration(session);
             loadSourceCatalog(session);
@@ -71,7 +71,6 @@ public class AnalyzerConsoleRunner {
 
         try {
             analyzerService.applyArguments(session, arguments);
-            printConnectionValidationMessages(arguments);
             analyzerService.prepareConfiguration(session);
             loadSourceCatalog(session);
             renderPreviewPages(session);
@@ -87,45 +86,28 @@ public class AnalyzerConsoleRunner {
         }
     }
 
-    private void selectSource(AnalyzerSession session) {
+    private void configureSources(AnalyzerSession session) {
         io.println("");
-        io.println("[1/4] Select source");
-        io.println("1. Oracle JDBC connection");
-        io.println("2. XML directory");
+        io.println("[1/4] Configure sources");
+        if (io.confirm("Use Oracle JDBC source for DDL? (y/n): ")) {
+            session.setOracleSourceRequested(true);
+            promptOracleSource(session);
+        }
 
-        while (true) {
-            String input = io.readRequired("Select source (1-2): ");
-            if ("1".equals(input)) {
-                session.setSourceType(AnalyzerSourceType.ORACLE);
-                promptOracleSource(session);
-                return;
-            }
-            if ("2".equals(input)) {
-                session.setSourceType(AnalyzerSourceType.XML);
-                promptXmlSource(session);
-                return;
-            }
-            io.println("Invalid selection.");
+        if (io.confirm("Use XML mapper source for DML? (y/n): ")) {
+            session.setXmlSourceRequested(true);
+            promptXmlSource(session);
+        }
+
+        if (!session.isOracleSourceRequested() && !session.isXmlSourceRequested()) {
+            throw new IllegalStateException("At least one source is required.");
         }
     }
 
     private void promptOracleSource(AnalyzerSession session) {
-        while (true) {
-            session.setSourceJdbcUrl(io.readRequired("Oracle JDBC URL: "));
-            session.setSourceUser(io.readRequired("Oracle user: "));
-            session.setSourcePassword(io.readRequired("Oracle password: "));
-
-            try {
-                analyzerService.validateOracleSourceConnection(session);
-                io.println("Oracle connection validation succeeded.");
-                return;
-            } catch (RuntimeException ex) {
-                io.println(ex.getMessage());
-                if (!io.confirm("Retry Oracle connection input? (y/n): ")) {
-                    throw ex;
-                }
-            }
-        }
+        session.setSourceJdbcUrl(io.readRequired("Oracle JDBC URL: "));
+        session.setSourceUser(io.readRequired("Oracle user: "));
+        session.setSourcePassword(io.readRequired("Oracle password: "));
     }
 
     private void promptXmlSource(AnalyzerSession session) {
@@ -134,64 +116,18 @@ public class AnalyzerConsoleRunner {
         session.setXmlCharset(charset.isEmpty() ? DEFAULT_XML_CHARSET : charset);
     }
 
-    private void selectTarget(AnalyzerSession session) {
-        io.println("");
-        io.println("[2/4] Select target");
-        io.println("1. CUBRID JDBC execution");
-        io.println("2. Parser execution");
-
-        while (true) {
-            String input = io.readRequired("Select target (1-2): ");
-            if ("1".equals(input)) {
-                session.setTargetType(AnalyzerTargetType.JDBC);
-                promptJdbcTarget(session);
-                return;
-            }
-            if ("2".equals(input)) {
-                session.setTargetType(AnalyzerTargetType.PARSER);
-                return;
-            }
-            io.println("Invalid selection.");
-        }
-    }
-
-    private void promptJdbcTarget(AnalyzerSession session) {
-        while (true) {
-            session.setTargetJdbcUrl(io.readRequired("Target JDBC URL: "));
-            session.setTargetUser(io.readRequired("Target user: "));
-            session.setTargetPassword(io.readRequired("Target password: "));
-
-            try {
-                analyzerService.validateJdbcTargetConnection(session);
-                io.println("Target connection validation succeeded.");
-                return;
-            } catch (RuntimeException ex) {
-                io.println(ex.getMessage());
-                if (!io.confirm("Retry target connection input? (y/n): ")) {
-                    throw ex;
-                }
-            }
-        }
-    }
-
-    private void printConnectionValidationMessages(AnalyzerArgumentsController arguments) {
-        if (AnalyzerSourceType.ORACLE.equals(arguments.getSourceType())) {
-            io.println("Oracle connection validation succeeded.");
-        }
-
-        if (AnalyzerTargetType.JDBC.equals(arguments.getTargetType())) {
-            io.println("Target connection validation succeeded.");
-        }
-    }
-
     private void loadSourceCatalog(AnalyzerSession session) {
         LOG.info("Loading source metadata. sourceType={}", session.getSourceType());
         io.println("");
         io.println("Loading source metadata...");
         analyzerService.loadSourceCatalog(session);
-        if (session.getSourceType() == AnalyzerSourceType.ORACLE) {
+        for (String message : session.getSourceStatusMessages()) {
+            io.println(message);
+        }
+        if (session.isOracleSourceLoaded()) {
             io.println("Oracle catalog loaded.");
-        } else if (session.getSourceType() == AnalyzerSourceType.XML) {
+        }
+        if (session.isXmlSourceLoaded()) {
             io.println("XML query dictionary loaded.");
         }
     }

@@ -71,24 +71,40 @@ class AnalyzerArgumentsControllerTest {
     }
 
     @Test
-    @DisplayName("missing XML directory value is rejected")
-    void shouldRejectXmlSourceWithoutDirectory() {
-        IllegalArgumentException exception = assertThrows(
-                IllegalArgumentException.class,
-                () -> AnalyzerArgumentsController.parse(new String[] { "-sx", "-tp" }));
+    @DisplayName("missing XML directory value is deferred to source loading")
+    void shouldAllowXmlSourceWithoutDirectory() {
+        AnalyzerArgumentsController arguments =
+                AnalyzerArgumentsController.parse(new String[] { "-sx", "-tp" });
 
-        assertTrue(exception.getMessage().contains("-sx requires -xd <xmlDirectory>."));
+        assertEquals(AnalyzerSourceType.XML, arguments.getSourceType());
+        assertTrue(arguments.isXmlSourceRequested());
+        assertEquals(AnalyzerTargetType.PARSER, arguments.getTargetType());
     }
 
     @Test
-    @DisplayName("duplicate source options are rejected")
-    void shouldRejectDuplicateSourceOptions() {
-        IllegalArgumentException exception = assertThrows(
-                IllegalArgumentException.class,
-                () -> AnalyzerArgumentsController.parse(
-                        new String[] { "-sx", "-so", "-oj", "jdbc|user|pw", "-tp" }));
+    @DisplayName("Oracle and XML source options can be combined")
+    void shouldParseCombinedSourceOptions() {
+        AnalyzerArgumentsController arguments = AnalyzerArgumentsController.parse(
+                new String[] { "-sx", "-xd", "/tmp/sqlmap", "-so", "-oj", "jdbc|user|pw", "-tp" });
 
-        assertTrue(exception.getMessage().contains("Only one source option is allowed"));
+        assertEquals(AnalyzerSourceType.ALL, arguments.getSourceType());
+        assertTrue(arguments.isOracleSourceRequested());
+        assertTrue(arguments.isXmlSourceRequested());
+        assertEquals("jdbc", arguments.getSourceJdbcUrl());
+        assertEquals("/tmp/sqlmap", arguments.getXmlDirectory());
+    }
+
+    @Test
+    @DisplayName("invalid Oracle connection spec is recorded without blocking XML source")
+    void shouldRecordInvalidOracleSpecWithoutBlockingXmlSource() {
+        AnalyzerArgumentsController arguments = AnalyzerArgumentsController.parse(
+                new String[] { "-so", "-oj", "bad-spec", "-sx", "-xd", "/tmp/sqlmap" });
+
+        assertEquals(AnalyzerSourceType.ALL, arguments.getSourceType());
+        assertTrue(arguments.isOracleSourceRequested());
+        assertTrue(arguments.isXmlSourceRequested());
+        assertEquals("/tmp/sqlmap", arguments.getXmlDirectory());
+        assertTrue(arguments.getSourceInputMessages().get(0).contains("-oj is invalid"));
     }
 
     @Test

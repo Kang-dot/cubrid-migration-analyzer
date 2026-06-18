@@ -12,6 +12,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.TimeZone;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import com.cubrid.cubridmigration.cubrid.CUBRIDTimeUtil;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerObjectCountPreviewViewModel;
@@ -22,6 +24,16 @@ import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerTableSizeViewModel;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerTargetOverviewViewModel;
 
 public class AnalyzerReport {
+    private static final Pattern ERROR_LOCATION_PATTERN = Pattern.compile(
+            "In line\\s+(\\d+),\\s*column\\s+(\\d+)",
+            Pattern.CASE_INSENSITIVE);
+    private static final Pattern UNEXPECTED_TOKEN_PATTERN = Pattern.compile(
+            "unexpected\\s+'([^']+)'",
+            Pattern.CASE_INSENSITIVE);
+    private static final Pattern BEFORE_TOKEN_PATTERN = Pattern.compile(
+            "before\\s+'([^']+)'",
+            Pattern.CASE_INSENSITIVE);
+
     private static class StatementResult {
         private final String statementType;
         private final String statementId;
@@ -61,6 +73,18 @@ public class AnalyzerReport {
         }
     }
 
+    private static class SqlContextLocation {
+        private final int lineNumber;
+        private final int columnNumber;
+        private final boolean estimated;
+
+        SqlContextLocation(int lineNumber, int columnNumber, boolean estimated) {
+            this.lineNumber = lineNumber;
+            this.columnNumber = columnNumber;
+            this.estimated = estimated;
+        }
+    }
+
     private AnalyzerSourceType sourceType;
     private AnalyzerTargetType targetType;
     private AnalyzerExecutionMode executionMode;
@@ -69,6 +93,7 @@ public class AnalyzerReport {
     private int failedStatementCount;
     private long generatedAt;
     private final List<String> failureMessages = new ArrayList<String>();
+    private final List<String> sourceStatusMessages = new ArrayList<String>();
     private final List<AnalyzerFailure> failures = new ArrayList<AnalyzerFailure>();
     private final List<StatementResult> statementResults = new ArrayList<StatementResult>();
     private AnalyzerOverviewViewModel overview;
@@ -124,6 +149,20 @@ public class AnalyzerReport {
 
     public List<String> getFailureMessages() {
         return failureMessages;
+    }
+
+    public List<String> getSourceStatusMessages() {
+        return sourceStatusMessages;
+    }
+
+    public void clearSourceStatusMessages() {
+        sourceStatusMessages.clear();
+    }
+
+    public void addSourceStatusMessage(String sourceStatusMessage) {
+        if (sourceStatusMessage != null && !sourceStatusMessage.isEmpty()) {
+            sourceStatusMessages.add(sourceStatusMessage);
+        }
     }
 
     public void clearFailures() {
@@ -236,13 +275,15 @@ public class AnalyzerReport {
         sb.append("Overview").append(lineSeparator);
         if (overview != null) {
             sb.append("Program     : ").append(formatText(overview.programVersion())).append(lineSeparator);
-            appendSourceOverview(sb, overview.source(), lineSeparator);
+            appendSourceOverviews(sb, overview.sources(), lineSeparator);
             appendTargetOverview(sb, overview.source(), overview.target(), lineSeparator);
             sb.append("Mode        : ").append(overview.executionMode()).append(lineSeparator);
+            appendSourceStatusMessages(sb, overview.sourceStatusMessages(), lineSeparator);
         } else {
             sb.append("Source      : ").append(sourceType).append(lineSeparator);
             sb.append("Target      : ").append(targetType).append(lineSeparator);
             sb.append("Mode        : ").append(executionMode).append(lineSeparator);
+            appendSourceStatusMessages(sb, sourceStatusMessages, lineSeparator);
         }
         sb.append("Total       : ").append(analyzedStatementCount).append(lineSeparator);
         sb.append("OK          : ").append(succeededStatementCount).append(lineSeparator);
@@ -266,7 +307,8 @@ public class AnalyzerReport {
             return;
         }
 
-        if (objectCountPreview.sourceType() == AnalyzerSourceType.ORACLE) {
+        sb.append("DDL objects").append(lineSeparator);
+        if (objectCountPreview.oracleSourceLoaded()) {
             sb.append("Catalog schemas : ")
                     .append(objectCountPreview.catalogSchemaCount())
                     .append(lineSeparator);
@@ -303,13 +345,19 @@ public class AnalyzerReport {
             sb.append(lineSeparator);
             appendOracleTableSizes(sb, lineSeparator);
             sb.append(lineSeparator);
-            return;
+        } else {
+            sb.append("  (none)").append(lineSeparator).append(lineSeparator);
         }
 
-        sb.append("SELECT count    : ").append(objectCountPreview.selectCount()).append(lineSeparator);
-        sb.append("INSERT count    : ").append(objectCountPreview.insertCount()).append(lineSeparator);
-        sb.append("UPDATE count    : ").append(objectCountPreview.updateCount()).append(lineSeparator);
-        sb.append("DELETE count    : ").append(objectCountPreview.deleteCount()).append(lineSeparator);
+        sb.append("DML statements").append(lineSeparator);
+        if (objectCountPreview.xmlSourceLoaded()) {
+            sb.append("SELECT count    : ").append(objectCountPreview.selectCount()).append(lineSeparator);
+            sb.append("INSERT count    : ").append(objectCountPreview.insertCount()).append(lineSeparator);
+            sb.append("UPDATE count    : ").append(objectCountPreview.updateCount()).append(lineSeparator);
+            sb.append("DELETE count    : ").append(objectCountPreview.deleteCount()).append(lineSeparator);
+        } else {
+            sb.append("  (none)").append(lineSeparator);
+        }
         sb.append(lineSeparator);
     }
 
@@ -366,6 +414,34 @@ public class AnalyzerReport {
         sb.append("XML dir     : ").append(formatText(source.xmlDirectory())).append(lineSeparator);
         sb.append("XML charset : ").append(formatText(source.xmlCharset())).append(lineSeparator);
         sb.append("XML files   : ").append(source.xmlFileCount()).append(lineSeparator);
+    }
+
+    private void appendSourceOverviews(
+            StringBuilder sb,
+            List<AnalyzerSourceOverviewViewModel> sources,
+            String lineSeparator) {
+        if (sources == null || sources.isEmpty()) {
+            sb.append("Source      : ").append(formatText(null)).append(lineSeparator);
+            return;
+        }
+
+        for (AnalyzerSourceOverviewViewModel source : sources) {
+            appendSourceOverview(sb, source, lineSeparator);
+        }
+    }
+
+    private void appendSourceStatusMessages(
+            StringBuilder sb,
+            List<String> messages,
+            String lineSeparator) {
+        if (messages == null || messages.isEmpty()) {
+            return;
+        }
+
+        sb.append("Source status").append(lineSeparator);
+        for (String message : messages) {
+            sb.append("  - ").append(formatText(message)).append(lineSeparator);
+        }
     }
 
     private void appendTargetOverview(
@@ -535,7 +611,122 @@ public class AnalyzerReport {
                 .append(formatEstimatedCost(failure.getEstimatedCost()))
                 .append(lineSeparator);
         appendCostDetails(sb, failure, lineSeparator);
-        sb.append("   SQL  : ").append(safeText(failure.getSql())).append(lineSeparator);
+        appendAnnotatedSql(sb, failure, lineSeparator);
+    }
+
+    private void appendAnnotatedSql(
+            StringBuilder sb,
+            AnalyzerFailure failure,
+            String lineSeparator) {
+        String sql = safeText(failure.getSql());
+        String[] lines = splitSqlLines(sql);
+        SqlContextLocation location =
+                findSqlContextLocation(failure.getReason(), sql);
+        if (location != null
+                && location.lineNumber >= 1
+                && location.lineNumber <= lines.length) {
+            sb.append("  Location: line ")
+                    .append(location.lineNumber)
+                    .append(", column ")
+                    .append(location.columnNumber);
+            if (location.estimated) {
+                sb.append(" (estimated)");
+            }
+            sb.append(lineSeparator);
+        } else {
+            location = null;
+        }
+
+        sb.append("  SQL:").append(lineSeparator);
+        int lineNumberWidth = String.valueOf(lines.length).length();
+        for (int lineNumber = 1; lineNumber <= lines.length; lineNumber++) {
+            String sqlLine = lines[lineNumber - 1];
+            sb.append("    ")
+                    .append(formatLineNumber(lineNumber, lineNumberWidth))
+                    .append(" | ")
+                    .append(sqlLine)
+                    .append(lineSeparator);
+            if (location != null && lineNumber == location.lineNumber) {
+                sb.append("    ")
+                        .append(" ".repeat(lineNumberWidth))
+                        .append(" | ")
+                        .append(" ".repeat(caretOffset(sqlLine, location.columnNumber)))
+                        .append("^");
+                if (location.estimated) {
+                    sb.append(" estimated");
+                }
+                sb.append(lineSeparator);
+            }
+        }
+    }
+
+    private SqlContextLocation findSqlContextLocation(String reason, String sql) {
+        if (sql == null || sql.isEmpty()) {
+            return null;
+        }
+
+        String[] lines = splitSqlLines(sql);
+        Matcher locationMatcher = ERROR_LOCATION_PATTERN.matcher(safeText(reason));
+        if (locationMatcher.find()) {
+            int lineNumber = parsePositiveInt(locationMatcher.group(1));
+            int columnNumber = parsePositiveInt(locationMatcher.group(2));
+            if (lineNumber >= 1 && lineNumber <= lines.length) {
+                return new SqlContextLocation(lineNumber, Math.max(1, columnNumber), false);
+            }
+        }
+
+        return findTokenLocation(reason, lines);
+    }
+
+    private SqlContextLocation findTokenLocation(String reason, String[] lines) {
+        List<String> candidates = new ArrayList<String>();
+        addTokenCandidates(candidates, UNEXPECTED_TOKEN_PATTERN, reason);
+        addTokenCandidates(candidates, BEFORE_TOKEN_PATTERN, reason);
+
+        for (String candidate : candidates) {
+            if (candidate.isEmpty()) {
+                continue;
+            }
+            for (int lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+                int columnIndex = lines[lineIndex].indexOf(candidate);
+                if (columnIndex >= 0) {
+                    return new SqlContextLocation(lineIndex + 1, columnIndex + 1, true);
+                }
+            }
+        }
+        return null;
+    }
+
+    private void addTokenCandidates(List<String> candidates, Pattern pattern, String reason) {
+        Matcher matcher = pattern.matcher(safeText(reason));
+        while (matcher.find()) {
+            String candidate = matcher.group(1);
+            if (candidate != null && !candidate.isEmpty()) {
+                candidates.add(candidate);
+            }
+        }
+    }
+
+    private String[] splitSqlLines(String sql) {
+        return safeText(sql).split("\\R", -1);
+    }
+
+    private int parsePositiveInt(String value) {
+        try {
+            return Integer.parseInt(value);
+        } catch (NumberFormatException ex) {
+            return -1;
+        }
+    }
+
+    private String formatLineNumber(int lineNumber, int width) {
+        return String.format(Locale.US, "%" + width + "d", lineNumber);
+    }
+
+    private int caretOffset(String sqlLine, int columnNumber) {
+        int safeColumnNumber = Math.max(1, columnNumber);
+        int maxOffset = sqlLine == null ? 0 : sqlLine.length();
+        return Math.min(safeColumnNumber - 1, maxOffset);
     }
 
     private void appendCostDetails(

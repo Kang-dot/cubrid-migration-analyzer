@@ -18,9 +18,21 @@ public class AnalyzerOverviewPage {
         io.println("");
         io.println("[1/3] Overview");
         io.println("Program     : " + formatText(overview.programVersion()));
-        renderSource(overview.source());
+        renderSources(overview);
         renderTarget(overview.source(), overview.target());
         io.println("Mode        : " + overview.executionMode());
+        renderSourceStatus(overview);
+    }
+
+    private void renderSources(AnalyzerOverviewViewModel overview) {
+        if (overview.sources().isEmpty()) {
+            io.println("Source      : (none)");
+            return;
+        }
+
+        for (AnalyzerSourceOverviewViewModel source : overview.sources()) {
+            renderSource(source);
+        }
     }
 
     private void renderSource(AnalyzerSourceOverviewViewModel source) {
@@ -37,6 +49,17 @@ public class AnalyzerOverviewPage {
         }
     }
 
+    private void renderSourceStatus(AnalyzerOverviewViewModel overview) {
+        if (overview.sourceStatusMessages().isEmpty()) {
+            return;
+        }
+
+        io.println("Source status");
+        for (String message : overview.sourceStatusMessages()) {
+            io.println("  - " + formatText(message));
+        }
+    }
+
     private void renderTarget(AnalyzerSourceOverviewViewModel source, AnalyzerTargetOverviewViewModel target) {
         io.println("Target      : " + target.type());
         if (target.type() == AnalyzerTargetType.JDBC) {
@@ -45,6 +68,7 @@ public class AnalyzerOverviewPage {
             io.println("Target DB   : " + formatText(target.databaseName()));
             io.println("Target User : " + formatText(target.user()));
         } else if (target.type() == AnalyzerTargetType.PARSER
+                && source != null
                 && source.xmlDirectory() != null
                 && !source.xmlDirectory().isEmpty()) {
             io.println("Parser      : " + formatText(target.parserVersion()));

@@ -219,6 +219,66 @@ class AnalyzerReportTest {
     }
 
     @Test
+    @DisplayName("result text highlights parser error line and column")
+    void shouldBuildResultTextWithSqlErrorContext() {
+        AnalyzerReport report = new AnalyzerReport();
+        report.setSourceType(AnalyzerSourceType.ORACLE);
+        report.setTargetType(AnalyzerTargetType.PARSER);
+        report.setExecutionMode(AnalyzerExecutionMode.DDL);
+
+        AnalyzerFailure failure = new AnalyzerFailure();
+        failure.setStatementType("DDL_TABLE");
+        failure.setStatementId("TABLE_1");
+        failure.setSql("CREATE TABLE t(\ncol_a int,\ncol_b DEFAULT broken\n);");
+        failure.setReason("In line 3, column 15, Syntax error");
+        failure.setFailureStage(AnalyzerFailureStage.PARSER);
+        report.addFailure(failure);
+
+        String resultText = report.buildResultText();
+
+        assertTrue(resultText.contains("Location: line 3, column 15"));
+        assertTrue(resultText.contains("SQL:"));
+        assertTrue(resultText.contains("1 | CREATE TABLE t("));
+        assertTrue(resultText.contains("3 | col_b DEFAULT broken"));
+        assertTrue(resultText.contains("4 | );"));
+        assertTrue(resultText.contains("^"));
+        assertFalse(resultText.contains("SQL context:"));
+    }
+
+    @Test
+    @DisplayName("result text estimates SQL error context from parser token when parser line is external")
+    void shouldBuildResultTextWithEstimatedSqlErrorContext() {
+        AnalyzerReport report = new AnalyzerReport();
+        report.setSourceType(AnalyzerSourceType.ORACLE);
+        report.setTargetType(AnalyzerTargetType.PARSER);
+        report.setExecutionMode(AnalyzerExecutionMode.DDL);
+
+        AnalyzerFailure failure = new AnalyzerFailure();
+        failure.setStatementType("DDL_TABLE");
+        failure.setStatementId("TABLE_25");
+        failure.setSql(
+                "CREATE TABLE tools4644(\n"
+                        + "col_raw bit varying(800) DEFAULT X'HEXTORAW('64656661756C745F726177')',\n"
+                        + "col_nvarchar2 varchar(100) DEFAULT (u'default_nvarchar2')\n"
+                        + ");");
+        failure.setReason(
+                "In line 150, column 27 before 'C745F726177')', "
+                        + "Syntax error: unexpected '64656661756', expecting REFERENCES");
+        failure.setFailureStage(AnalyzerFailureStage.PARSER);
+        report.addFailure(failure);
+
+        String resultText = report.buildResultText();
+
+        assertTrue(resultText.contains("Location: line 2, column"));
+        assertTrue(resultText.contains("(estimated)"));
+        assertTrue(resultText.contains("1 | CREATE TABLE tools4644("));
+        assertTrue(resultText.contains("col_raw bit varying"));
+        assertTrue(resultText.contains("4 | );"));
+        assertTrue(resultText.contains("^ estimated"));
+        assertFalse(resultText.contains("SQL context:"));
+    }
+
+    @Test
     @DisplayName("result text includes zero query counts for empty XML source")
     void shouldBuildResultTextWithZeroXmlQueryCounts() {
         AnalyzerReport report = new AnalyzerReport();
