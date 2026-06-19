@@ -60,6 +60,7 @@ class AnalyzerReportTest {
         assertTrue(resultText.contains("Mode        : DML"));
         assertTrue(resultText.contains("FAIL        : 1"));
         assertTrue(resultText.contains("Cost        : 0.7"));
+        assertTrue(resultText.contains("Cost        : 0.7 (3.5 min)"));
         assertTrue(resultText.contains("Analysis summary"));
         assertTrue(resultText.contains("Object counts"));
         assertTrue(resultText.contains("Execution results"));
@@ -70,9 +71,10 @@ class AnalyzerReportTest {
         assertTrue(resultText.contains("- SELECT Q1 [PARSER]"));
         assertTrue(resultText.contains("Reason: syntax error"));
         assertTrue(resultText.contains("Cost  : 0.7"));
+        assertTrue(resultText.contains("Cost  : 0.7 (3.5 min)"));
         assertTrue(resultText.contains("Cost details:"));
-        assertTrue(resultText.contains("Base DML : count=1, unit=0.2, total=0.2"));
-        assertTrue(resultText.contains("JOIN detected : count=1, unit=0.5, total=0.5"));
+        assertTrue(resultText.contains("Base DML : count=1, unit=0.2 (1.0 min), total=0.2 (1.0 min)"));
+        assertTrue(resultText.contains("JOIN detected : count=1, unit=0.5 (2.5 min), total=0.5 (2.5 min)"));
         assertTrue(resultText.contains("----------------------------------------"));
         assertFalse(resultText.contains("Result summary"));
         assertFalse(resultText.contains("Statement results"));

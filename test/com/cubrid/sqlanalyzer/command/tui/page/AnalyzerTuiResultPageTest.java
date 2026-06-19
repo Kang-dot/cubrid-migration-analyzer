@@ -45,6 +45,7 @@ class AnalyzerTuiResultPageTest {
         assertTrue(screenText.contains("OK     : 8"));
         assertTrue(screenText.contains("FAIL   : 2"));
         assertTrue(screenText.contains("Cost   : 12.5"));
+        assertTrue(screenText.contains("Cost   : 12.5 (62.5 min)"));
         assertTrue(screenText.contains("Report : /tmp/analyzer-result.txt"));
         assertTrue(screenText.contains("See the report file for detailed execution logs."));
         assertFalse(screenText.contains("- SELECT q1 failed"));

@@ -288,7 +288,7 @@ public class AnalyzerReport {
         sb.append("Total       : ").append(analyzedStatementCount).append(lineSeparator);
         sb.append("OK          : ").append(succeededStatementCount).append(lineSeparator);
         sb.append("FAIL        : ").append(failedStatementCount).append(lineSeparator);
-        sb.append("Cost        : ").append(formatEstimatedCost(getTotalEstimatedFailureCost()))
+        sb.append("Cost        : ").append(formatEstimatedCostWithTime(getTotalEstimatedFailureCost()))
                 .append(lineSeparator);
         sb.append(lineSeparator);
     }
@@ -608,7 +608,7 @@ public class AnalyzerReport {
                 .append(lineSeparator);
         sb.append("  Reason: ").append(safeText(failure.getReason())).append(lineSeparator);
         sb.append("  Cost  : ")
-                .append(formatEstimatedCost(failure.getEstimatedCost()))
+                .append(formatEstimatedCostWithTime(failure.getEstimatedCost()))
                 .append(lineSeparator);
         appendCostDetails(sb, failure, lineSeparator);
         appendAnnotatedSql(sb, failure, lineSeparator);
@@ -743,15 +743,15 @@ public class AnalyzerReport {
                     .append(" : count=")
                     .append(costDetail.getCount())
                     .append(", unit=")
-                    .append(formatEstimatedCost(costDetail.getUnitCost()))
+                    .append(formatEstimatedCostWithTime(costDetail.getUnitCost()))
                     .append(", total=")
-                    .append(formatEstimatedCost(costDetail.getTotalCost()))
+                    .append(formatEstimatedCostWithTime(costDetail.getTotalCost()))
                     .append(lineSeparator);
         }
     }
 
-    private String formatEstimatedCost(float estimatedCost) {
-        return String.format(Locale.US, "%.1f", estimatedCost);
+    private String formatEstimatedCostWithTime(float estimatedCost) {
+        return AnalyzerCostFormatter.formatCostWithTime(estimatedCost);
     }
 
     private String formatBytes(long bytes) {

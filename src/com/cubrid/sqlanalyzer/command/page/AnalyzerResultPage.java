@@ -1,6 +1,7 @@
 package com.cubrid.sqlanalyzer.command.page;
 
 import com.cubrid.sqlanalyzer.command.AnalyzerCostDetail;
+import com.cubrid.sqlanalyzer.command.AnalyzerCostFormatter;
 import com.cubrid.sqlanalyzer.command.AnalyzerFailure;
 import com.cubrid.sqlanalyzer.command.ConsoleIO;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerResultViewModel;
@@ -23,9 +24,7 @@ public class AnalyzerResultPage {
         io.println("FAIL   : " + result.failedStatementCount());
         io.println(
                 "Cost   : "
-                        + String.format(
-                                java.util.Locale.US,
-                                "%.1f",
+                        + AnalyzerCostFormatter.formatCostWithTime(
                                 result.totalEstimatedFailureCost()));
 
         if (!result.sourceStatusMessages().isEmpty()) {
@@ -70,10 +69,7 @@ public class AnalyzerResultPage {
         io.println("  Reason: " + failure.getReason());
         io.println(
                 "  Cost  : "
-                        + String.format(
-                                java.util.Locale.US,
-                                "%.1f",
-                                failure.getEstimatedCost()));
+                        + AnalyzerCostFormatter.formatCostWithTime(failure.getEstimatedCost()));
         io.println("  Cost details:");
         if (failure.getCostDetails().isEmpty()) {
             io.println("    (none)");
@@ -92,8 +88,8 @@ public class AnalyzerResultPage {
                         + " : count="
                         + costDetail.getCount()
                         + ", unit="
-                        + String.format(java.util.Locale.US, "%.1f", costDetail.getUnitCost())
+                        + AnalyzerCostFormatter.formatCostWithTime(costDetail.getUnitCost())
                         + ", total="
-                        + String.format(java.util.Locale.US, "%.1f", costDetail.getTotalCost()));
+                        + AnalyzerCostFormatter.formatCostWithTime(costDetail.getTotalCost()));
     }
 }
