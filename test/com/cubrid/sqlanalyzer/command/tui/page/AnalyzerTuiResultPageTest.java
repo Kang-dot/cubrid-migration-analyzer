@@ -14,9 +14,11 @@ import com.cubrid.sqlanalyzer.command.AnalyzerSourceType;
 import com.cubrid.sqlanalyzer.command.AnalyzerTargetType;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerProgressObjectCount;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerResultViewModel;
+import com.googlecode.lanterna.TerminalSize;
 import com.googlecode.lanterna.gui2.Component;
 import com.googlecode.lanterna.gui2.Label;
 import com.googlecode.lanterna.gui2.Panel;
+import com.googlecode.lanterna.gui2.TextBox;
 
 class AnalyzerTuiResultPageTest {
     @Test
@@ -47,6 +49,7 @@ class AnalyzerTuiResultPageTest {
         assertTrue(screenText.contains("Cost   : 12.5"));
         assertTrue(screenText.contains("Cost   : 12.5 (62.5 min)"));
         assertTrue(screenText.contains("Report : /tmp/analyzer-result.txt"));
+        assertTrue(screenText.contains("HTML   : /tmp/analyzer-result.html"));
         assertTrue(screenText.contains("See the report file for detailed execution logs."));
         assertFalse(screenText.contains("- SELECT q1 failed"));
         assertFalse(screenText.contains("Failed statements"));
@@ -81,6 +84,30 @@ class AnalyzerTuiResultPageTest {
         assertTrue(screenText.contains("    3    2    1"));
     }
 
+    @Test
+    @DisplayName("result TUI page renders scrollable text body for constrained terminal size")
+    void shouldRenderScrollableResultBodyForConstrainedTerminalSize() {
+        AnalyzerResultViewModel result = new AnalyzerResultViewModel(
+                AnalyzerSourceType.XML,
+                AnalyzerTargetType.PARSER,
+                AnalyzerExecutionMode.DML,
+                10,
+                8,
+                2,
+                12.5f,
+                "/tmp/analyzer-result.txt",
+                List.of("SELECT q1 failed"),
+                List.of());
+
+        Panel panel = new AnalyzerTuiResultPage().build(result, new TerminalSize(72, 12));
+        TextBox body = collectTextBoxes(panel).get(0);
+
+        assertTrue(body.isReadOnly());
+        assertTrue(body.getText().contains("[4/4] Result summary"));
+        assertTrue(body.getText().contains("Cost   : 12.5 (62.5 min)"));
+        assertTrue(body.getPreferredSize().getRows() < body.getText().split("\\R").length);
+    }
+
     private List<String> collectLabelTexts(Panel panel) {
         List<String> texts = new ArrayList<String>();
         for (Component component : panel.getChildren()) {
@@ -89,5 +116,15 @@ class AnalyzerTuiResultPageTest {
             }
         }
         return texts;
+    }
+
+    private List<TextBox> collectTextBoxes(Panel panel) {
+        List<TextBox> textBoxes = new ArrayList<TextBox>();
+        for (Component component : panel.getChildren()) {
+            if (component instanceof TextBox) {
+                textBoxes.add((TextBox) component);
+            }
+        }
+        return textBoxes;
     }
 }

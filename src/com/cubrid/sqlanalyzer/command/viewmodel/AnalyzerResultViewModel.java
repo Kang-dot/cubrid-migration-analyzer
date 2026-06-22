@@ -16,6 +16,7 @@ public record AnalyzerResultViewModel(
         int failedStatementCount,
         float totalEstimatedFailureCost,
         String savedReportPath,
+        String savedHtmlReportPath,
         List<String> sourceStatusMessages,
         List<String> failureMessages,
         List<AnalyzerFailure> failures,
@@ -42,6 +43,7 @@ public record AnalyzerResultViewModel(
                 failedStatementCount,
                 totalEstimatedFailureCost,
                 savedReportPath,
+                null,
                 List.of(),
                 failureMessages,
                 failures,
@@ -68,6 +70,7 @@ public record AnalyzerResultViewModel(
                 failedStatementCount,
                 totalEstimatedFailureCost,
                 savedReportPath,
+                null,
                 List.of(),
                 failureMessages,
                 failures,
@@ -75,6 +78,10 @@ public record AnalyzerResultViewModel(
     }
 
     public AnalyzerResultViewModel {
+        savedHtmlReportPath =
+                savedHtmlReportPath == null || savedHtmlReportPath.isEmpty()
+                        ? deriveHtmlReportPath(savedReportPath)
+                        : savedHtmlReportPath;
         sourceTypes = sourceTypes == null ? List.of() : List.copyOf(sourceTypes);
         sourceStatusMessages =
                 sourceStatusMessages == null ? List.of() : List.copyOf(sourceStatusMessages);
@@ -89,5 +96,15 @@ public record AnalyzerResultViewModel(
             return null;
         }
         return sourceTypes.size() > 1 ? AnalyzerSourceType.ALL : sourceTypes.get(0);
+    }
+
+    private static String deriveHtmlReportPath(String savedReportPath) {
+        if (savedReportPath == null || savedReportPath.isEmpty()) {
+            return "";
+        }
+        if (savedReportPath.endsWith(".txt")) {
+            return savedReportPath.substring(0, savedReportPath.length() - 4) + ".html";
+        }
+        return savedReportPath + ".html";
     }
 }

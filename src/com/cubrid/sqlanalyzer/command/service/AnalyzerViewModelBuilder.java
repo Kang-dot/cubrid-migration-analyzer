@@ -85,6 +85,7 @@ public class AnalyzerViewModelBuilder {
                 report.getFailedStatementCount(),
                 report.getTotalEstimatedFailureCost(),
                 savedReportPath,
+                null,
                 report.getSourceStatusMessages(),
                 report.getFailureMessages(),
                 report.getFailures(),

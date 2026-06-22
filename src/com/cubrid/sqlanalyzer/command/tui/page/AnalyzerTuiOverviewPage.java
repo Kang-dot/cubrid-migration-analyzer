@@ -8,15 +8,27 @@ import com.cubrid.sqlanalyzer.command.AnalyzerTargetType;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerOverviewViewModel;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerSourceOverviewViewModel;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerTargetOverviewViewModel;
+import com.googlecode.lanterna.TerminalSize;
 import com.googlecode.lanterna.gui2.Label;
 import com.googlecode.lanterna.gui2.Panel;
 
 public class AnalyzerTuiOverviewPage {
+    private static final int RESERVED_ROWS = 5;
+
     public Panel build(AnalyzerOverviewViewModel overview) {
         Panel panel = new Panel();
         for (String line : buildLines(overview)) {
             panel.addComponent(new Label(line));
         }
+        return panel;
+    }
+
+    public Panel build(AnalyzerOverviewViewModel overview, TerminalSize terminalSize) {
+        Panel panel = new Panel();
+        panel.addComponent(AnalyzerTuiLayout.readOnlyTextBox(
+                buildLines(overview),
+                terminalSize,
+                RESERVED_ROWS));
         return panel;
     }
 

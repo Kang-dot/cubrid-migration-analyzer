@@ -11,9 +11,11 @@ import org.junit.jupiter.api.Test;
 import com.cubrid.sqlanalyzer.command.AnalyzerSourceType;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerObjectCountPreviewViewModel;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerTableSizeViewModel;
+import com.googlecode.lanterna.TerminalSize;
 import com.googlecode.lanterna.gui2.Component;
 import com.googlecode.lanterna.gui2.Label;
 import com.googlecode.lanterna.gui2.Panel;
+import com.googlecode.lanterna.gui2.TextBox;
 import com.googlecode.lanterna.gui2.table.Table;
 
 class AnalyzerTuiObjectCountPageTest {
@@ -149,6 +151,43 @@ class AnalyzerTuiObjectCountPageTest {
         assertTrue(table.getVisibleRows() < table.getTableModel().getRowCount());
     }
 
+    @Test
+    @DisplayName("object count TUI page reduces table viewport for constrained terminal size")
+    void shouldReduceOracleTableViewportForConstrainedTerminalSize() {
+        List<AnalyzerTableSizeViewModel> tableSizes = new ArrayList<AnalyzerTableSizeViewModel>();
+        for (int i = 1; i <= 20; i++) {
+            tableSizes.add(new AnalyzerTableSizeViewModel("VERY_LONG_TABLE_NAME_" + i, 1024L * i, i * 10L));
+        }
+        AnalyzerObjectCountPreviewViewModel preview =
+                new AnalyzerObjectCountPreviewViewModel(
+                        AnalyzerSourceType.ORACLE,
+                        1,
+                        20,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        21_504L,
+                        tableSizes);
+
+        Panel panel = new AnalyzerTuiObjectCountPage().build(preview, new TerminalSize(64, 26));
+        TextBox body = collectTextBoxes(panel).get(0);
+
+        assertTrue(body.isReadOnly());
+        assertTrue(body.getText().contains("VERY_LONG_TABLE_NAME_1"));
+        assertTrue(body.getPreferredSize().getColumns() <= 58);
+        assertTrue(body.getPreferredSize().getRows() < body.getText().split("\\R").length);
+    }
+
     private List<String> collectLabelTexts(Panel panel) {
         List<String> texts = new ArrayList<String>();
         for (Component component : panel.getChildren()) {
@@ -167,6 +206,16 @@ class AnalyzerTuiObjectCountPageTest {
             }
         }
         return tables;
+    }
+
+    private List<TextBox> collectTextBoxes(Panel panel) {
+        List<TextBox> textBoxes = new ArrayList<TextBox>();
+        for (Component component : panel.getChildren()) {
+            if (component instanceof TextBox) {
+                textBoxes.add((TextBox) component);
+            }
+        }
+        return textBoxes;
     }
 
     private String collectTableText(Panel panel) {

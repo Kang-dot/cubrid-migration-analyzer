@@ -17,9 +17,11 @@ import com.cubrid.sqlanalyzer.command.AnalyzerTargetType;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerOverviewViewModel;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerSourceOverviewViewModel;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerTargetOverviewViewModel;
+import com.googlecode.lanterna.TerminalSize;
 import com.googlecode.lanterna.gui2.Component;
 import com.googlecode.lanterna.gui2.Label;
 import com.googlecode.lanterna.gui2.Panel;
+import com.googlecode.lanterna.gui2.TextBox;
 
 class AnalyzerTuiOverviewPageTest {
     @TempDir
@@ -66,6 +68,42 @@ class AnalyzerTuiOverviewPageTest {
         assertTrue(screenText.contains("Mode        : DML"));
     }
 
+    @Test
+    @DisplayName("overview TUI page renders scrollable text body for constrained terminal size")
+    void shouldRenderScrollableOverviewBodyForConstrainedTerminalSize() {
+        AnalyzerOverviewViewModel overview = new AnalyzerOverviewViewModel(
+                "0.0.1-SNAPSHOT",
+                new AnalyzerSourceOverviewViewModel(
+                        AnalyzerSourceType.XML,
+                        null,
+                        null,
+                        0,
+                        null,
+                        null,
+                        null,
+                        xmlDirectory.toString(),
+                        "UTF-8",
+                        1),
+                new AnalyzerTargetOverviewViewModel(
+                        AnalyzerTargetType.PARSER,
+                        null,
+                        null,
+                        0,
+                        null,
+                        null,
+                        null,
+                        "CUBRID parser"),
+                AnalyzerExecutionMode.DML);
+
+        Panel panel = new AnalyzerTuiOverviewPage().build(overview, new TerminalSize(80, 12));
+        TextBox body = collectTextBoxes(panel).get(0);
+
+        assertTrue(body.isReadOnly());
+        assertTrue(body.getText().contains("[1/4] Overview"));
+        assertEquals(74, body.getPreferredSize().getColumns());
+        assertEquals(7, body.getPreferredSize().getRows());
+    }
+
     private int countOccurrences(String text, String pattern) {
         int count = 0;
         int index = text.indexOf(pattern);
@@ -84,5 +122,15 @@ class AnalyzerTuiOverviewPageTest {
             }
         }
         return texts;
+    }
+
+    private List<TextBox> collectTextBoxes(Panel panel) {
+        List<TextBox> textBoxes = new ArrayList<TextBox>();
+        for (Component component : panel.getChildren()) {
+            if (component instanceof TextBox) {
+                textBoxes.add((TextBox) component);
+            }
+        }
+        return textBoxes;
     }
 }

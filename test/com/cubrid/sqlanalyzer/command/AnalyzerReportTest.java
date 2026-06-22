@@ -315,6 +315,134 @@ class AnalyzerReportTest {
         assertTrue(resultText.contains("DELETE count    : 0"));
     }
 
+    @Test
+    @DisplayName("result html includes connection summary, object summary, detail, and conclusion")
+    void shouldBuildResultHtml() {
+        AnalyzerReport report = new AnalyzerReport();
+        report.setSourceType(AnalyzerSourceType.ORACLE);
+        report.setTargetType(AnalyzerTargetType.PARSER);
+        report.setExecutionMode(AnalyzerExecutionMode.DDL);
+        report.setAnalyzedStatementCount(2);
+        report.setSucceededStatementCount(1);
+        report.setFailedStatementCount(1);
+        report.setOverview(
+                new AnalyzerOverviewViewModel(
+                        "0.0.1-SNAPSHOT",
+                        new AnalyzerSourceOverviewViewModel(
+                                AnalyzerSourceType.ORACLE,
+                                "jdbc:oracle:thin:@localhost:1521/XE",
+                                "localhost",
+                                1521,
+                                "XE",
+                                "HR",
+                                "Oracle 19c",
+                                null,
+                                null,
+                                0),
+                        new AnalyzerTargetOverviewViewModel(
+                                AnalyzerTargetType.PARSER,
+                                null,
+                                null,
+                                0,
+                                null,
+                                null,
+                                null,
+                                "CUBRID parser"),
+                        AnalyzerExecutionMode.DDL));
+        report.setObjectCountPreview(
+                new AnalyzerObjectCountPreviewViewModel(
+                        AnalyzerSourceType.ORACLE,
+                        1,
+                        2,
+                        1,
+                        0,
+                        1,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        3_145_728L,
+                        List.of(new AnalyzerTableSizeViewModel("EMP", 2_097_152L, 1_234L))));
+        report.addStatementResult(
+                "DDL_TABLE",
+                "TABLE_1",
+                "CREATE TABLE t(id int)",
+                false,
+                "syntax error",
+                AnalyzerFailureStage.PARSER);
+
+        AnalyzerFailure failure = new AnalyzerFailure();
+        failure.setStatementType("DDL_TABLE");
+        failure.setStatementId("TABLE_1");
+        failure.setSql("CREATE TABLE t(\ncol DEFAULT broken\n);");
+        failure.setReason("In line 2, column 13, Syntax error before 'broken'");
+        failure.setFailureStage(AnalyzerFailureStage.PARSER);
+        failure.setEstimatedCost(1.2f);
+        failure.addCostDetail(new AnalyzerCostDetail("Parser failure", 1, 1.2f, 1.2f));
+        report.addFailure(failure);
+
+        String resultHtml = report.buildResultHtml();
+
+        assertTrue(resultHtml.contains("<h2>Connection Info</h2>"));
+        assertTrue(resultHtml.contains("jdbc:oracle:thin:@localhost:1521/XE"));
+        assertTrue(resultHtml.contains("<td class=\"metric\">Parser</td><td>Yes</td>"));
+        assertTrue(resultHtml.contains("<td class=\"metric\">Schema name</td><td>HR</td>"));
+        assertTrue(resultHtml.contains("<td class=\"metric\">Source table size</td><td>3.00 MB</td>"));
+        assertTrue(resultHtml.contains("<h2>Table Summary</h2>"));
+        assertTrue(resultHtml.contains("<td>TABLE</td>"));
+        assertTrue(resultHtml.contains("1.2 (6.0 min)"));
+        assertTrue(resultHtml.contains("<h2>Detail</h2>"));
+        assertTrue(resultHtml.contains("line 2, column 13"));
+        assertTrue(resultHtml.contains("1 | CREATE TABLE t("));
+        assertTrue(resultHtml.contains("2 | col DEFAULT broken"));
+        assertTrue(resultHtml.contains("  |             ^"));
+        assertTrue(resultHtml.contains("3 | );"));
+        assertTrue(resultHtml.contains("CREATE TABLE t("));
+        assertTrue(resultHtml.contains("Syntax error before &#39;broken&#39;"));
+        assertTrue(resultHtml.contains("<h2>Conclusion</h2>"));
+        assertTrue(resultHtml.contains("Total Cost"));
+        assertTrue(resultHtml.contains("Estimated Time"));
+        assertTrue(resultHtml.contains("6.0 min"));
+    }
+
+    @Test
+    @DisplayName("result html shows estimated SQL location with full failed SQL")
+    void shouldBuildResultHtmlWithEstimatedSqlLocation() {
+        AnalyzerReport report = new AnalyzerReport();
+        report.setSourceType(AnalyzerSourceType.ORACLE);
+        report.setTargetType(AnalyzerTargetType.PARSER);
+        report.setExecutionMode(AnalyzerExecutionMode.DDL);
+
+        AnalyzerFailure failure = new AnalyzerFailure();
+        failure.setStatementType("DDL_TABLE");
+        failure.setStatementId("TABLE_25");
+        failure.setSql(
+                "CREATE TABLE tools4644(\n"
+                        + "col_raw bit varying(800) DEFAULT X'HEXTORAW('64656661756C745F726177')',\n"
+                        + "col_nvarchar2 varchar(100) DEFAULT (u'default_nvarchar2')\n"
+                        + ");");
+        failure.setReason(
+                "In line 150, column 27 before 'C745F726177')', "
+                        + "Syntax error: unexpected '64656661756', expecting REFERENCES");
+        failure.setFailureStage(AnalyzerFailureStage.PARSER);
+        report.addFailure(failure);
+
+        String resultHtml = report.buildResultHtml();
+
+        assertTrue(resultHtml.contains("line 2, column"));
+        assertTrue(resultHtml.contains("(estimated)"));
+        assertTrue(resultHtml.contains("1 | CREATE TABLE tools4644("));
+        assertTrue(resultHtml.contains("2 | col_raw bit varying"));
+        assertTrue(resultHtml.contains("^ estimated"));
+        assertTrue(resultHtml.contains("4 | );"));
+    }
+
     private int countOccurrences(String text, String pattern) {
         int count = 0;
         int index = text.indexOf(pattern);

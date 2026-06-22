@@ -14,14 +14,25 @@ import com.googlecode.lanterna.gui2.table.Table;
 public class AnalyzerTuiObjectCountPage {
     private static final int TABLE_SIZE_VISIBLE_ROWS = 8;
     private static final int TABLE_NAME_WIDTH = 44;
+    private static final int TABLE_RESERVED_ROWS = 23;
 
     public Panel build(AnalyzerObjectCountPreviewViewModel preview) {
+        return build(preview, null);
+    }
+
+    public Panel build(AnalyzerObjectCountPreviewViewModel preview, TerminalSize terminalSize) {
+        if (terminalSize != null) {
+            Panel panel = new Panel();
+            panel.addComponent(AnalyzerTuiLayout.readOnlyTextBox(buildLines(preview), terminalSize, 5));
+            return panel;
+        }
+
         Panel panel = new Panel();
         for (String line : buildSummaryLines(preview)) {
             panel.addComponent(new Label(line));
         }
         if (preview.oracleSourceLoaded() && !preview.tableSizes().isEmpty()) {
-            panel.addComponent(buildTableSizeTable(preview.tableSizes()));
+            panel.addComponent(buildTableSizeTable(preview.tableSizes(), terminalSize));
         }
         for (String line : buildDmlLines(preview)) {
             panel.addComponent(new Label(line));
@@ -85,22 +96,32 @@ public class AnalyzerTuiObjectCountPage {
         return lines;
     }
 
-    private Table<String> buildTableSizeTable(List<AnalyzerTableSizeViewModel> tableSizes) {
+    private Table<String> buildTableSizeTable(
+            List<AnalyzerTableSizeViewModel> tableSizes,
+            TerminalSize terminalSize) {
+        int tableWidth = Math.min(74, AnalyzerTuiLayout.contentWidth(terminalSize));
+        int tableNameWidth = Math.max(8, Math.min(TABLE_NAME_WIDTH, tableWidth - 34));
+        int visibleRows = AnalyzerTuiLayout.cappedVisibleRows(
+                terminalSize,
+                TABLE_RESERVED_ROWS,
+                TABLE_SIZE_VISIBLE_ROWS,
+                Math.min(TABLE_SIZE_VISIBLE_ROWS, tableSizes.size()));
+
         Table<String> table = new Table<String>("No.", "Table", "Size", "Est. rows");
         int rowNumber = 1;
         for (AnalyzerTableSizeViewModel tableSize : tableSizes) {
             table.getTableModel().addRow(
                     String.valueOf(rowNumber++),
-                    fitText(tableSize.tableName(), TABLE_NAME_WIDTH),
+                    fitText(tableSize.tableName(), tableNameWidth),
                     formatBytes(tableSize.bytes()),
                     formatNumber(tableSize.estimatedRows()));
         }
-        table.setVisibleRows(Math.min(TABLE_SIZE_VISIBLE_ROWS, tableSizes.size()));
+        table.setVisibleRows(visibleRows);
         table.setVisibleColumns(4);
         table.setPreferredSize(
                 new TerminalSize(
-                        74,
-                        Math.min(TABLE_SIZE_VISIBLE_ROWS, tableSizes.size()) + 2));
+                        tableWidth,
+                        visibleRows + 2));
         return table;
     }
 

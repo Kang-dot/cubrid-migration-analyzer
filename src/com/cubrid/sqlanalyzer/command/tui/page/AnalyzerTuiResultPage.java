@@ -7,15 +7,27 @@ import java.util.Locale;
 import com.cubrid.sqlanalyzer.command.AnalyzerCostFormatter;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerProgressObjectCount;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerResultViewModel;
+import com.googlecode.lanterna.TerminalSize;
 import com.googlecode.lanterna.gui2.Label;
 import com.googlecode.lanterna.gui2.Panel;
 
 public class AnalyzerTuiResultPage {
+    private static final int RESERVED_ROWS = 6;
+
     public Panel build(AnalyzerResultViewModel result) {
         Panel panel = new Panel();
         for (String line : buildLines(result)) {
             panel.addComponent(new Label(line));
         }
+        return panel;
+    }
+
+    public Panel build(AnalyzerResultViewModel result, TerminalSize terminalSize) {
+        Panel panel = new Panel();
+        panel.addComponent(AnalyzerTuiLayout.readOnlyTextBox(
+                buildLines(result),
+                terminalSize,
+                RESERVED_ROWS));
         return panel;
     }
 
@@ -52,6 +64,7 @@ public class AnalyzerTuiResultPage {
 
         lines.add("");
         lines.add("Report : " + formatText(result.savedReportPath()));
+        lines.add("HTML   : " + formatText(result.savedHtmlReportPath()));
         lines.add("See the report file for detailed execution logs.");
         return lines;
     }

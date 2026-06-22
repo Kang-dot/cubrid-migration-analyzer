@@ -14,9 +14,11 @@ import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerProgressCounts;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerProgressEventViewModel;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerProgressObjectCount;
 import com.cubrid.sqlanalyzer.core.plan.AnalyzerStatement;
+import com.googlecode.lanterna.TerminalSize;
 import com.googlecode.lanterna.gui2.Component;
 import com.googlecode.lanterna.gui2.Label;
 import com.googlecode.lanterna.gui2.Panel;
+import com.googlecode.lanterna.gui2.TextBox;
 import com.googlecode.lanterna.gui2.table.Table;
 
 class AnalyzerTuiProgressPageTest {
@@ -59,6 +61,17 @@ class AnalyzerTuiProgressPageTest {
         assertTrue(tableText.contains("[OK] SELECT q1"));
         assertTrue(tableText.contains("[OK] SELECT q12"));
         assertTrue(recentTable.getVisibleRows() < recentTable.getTableModel().getRowCount());
+    }
+
+    @Test
+    @DisplayName("progress TUI page reduces recent event viewport for constrained terminal size")
+    void shouldReduceRecentEventViewportForConstrainedTerminalSize() {
+        ProgressView progressView = new AnalyzerTuiProgressPage().buildView(new TerminalSize(70, 22));
+        TextBox recentTextBox = collectTextBoxes(progressView.getPanel()).get(0);
+
+        assertTrue(recentTextBox.isReadOnly());
+        assertTrue(recentTextBox.getPreferredSize().getRows() < 8);
+        assertTrue(recentTextBox.getPreferredSize().getColumns() <= 64);
     }
 
     @Test
@@ -142,6 +155,16 @@ class AnalyzerTuiProgressPageTest {
             }
         }
         return tables;
+    }
+
+    private List<TextBox> collectTextBoxes(Panel panel) {
+        List<TextBox> textBoxes = new ArrayList<TextBox>();
+        for (Component component : panel.getChildren()) {
+            if (component instanceof TextBox) {
+                textBoxes.add((TextBox) component);
+            }
+        }
+        return textBoxes;
     }
 
     private String collectTableText(Panel panel) {

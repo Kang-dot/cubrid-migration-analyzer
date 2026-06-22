@@ -54,6 +54,7 @@ public class AnalyzerResultPage {
 
         io.println("");
         io.println("Saved result report: " + result.savedReportPath());
+        io.println("Saved HTML report: " + result.savedHtmlReportPath());
     }
 
     private void renderFailure(AnalyzerFailure failure) {
