@@ -460,13 +460,12 @@ public class AnalyzerReport {
     }
 
     private void appendHtmlFailureDetail(StringBuilder sb, AnalyzerFailure failure) {
-        SqlContextLocation location =
-                findSqlContextLocation(failure.getReason(), failure.getSql());
+        SqlContextLocation location = findSqlContextLocation(failure.getReason(), failure.getSql());
         sb.append("<details open>\n");
         sb.append("<summary>")
-                .append(escapeHtml(safeText(failure.getStatementType())))
+                .append(escapeHtml(formatText(failure.getStatementType())))
                 .append(" ")
-                .append(escapeHtml(safeText(failure.getStatementId())))
+                .append(escapeHtml(formatText(failure.getStatementId())))
                 .append(" [")
                 .append(escapeHtml(String.valueOf(failure.getFailureStage())))
                 .append("]</summary>\n");
@@ -487,7 +486,7 @@ public class AnalyzerReport {
             StringBuilder sb,
             AnalyzerFailure failure,
             SqlContextLocation location) {
-        String sql = safeText(failure.getSql());
+        String sql = formatText(failure.getSql());
         sb.append("<h3>Full Query</h3>\n");
         sb.append("<pre>");
         appendAnnotatedSqlLines(sb, sql, location, "\n", true, "");
@@ -549,8 +548,7 @@ public class AnalyzerReport {
         }
 
         for (AnalyzerFailure failure : failures) {
-            HtmlSummaryRow row =
-                    getOrCreateHtmlSummaryRow(rows, displayObjectType(failure.getStatementType()));
+            HtmlSummaryRow row = getOrCreateHtmlSummaryRow(rows, displayObjectType(failure.getStatementType()));
             row.cost += failure.getEstimatedCost();
             if (row.errorCount == 0) {
                 row.errorCount = 1;
@@ -594,7 +592,7 @@ public class AnalyzerReport {
     private HtmlSummaryRow getOrCreateHtmlSummaryRow(
             Map<String, HtmlSummaryRow> rows,
             String objectType) {
-        String safeObjectType = safeText(objectType);
+        String safeObjectType = formatText(objectType);
         if (safeObjectType.isEmpty()) {
             safeObjectType = "UNKNOWN";
         }
@@ -638,7 +636,7 @@ public class AnalyzerReport {
             return "";
         }
         for (AnalyzerSourceOverviewViewModel source : overview.sources()) {
-            if (source.type() == AnalyzerSourceType.ORACLE && !safeText(source.user()).isEmpty()) {
+            if (source.type() == AnalyzerSourceType.ORACLE && !formatText(source.user()).isEmpty()) {
                 return source.user();
             }
         }
@@ -664,12 +662,12 @@ public class AnalyzerReport {
     private String formatGeneratedAt() {
         long timeValue = generatedAt > 0 ? generatedAt : System.currentTimeMillis();
         return CUBRIDTimeUtil.getDateFormat(
-                        "yyyy-MM-dd HH:mm:ss", Locale.US, TimeZone.getDefault())
+                "yyyy-MM-dd HH:mm:ss", Locale.US, TimeZone.getDefault())
                 .format(new Date(timeValue));
     }
 
     private String escapeHtml(String value) {
-        String text = safeText(value);
+        String text = formatText(value);
         StringBuilder escaped = new StringBuilder(text.length());
         for (int i = 0; i < text.length(); i++) {
             char ch = text.charAt(i);
@@ -702,7 +700,7 @@ public class AnalyzerReport {
         if (overview != null) {
             sb.append("Program     : ").append(formatText(overview.programVersion())).append(lineSeparator);
             appendSourceOverviews(sb, overview.sources(), lineSeparator);
-            appendTargetOverview(sb, overview.source(), overview.target(), lineSeparator);
+            appendTargetOverview(sb, overview.target(), lineSeparator);
             sb.append("Mode        : ").append(overview.executionMode()).append(lineSeparator);
             appendSourceStatusMessages(sb, overview.sourceStatusMessages(), lineSeparator);
         } else {
@@ -801,12 +799,12 @@ public class AnalyzerReport {
                 .append(lineSeparator);
         for (AnalyzerTableSizeViewModel tableSize : objectCountPreview.tableSizes()) {
             sb.append(
-                            String.format(
-                                    Locale.US,
-                                    "  %-32s %12s %12s",
-                                    fitText(tableSize.tableName(), 32),
-                                    formatBytes(tableSize.bytes()),
-                                    formatNumber(tableSize.estimatedRows())))
+                    String.format(
+                            Locale.US,
+                            "  %-32s %12s %12s",
+                            fitText(tableSize.tableName(), 32),
+                            formatBytes(tableSize.bytes()),
+                            formatNumber(tableSize.estimatedRows())))
                     .append(lineSeparator);
         }
     }
@@ -872,7 +870,6 @@ public class AnalyzerReport {
 
     private void appendTargetOverview(
             StringBuilder sb,
-            AnalyzerSourceOverviewViewModel source,
             AnalyzerTargetOverviewViewModel target,
             String lineSeparator) {
         if (target == null) {
@@ -937,7 +934,7 @@ public class AnalyzerReport {
             sb.append("Failed statements").append(lineSeparator);
             for (String failureMessage : failureMessages) {
                 sb.append("----------------------------------------").append(lineSeparator);
-                sb.append("- ").append(safeText(failureMessage)).append(lineSeparator);
+                sb.append("- ").append(formatText(failureMessage)).append(lineSeparator);
             }
             sb.append("----------------------------------------").append(lineSeparator);
         } else {
@@ -953,7 +950,7 @@ public class AnalyzerReport {
                 continue;
             }
 
-            String statementType = safeText(statementResult.statementType);
+            String statementType = formatText(statementResult.statementType);
             if (statementType.isEmpty()) {
                 statementType = "UNKNOWN";
             }
@@ -969,7 +966,7 @@ public class AnalyzerReport {
     }
 
     private String displayObjectType(String statementType) {
-        String type = safeText(statementType);
+        String type = formatText(statementType);
         if (type.isEmpty()) {
             return "UNKNOWN";
         }
@@ -985,25 +982,19 @@ public class AnalyzerReport {
     }
 
     private String buildReportFileName() {
-        long timeValue = generatedAt > 0 ? generatedAt : System.currentTimeMillis();
-        return "analyzer_result_"
-                + CUBRIDTimeUtil.getDateFormat(
-                        "yyyy_MM_dd_HH_mm_ss_SSS", Locale.US, TimeZone.getDefault())
-                        .format(new Date(timeValue))
-                + ".txt";
+        return getTimeStampSuffix() + ".txt";
     }
 
     private String buildHtmlReportFileName() {
+        return getTimeStampSuffix() + ".html";
+    }
+
+    private String getTimeStampSuffix() {
         long timeValue = generatedAt > 0 ? generatedAt : System.currentTimeMillis();
         return "analyzer_result_"
                 + CUBRIDTimeUtil.getDateFormat(
                         "yyyy_MM_dd_HH_mm_ss_SSS", Locale.US, TimeZone.getDefault())
-                        .format(new Date(timeValue))
-                + ".html";
-    }
-
-    private String safeText(String value) {
-        return value == null ? "" : value;
+                        .format(new Date(timeValue));
     }
 
     private String formatText(String value) {
@@ -1034,14 +1025,14 @@ public class AnalyzerReport {
             StringBuilder sb, AnalyzerFailure failure, String lineSeparator) {
         sb.append("----------------------------------------").append(lineSeparator);
         sb.append("- ")
-                .append(safeText(failure.getStatementType()))
+                .append(formatText(failure.getStatementType()))
                 .append(" ")
-                .append(safeText(failure.getStatementId()))
+                .append(formatText(failure.getStatementId()))
                 .append(" [")
                 .append(failure.getFailureStage())
                 .append("]")
                 .append(lineSeparator);
-        sb.append("  Reason: ").append(safeText(failure.getReason())).append(lineSeparator);
+        sb.append("  Reason: ").append(formatText(failure.getReason())).append(lineSeparator);
         sb.append("  Cost  : ")
                 .append(formatEstimatedCostWithTime(failure.getEstimatedCost()))
                 .append(lineSeparator);
@@ -1053,12 +1044,11 @@ public class AnalyzerReport {
             StringBuilder sb,
             AnalyzerFailure failure,
             String lineSeparator) {
-        String sql = safeText(failure.getSql());
+        String sql = formatText(failure.getSql());
         String[] lines = splitSqlLines(sql);
-        SqlContextLocation location =
-                validSqlContextLocation(
-                        findSqlContextLocation(failure.getReason(), sql),
-                        lines.length);
+        SqlContextLocation location = validSqlContextLocation(
+                findSqlContextLocation(failure.getReason(), sql),
+                lines.length);
         if (location != null) {
             sb.append("  Location: line ")
                     .append(location.lineNumber)
@@ -1117,7 +1107,7 @@ public class AnalyzerReport {
     }
 
     private void appendMaybeEscaped(StringBuilder sb, String value, boolean html) {
-        sb.append(html ? escapeHtml(value) : safeText(value));
+        sb.append(html ? escapeHtml(value) : formatText(value));
     }
 
     private SqlContextLocation findSqlContextLocation(String reason, String sql) {
@@ -1126,7 +1116,7 @@ public class AnalyzerReport {
         }
 
         String[] lines = splitSqlLines(sql);
-        Matcher locationMatcher = ERROR_LOCATION_PATTERN.matcher(safeText(reason));
+        Matcher locationMatcher = ERROR_LOCATION_PATTERN.matcher(formatText(reason));
         if (locationMatcher.find()) {
             int lineNumber = parsePositiveInt(locationMatcher.group(1));
             int columnNumber = parsePositiveInt(locationMatcher.group(2));
@@ -1158,7 +1148,7 @@ public class AnalyzerReport {
     }
 
     private void addTokenCandidates(List<String> candidates, Pattern pattern, String reason) {
-        Matcher matcher = pattern.matcher(safeText(reason));
+        Matcher matcher = pattern.matcher(formatText(reason));
         while (matcher.find()) {
             String candidate = matcher.group(1);
             if (candidate != null && !candidate.isEmpty()) {
@@ -1168,7 +1158,7 @@ public class AnalyzerReport {
     }
 
     private String[] splitSqlLines(String sql) {
-        return safeText(sql).split("\\R", -1);
+        return formatText(sql).split("\\R", -1);
     }
 
     private int parsePositiveInt(String value) {
@@ -1199,7 +1189,7 @@ public class AnalyzerReport {
 
         for (AnalyzerCostDetail costDetail : failure.getCostDetails()) {
             sb.append("    - ")
-                    .append(safeText(costDetail.getItemName()))
+                    .append(formatText(costDetail.getItemName()))
                     .append(" : count=")
                     .append(costDetail.getCount())
                     .append(", unit=")

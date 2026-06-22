@@ -1,9 +1,10 @@
 package com.cubrid.sqlanalyzer.core.cost;
 
-import java.util.Locale;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -13,7 +14,16 @@ import com.cubrid.sqlanalyzer.command.AnalyzerReport;
 import com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes;
 
 public class FailureCostCalculator implements AnalyzerCostCalculator {
+    private static final Pattern QUERY_FORMATTING_PATTERN = Pattern.compile("[\\r\\n\\t]+");
+    private static final Pattern MULTIPLE_SPACES_PATTERN = Pattern.compile(" +");
+    private static final Pattern KEYWORD_WHITESPACE_PATTERN = Pattern.compile("\\s+");
+    private static final Pattern GRANT_PRIVILEGE_SEPARATOR_PATTERN = Pattern.compile("\\s*,\\s*");
+
     private final AnalyzerCostSettings costSettings;
+    private final Map<String, Pattern> keywordPatternCache =
+            new ConcurrentHashMap<String, Pattern>();
+    private final Map<String, Pattern> regexPatternCache =
+            new ConcurrentHashMap<String, Pattern>();
 
     public FailureCostCalculator() {
         this(AnalyzerCostSettingsLoader.loadDefault());
@@ -113,13 +123,11 @@ public class FailureCostCalculator implements AnalyzerCostCalculator {
                 result,
                 upperNormalizedSql,
                 costSettings.getUncoveredScoreMap(),
-                true,
                 "Unsupported keyword");
         appendKeywordCosts(
                 result,
                 upperNormalizedSql,
                 costSettings.getOraFunctionWeightMap(),
-                false,
                 "Oracle function");
         appendLengthCost(result, normalizedSql);
         return result;
@@ -143,13 +151,11 @@ public class FailureCostCalculator implements AnalyzerCostCalculator {
                 result,
                 upperNormalizedSql,
                 costSettings.getUncoveredScoreMap(),
-                true,
                 "Unsupported keyword");
         appendKeywordCosts(
                 result,
                 upperNormalizedSql,
                 costSettings.getOraFunctionWeightMap(),
-                false,
                 "Oracle function");
         appendLengthCost(result, normalizedSql);
         return result;
@@ -193,13 +199,11 @@ public class FailureCostCalculator implements AnalyzerCostCalculator {
                 result,
                 upperNormalizedSql,
                 costSettings.getUncoveredScoreMap(),
-                true,
                 "Unsupported keyword");
         appendKeywordCosts(
                 result,
                 upperNormalizedSql,
                 costSettings.getOraFunctionWeightMap(),
-                false,
                 "Oracle function");
         appendLengthCost(result, normalizedSql);
         return result;
@@ -215,13 +219,11 @@ public class FailureCostCalculator implements AnalyzerCostCalculator {
                 result,
                 upperNormalizedSql,
                 costSettings.getUncoveredScoreMap(),
-                true,
                 "Unsupported keyword");
         appendKeywordCosts(
                 result,
                 upperNormalizedSql,
                 costSettings.getOraFunctionWeightMap(),
-                false,
                 "Oracle function");
         appendLengthCost(result, normalizedSql);
         return result;
@@ -245,13 +247,11 @@ public class FailureCostCalculator implements AnalyzerCostCalculator {
                 result,
                 upperNormalizedSql,
                 costSettings.getUncoveredScoreMap(),
-                true,
                 "Unsupported keyword");
         appendKeywordCosts(
                 result,
                 upperNormalizedSql,
                 costSettings.getOraFunctionWeightMap(),
-                false,
                 "Oracle function");
         appendLengthCost(result, normalizedSql);
         return result;
@@ -305,12 +305,10 @@ public class FailureCostCalculator implements AnalyzerCostCalculator {
             CostComputationResult result,
             String upperSql,
             Map<String, Float> keywordCostMap,
-            boolean normalizeKeyword,
             String labelPrefix) {
         for (Map.Entry<String, Float> entry : keywordCostMap.entrySet()) {
             String keyword = entry.getKey();
-            String keywordToFind = normalizeKeyword ? keyword.toUpperCase(Locale.ENGLISH) : keyword;
-            int occurrenceCount = checkKeyword(upperSql, keywordToFind.toUpperCase(Locale.ENGLISH));
+            int occurrenceCount = checkKeyword(upperSql, keyword.toUpperCase(Locale.ENGLISH));
             result.addCost(labelPrefix + ": " + keyword, occurrenceCount, entry.getValue());
         }
     }
@@ -442,7 +440,7 @@ public class FailureCostCalculator implements AnalyzerCostCalculator {
         }
 
         if (privilegeSection.contains(",")) {
-            return privilegeSection.split("\\s*,\\s*").length;
+            return GRANT_PRIVILEGE_SEPARATOR_PATTERN.split(privilegeSection).length;
         }
 
         return 1;
@@ -486,7 +484,7 @@ public class FailureCostCalculator implements AnalyzerCostCalculator {
             return 0;
         }
 
-        return countPatternMatches(text, buildKeywordPattern(keyword));
+        return countPatternMatches(text, keywordPattern(keyword));
     }
 
     /** Convenience wrapper for boolean-style keyword checks. */
@@ -509,7 +507,7 @@ public class FailureCostCalculator implements AnalyzerCostCalculator {
             return -1;
         }
 
-        Matcher matcher = Pattern.compile(buildKeywordPattern(keyword)).matcher(text);
+        Matcher matcher = keywordPattern(keyword).matcher(text);
         return matcher.find(Math.max(fromIndex, 0)) ? matcher.start() : -1;
     }
 
@@ -518,17 +516,29 @@ public class FailureCostCalculator implements AnalyzerCostCalculator {
         if (text == null || regex == null || regex.isEmpty()) {
             return false;
         }
-        return Pattern.compile(regex).matcher(text).find();
+        return regexPattern(regex).matcher(text).find();
     }
 
     /** Counts regex matches for patterns that are easier to express directly. */
-    private int countPatternMatches(String text, String regex) {
-        Matcher matcher = Pattern.compile(regex).matcher(text);
+    private int countPatternMatches(String text, Pattern pattern) {
+        Matcher matcher = pattern.matcher(text);
         int count = 0;
         while (matcher.find()) {
             count++;
         }
         return count;
+    }
+
+    private Pattern keywordPattern(String keyword) {
+        return keywordPatternCache.computeIfAbsent(keyword, this::compileKeywordPattern);
+    }
+
+    private Pattern compileKeywordPattern(String keyword) {
+        return Pattern.compile(buildKeywordPattern(keyword));
+    }
+
+    private Pattern regexPattern(String regex) {
+        return regexPatternCache.computeIfAbsent(regex, Pattern::compile);
     }
 
     /**
@@ -554,7 +564,7 @@ public class FailureCostCalculator implements AnalyzerCostCalculator {
 
     /** Normalizes the input keyword to a stable single-space representation. */
     private String normalizeKeywordPattern(String keyword) {
-        return keyword.trim().replaceAll("\\s+", " ");
+        return KEYWORD_WHITESPACE_PATTERN.matcher(keyword.trim()).replaceAll(" ");
     }
 
     /**
@@ -562,7 +572,7 @@ public class FailureCostCalculator implements AnalyzerCostCalculator {
      * Example: "ON DELETE" becomes "ON\\s+DELETE".
      */
     private String buildLiteralKeywordPattern(String keyword) {
-        String[] parts = keyword.split("\\s+");
+        String[] parts = KEYWORD_WHITESPACE_PATTERN.split(keyword);
         StringBuilder pattern = new StringBuilder();
         for (int i = 0; i < parts.length; i++) {
             if (i > 0) {
@@ -597,7 +607,8 @@ public class FailureCostCalculator implements AnalyzerCostCalculator {
             return "";
         }
 
-        return sql.trim().replaceAll("[\\r\\n\\t]+", " ").replaceAll(" +", " ");
+        String normalized = QUERY_FORMATTING_PATTERN.matcher(sql.trim()).replaceAll(" ");
+        return MULTIPLE_SPACES_PATTERN.matcher(normalized).replaceAll(" ");
     }
 
 }

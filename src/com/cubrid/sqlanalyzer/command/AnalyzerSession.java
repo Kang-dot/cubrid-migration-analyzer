@@ -1,12 +1,11 @@
 package com.cubrid.sqlanalyzer.command;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import com.cubrid.cubridmigration.core.dbobject.Catalog;
+import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerTableSizeViewModel;
 import com.cubrid.sqlanalyzer.core.AnalyzerConfiguration;
 import com.cubrid.sqlanalyzer.core.dbobject.AnalyzerCatalog;
-import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerTableSizeViewModel;
 
 public class AnalyzerSession {
     private final AnalyzerConfiguration config = new AnalyzerConfiguration();
@@ -37,8 +36,6 @@ public class AnalyzerSession {
     private int analyzedStatementCount;
     private int succeededStatementCount;
     private int failedStatementCount;
-    private final List<String> failureMessages = new ArrayList<String>();
-    private final List<String> sourceStatusMessages = new ArrayList<String>();
 
     public AnalyzerConfiguration getConfig() {
         return config;
@@ -192,8 +189,7 @@ public class AnalyzerSession {
     }
 
     public void setOracleTableSizes(List<AnalyzerTableSizeViewModel> oracleTableSizes) {
-        this.oracleTableSizes =
-                oracleTableSizes == null ? List.of() : List.copyOf(oracleTableSizes);
+        this.oracleTableSizes = oracleTableSizes == null ? List.of() : List.copyOf(oracleTableSizes);
     }
 
     public int getAnalyzedStatementCount() {
@@ -228,12 +224,10 @@ public class AnalyzerSession {
     }
 
     public void clearFailures() {
-        failureMessages.clear();
         report.clearFailures();
     }
 
     public void addFailureMessage(String failureMessage) {
-        failureMessages.add(failureMessage);
         report.addFailureMessage(failureMessage);
     }
 
@@ -246,12 +240,10 @@ public class AnalyzerSession {
     }
 
     public void clearSourceStatusMessages() {
-        sourceStatusMessages.clear();
         report.clearSourceStatusMessages();
     }
 
     public void addSourceStatusMessage(String sourceStatusMessage) {
-        sourceStatusMessages.add(sourceStatusMessage);
         report.addSourceStatusMessage(sourceStatusMessage);
     }
 

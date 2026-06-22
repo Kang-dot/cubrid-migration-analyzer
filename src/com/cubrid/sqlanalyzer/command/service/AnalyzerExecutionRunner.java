@@ -515,8 +515,8 @@ public class AnalyzerExecutionRunner {
         CUBRIDSQLHelper helper = CUBRIDSQLHelper.getInstance(null);
 
         if (AnalyzerStatementTypes.TYPE_DDL_TABLE.equals(statement.getType())) {
-            int tableIndex = parseStatementIndex(statement.getId(), "TABLE_");
-            Table table = config.getTargetTableSchema().get(tableIndex);
+            Table table = getStatementObject(
+                    config.getTargetTableSchema(), statement.getId(), "TABLE_", "table");
             return "DROP TABLE "
                     + helper.getOwnerNameWithDot(table.getOwner(), config.isAddUserSchema())
                     + helper.getQuotedObjName(table.getName())
@@ -525,8 +525,8 @@ public class AnalyzerExecutionRunner {
 
         if (AnalyzerStatementTypes.TYPE_DDL_VIEW.equals(statement.getType())
                 || AnalyzerStatementTypes.TYPE_DDL_VIEW_CREATE.equals(statement.getType())) {
-            int viewIndex = parseStatementIndex(statement.getId(), "VIEW_");
-            View view = config.getTargetViewSchema().get(viewIndex);
+            View view = getStatementObject(
+                    config.getTargetViewSchema(), statement.getId(), "VIEW_", "view");
             return "DROP VIEW "
                     + helper.getOwnerNameWithDot(view.getOwner(), config.isAddUserSchema())
                     + helper.getQuotedObjName(view.getName())
@@ -534,8 +534,8 @@ public class AnalyzerExecutionRunner {
         }
 
         if (AnalyzerStatementTypes.TYPE_DDL_SEQUENCE.equals(statement.getType())) {
-            int sequenceIndex = parseStatementIndex(statement.getId(), "SEQ_");
-            Sequence sequence = config.getTargetSerialSchema().get(sequenceIndex);
+            Sequence sequence = getStatementObject(
+                    config.getTargetSerialSchema(), statement.getId(), "SEQ_", "sequence");
             return "DROP SERIAL "
                     + helper.getOwnerNameWithDot(sequence.getOwner(), config.isAddUserSchema())
                     + helper.getQuotedObjName(sequence.getName())
@@ -543,8 +543,8 @@ public class AnalyzerExecutionRunner {
         }
 
         if (AnalyzerStatementTypes.TYPE_DDL_SYNONYM.equals(statement.getType())) {
-            int synonymIndex = parseStatementIndex(statement.getId(), "SYNONYM_");
-            Synonym synonym = config.getTargetSynonymSchema().get(synonymIndex);
+            Synonym synonym = getStatementObject(
+                    config.getTargetSynonymSchema(), statement.getId(), "SYNONYM_", "synonym");
             return "DROP SYNONYM "
                     + helper.getOwnerNameWithDot(synonym.getOwner(), config.isAddUserSchema())
                     + helper.getQuotedObjName(synonym.getName())
@@ -552,8 +552,8 @@ public class AnalyzerExecutionRunner {
         }
 
         if (AnalyzerStatementTypes.TYPE_DDL_GRANT.equals(statement.getType())) {
-            int grantIndex = parseStatementIndex(statement.getId(), "GRANT_");
-            SourceGrantConfig grant = config.getExpGrantCfg().get(grantIndex);
+            SourceGrantConfig grant = getStatementObject(
+                    config.getExpGrantCfg(), statement.getId(), "GRANT_", "grant");
             return "REVOKE "
                     + grant.getAuthType()
                     + " ON "
@@ -565,14 +565,14 @@ public class AnalyzerExecutionRunner {
         }
 
         if (AnalyzerStatementTypes.TYPE_DDL_PROC_HEADER.equals(statement.getType())) {
-            int procIndex = parseStatementIndex(statement.getId(), "PROC_");
-            PlcsqlProcedure procedure = config.getTargetPlcsqlProcedureSchema().get(procIndex);
+            PlcsqlProcedure procedure = getStatementObject(
+                    config.getTargetPlcsqlProcedureSchema(), statement.getId(), "PROC_", "procedure");
             return helper.getPlcsqlProcedureDropDDL(procedure, config.isAddUserSchema());
         }
 
         if (AnalyzerStatementTypes.TYPE_DDL_FUNC_HEADER.equals(statement.getType())) {
-            int functionIndex = parseStatementIndex(statement.getId(), "FUNC_");
-            PlcsqlFunction function = config.getTargetPlcsqlFunctionSchema().get(functionIndex);
+            PlcsqlFunction function = getStatementObject(
+                    config.getTargetPlcsqlFunctionSchema(), statement.getId(), "FUNC_", "function");
             return helper.getPlcsqlFunctionDropDDL(function, config.isAddUserSchema());
         }
 
@@ -627,12 +627,34 @@ public class AnalyzerExecutionRunner {
                         counts));
     }
 
+    private <T> T getStatementObject(List<T> objects, String id, String prefix, String objectType) {
+        int index = parseStatementIndex(id, prefix);
+        int size = objects == null ? 0 : objects.size();
+        if (index < 0 || index >= size) {
+            throw new IllegalArgumentException(
+                    "Unexpected "
+                            + objectType
+                            + " statement id: "
+                            + id
+                            + " (index="
+                            + index
+                            + ", size="
+                            + size
+                            + ")");
+        }
+        return objects.get(index);
+    }
+
     private int parseStatementIndex(String id, String prefix) {
         if (id == null || !id.startsWith(prefix)) {
             throw new IllegalArgumentException("Unexpected statement id: " + id);
         }
 
-        return Integer.parseInt(id.substring(prefix.length())) - 1;
+        try {
+            return Integer.parseInt(id.substring(prefix.length())) - 1;
+        } catch (NumberFormatException ex) {
+            throw new IllegalArgumentException("Unexpected statement id: " + id, ex);
+        }
     }
 
     private void notifyAnalysisCompleted(
