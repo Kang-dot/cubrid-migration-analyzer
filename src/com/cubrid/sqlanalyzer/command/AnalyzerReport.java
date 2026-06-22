@@ -73,6 +73,18 @@ public class AnalyzerReport {
         }
     }
 
+    private static class HtmlSummaryRow {
+        private final String objectType;
+        private long totalCount;
+        private int errorCount;
+        private float cost;
+
+        HtmlSummaryRow(String objectType, long totalCount) {
+            this.objectType = objectType;
+            this.totalCount = totalCount;
+        }
+    }
+
     private static class SqlContextLocation {
         private final int lineNumber;
         private final int columnNumber;
@@ -254,6 +266,12 @@ public class AnalyzerReport {
                 writer.print(buildResultText());
                 writer.flush();
             }
+            File htmlReportFile = new File(reportDir, buildHtmlReportFileName());
+            try (PrintWriter writer = new PrintWriter(
+                    new OutputStreamWriter(new FileOutputStream(htmlReportFile), "UTF-8"))) {
+                writer.print(buildResultHtml());
+                writer.flush();
+            }
             return reportFile.getAbsolutePath();
         } catch (IOException e) {
             throw new RuntimeException("Failed to save analyzer report: " + e.getMessage(), e);
@@ -269,6 +287,414 @@ public class AnalyzerReport {
         appendFailedStatements(sb, lineSeparator);
 
         return sb.toString();
+    }
+
+    public String buildResultHtml() {
+        StringBuilder sb = new StringBuilder();
+        float totalCost = getTotalEstimatedFailureCost();
+
+        sb.append("<!DOCTYPE html>\n");
+        sb.append("<html>\n");
+        sb.append("<head>\n");
+        sb.append("<meta charset=\"UTF-8\">\n");
+        sb.append("<title>SQL Analyzer Report</title>\n");
+        sb.append("<style>\n");
+        appendHtmlStyle(sb);
+        sb.append("</style>\n");
+        sb.append("</head>\n");
+        sb.append("<body>\n");
+        sb.append("<header>\n");
+        sb.append("<h1>SQL Analyzer Report</h1>\n");
+        sb.append("<p>Generated at ").append(escapeHtml(formatGeneratedAt())).append("</p>\n");
+        sb.append("</header>\n");
+
+        appendHtmlConnectionInfo(sb);
+        appendHtmlTableSummary(sb);
+        appendHtmlFailureDetails(sb);
+        appendHtmlConclusion(sb, totalCost);
+
+        sb.append("</body>\n");
+        sb.append("</html>\n");
+        return sb.toString();
+    }
+
+    private void appendHtmlStyle(StringBuilder sb) {
+        sb.append("body{margin:0;padding:32px;background:#f5f7f9;color:#1f2933;font-family:Arial,sans-serif;font-size:13px;}\n");
+        sb.append("header{border-bottom:1px solid #d7dde4;margin-bottom:24px;}\n");
+        sb.append("h1{margin:0 0 8px;color:#006f9f;font-size:26px;}\n");
+        sb.append("h2{margin:28px 0 12px;color:#006f9f;font-size:18px;}\n");
+        sb.append("p{margin:0 0 16px;}\n");
+        sb.append("table{border-collapse:collapse;width:100%;background:#fff;margin-bottom:16px;}\n");
+        sb.append("th,td{border:1px solid #d7dde4;padding:8px 10px;text-align:left;vertical-align:top;}\n");
+        sb.append("th{background:#eef3f7;color:#c14900;font-weight:bold;}\n");
+        sb.append(".metric{font-weight:bold;color:#006f9f;}\n");
+        sb.append(".number{text-align:right;white-space:nowrap;}\n");
+        sb.append(".muted{color:#667085;}\n");
+        sb.append(".status-ok{color:#147a3b;font-weight:bold;}\n");
+        sb.append(".status-fail{color:#b42318;font-weight:bold;}\n");
+        sb.append("details{background:#fff;border:1px solid #d7dde4;margin:0 0 12px;padding:10px;}\n");
+        sb.append("summary{cursor:pointer;color:#006f9f;font-weight:bold;}\n");
+        sb.append("pre{white-space:pre-wrap;word-break:break-word;background:#f8fafc;border:1px solid #e5e9ef;padding:10px;margin:8px 0 0;}\n");
+        sb.append(".grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;}\n");
+        sb.append(".box{background:#fff;border:1px solid #d7dde4;padding:12px;}\n");
+    }
+
+    private void appendHtmlConnectionInfo(StringBuilder sb) {
+        sb.append("<section>\n");
+        sb.append("<h2>Connection Info</h2>\n");
+        sb.append("<table>\n");
+        sb.append("<tr><th>Item</th><th>Value</th></tr>\n");
+        appendHtmlInfoRow(sb, "Program", overview == null ? "" : overview.programVersion());
+        appendHtmlInfoRow(sb, "Source", sourceType == null ? "" : String.valueOf(sourceType));
+        if (overview != null && !overview.sources().isEmpty()) {
+            for (AnalyzerSourceOverviewViewModel source : overview.sources()) {
+                appendHtmlSourceInfo(sb, source);
+            }
+        }
+        appendHtmlInfoRow(sb, "Target", targetType == null ? "" : String.valueOf(targetType));
+        appendHtmlTargetInfo(sb, overview == null ? null : overview.target());
+        appendHtmlInfoRow(sb, "Parser", isParserTarget() ? "Yes" : "No");
+        appendHtmlInfoRow(sb, "Mode", executionMode == null ? "" : String.valueOf(executionMode));
+        appendHtmlInfoRow(sb, "Schema name", resolveSchemaName());
+        appendHtmlInfoRow(sb, "Catalog schema count", objectCountPreview == null
+                ? ""
+                : formatNumber(objectCountPreview.catalogSchemaCount()));
+        appendHtmlInfoRow(sb, "Source table size", objectCountPreview == null
+                ? ""
+                : formatBytes(objectCountPreview.totalTableBytes()));
+        sb.append("</table>\n");
+        sb.append("</section>\n");
+    }
+
+    private void appendHtmlSourceInfo(StringBuilder sb, AnalyzerSourceOverviewViewModel source) {
+        if (source == null) {
+            return;
+        }
+        if (source.type() == AnalyzerSourceType.ORACLE) {
+            appendHtmlInfoRow(sb, "Source Oracle URL",
+                    formatText(source.jdbcUrl()) + formatVersionSuffix(source.version()));
+            appendHtmlInfoRow(sb, "Source Oracle Host", formatHost(source.host(), source.port()));
+            appendHtmlInfoRow(sb, "Source Oracle DB", source.databaseName());
+            appendHtmlInfoRow(sb, "Source Oracle User", source.user());
+            return;
+        }
+
+        if (source.type() == AnalyzerSourceType.XML) {
+            appendHtmlInfoRow(sb, "Source XML Directory", source.xmlDirectory());
+            appendHtmlInfoRow(sb, "Source XML Charset", source.xmlCharset());
+            appendHtmlInfoRow(sb, "Source XML Files", formatNumber(source.xmlFileCount()));
+        }
+    }
+
+    private void appendHtmlTargetInfo(StringBuilder sb, AnalyzerTargetOverviewViewModel target) {
+        if (target == null) {
+            return;
+        }
+        if (target.type() == AnalyzerTargetType.JDBC) {
+            appendHtmlInfoRow(sb, "Target JDBC URL",
+                    formatText(target.jdbcUrl()) + formatVersionSuffix(target.version()));
+            appendHtmlInfoRow(sb, "Target Host", formatHost(target.host(), target.port()));
+            appendHtmlInfoRow(sb, "Target DB", target.databaseName());
+            appendHtmlInfoRow(sb, "Target User", target.user());
+            return;
+        }
+
+        if (target.type() == AnalyzerTargetType.PARSER) {
+            appendHtmlInfoRow(sb, "Parser Version", target.parserVersion());
+        }
+    }
+
+    private void appendHtmlInfoRow(StringBuilder sb, String label, String value) {
+        sb.append("<tr><td class=\"metric\">")
+                .append(escapeHtml(label))
+                .append("</td><td>")
+                .append(escapeHtml(formatText(value)))
+                .append("</td></tr>\n");
+    }
+
+    private void appendHtmlTableSummary(StringBuilder sb) {
+        sb.append("<section>\n");
+        sb.append("<h2>Table Summary</h2>\n");
+        sb.append("<table>\n");
+        sb.append("<tr><th>Object</th><th>Total</th><th>Error</th><th>Cost</th></tr>\n");
+        List<HtmlSummaryRow> rows = buildHtmlSummaryRows();
+        if (rows.isEmpty()) {
+            sb.append("<tr><td colspan=\"4\" class=\"muted\">(none)</td></tr>\n");
+        } else {
+            for (HtmlSummaryRow row : rows) {
+                sb.append("<tr><td>")
+                        .append(escapeHtml(row.objectType))
+                        .append("</td><td class=\"number\">")
+                        .append(formatNumber(row.totalCount))
+                        .append("</td><td class=\"number ")
+                        .append(row.errorCount > 0 ? "status-fail" : "status-ok")
+                        .append("\">")
+                        .append(formatNumber(row.errorCount))
+                        .append("</td><td class=\"number\">")
+                        .append(escapeHtml(formatEstimatedCostWithTime(row.cost)))
+                        .append("</td></tr>\n");
+            }
+        }
+        sb.append("</table>\n");
+        sb.append("</section>\n");
+    }
+
+    private void appendHtmlFailureDetails(StringBuilder sb) {
+        sb.append("<section>\n");
+        sb.append("<h2>Detail</h2>\n");
+        if (failures.isEmpty() && failureMessages.isEmpty()) {
+            sb.append("<p class=\"muted\">(none)</p>\n");
+            sb.append("</section>\n");
+            return;
+        }
+
+        for (AnalyzerFailure failure : failures) {
+            appendHtmlFailureDetail(sb, failure);
+        }
+        for (String failureMessage : failureMessages) {
+            sb.append("<details open><summary>Failure message</summary><pre>")
+                    .append(escapeHtml(failureMessage))
+                    .append("</pre></details>\n");
+        }
+        sb.append("</section>\n");
+    }
+
+    private void appendHtmlFailureDetail(StringBuilder sb, AnalyzerFailure failure) {
+        SqlContextLocation location =
+                findSqlContextLocation(failure.getReason(), failure.getSql());
+        sb.append("<details open>\n");
+        sb.append("<summary>")
+                .append(escapeHtml(safeText(failure.getStatementType())))
+                .append(" ")
+                .append(escapeHtml(safeText(failure.getStatementId())))
+                .append(" [")
+                .append(escapeHtml(String.valueOf(failure.getFailureStage())))
+                .append("]</summary>\n");
+        sb.append("<table>\n");
+        appendHtmlInfoRow(sb, "Object", displayObjectType(failure.getStatementType()));
+        appendHtmlInfoRow(sb, "Statement ID", failure.getStatementId());
+        appendHtmlInfoRow(sb, "Failure stage", String.valueOf(failure.getFailureStage()));
+        appendHtmlInfoRow(sb, "Location", formatHtmlLocation(location));
+        appendHtmlInfoRow(sb, "Cost", formatEstimatedCostWithTime(failure.getEstimatedCost()));
+        appendHtmlInfoRow(sb, "Reason", failure.getReason());
+        sb.append("</table>\n");
+        appendHtmlCostDetails(sb, failure);
+        appendHtmlAnnotatedSql(sb, failure, location);
+        sb.append("</details>\n");
+    }
+
+    private void appendHtmlAnnotatedSql(
+            StringBuilder sb,
+            AnalyzerFailure failure,
+            SqlContextLocation location) {
+        String sql = safeText(failure.getSql());
+        sb.append("<h3>Full Query</h3>\n");
+        sb.append("<pre>");
+        appendAnnotatedSqlLines(sb, sql, location, "\n", true, "");
+        sb.append("</pre>\n");
+    }
+
+    private void appendHtmlCostDetails(StringBuilder sb, AnalyzerFailure failure) {
+        sb.append("<h3>Error Cost Details</h3>\n");
+        sb.append("<table>\n");
+        sb.append("<tr><th>Item</th><th>Count</th><th>Unit Cost</th><th>Total Cost</th></tr>\n");
+        if (failure.getCostDetails().isEmpty()) {
+            sb.append("<tr><td colspan=\"4\" class=\"muted\">(none)</td></tr>\n");
+        } else {
+            for (AnalyzerCostDetail costDetail : failure.getCostDetails()) {
+                sb.append("<tr><td>")
+                        .append(escapeHtml(costDetail.getItemName()))
+                        .append("</td><td class=\"number\">")
+                        .append(formatNumber(costDetail.getCount()))
+                        .append("</td><td class=\"number\">")
+                        .append(escapeHtml(formatEstimatedCostWithTime(costDetail.getUnitCost())))
+                        .append("</td><td class=\"number\">")
+                        .append(escapeHtml(formatEstimatedCostWithTime(costDetail.getTotalCost())))
+                        .append("</td></tr>\n");
+            }
+        }
+        sb.append("</table>\n");
+    }
+
+    private void appendHtmlConclusion(StringBuilder sb, float totalCost) {
+        sb.append("<section>\n");
+        sb.append("<h2>Conclusion</h2>\n");
+        sb.append("<div class=\"grid\">\n");
+        appendHtmlConclusionBox(sb, "Total Cost", AnalyzerCostFormatter.formatCost(totalCost));
+        appendHtmlConclusionBox(sb, "Estimated Time",
+                String.format(Locale.US, "%.1f min", AnalyzerCostFormatter.toMinutes(totalCost)));
+        appendHtmlConclusionBox(sb, "Analyzed", formatNumber(analyzedStatementCount));
+        appendHtmlConclusionBox(sb, "Failed", formatNumber(failedStatementCount));
+        sb.append("</div>\n");
+        sb.append("</section>\n");
+    }
+
+    private void appendHtmlConclusionBox(StringBuilder sb, String label, String value) {
+        sb.append("<div class=\"box\"><div class=\"muted\">")
+                .append(escapeHtml(label))
+                .append("</div><div class=\"metric\">")
+                .append(escapeHtml(value))
+                .append("</div></div>\n");
+    }
+
+    private List<HtmlSummaryRow> buildHtmlSummaryRows() {
+        Map<String, HtmlSummaryRow> rows = new LinkedHashMap<String, HtmlSummaryRow>();
+        appendObjectCountSummaryRows(rows);
+
+        Map<String, StatementTypeSummary> executionSummaries = buildDisplayStatementTypeSummaries();
+        for (Map.Entry<String, StatementTypeSummary> entry : executionSummaries.entrySet()) {
+            HtmlSummaryRow row = getOrCreateHtmlSummaryRow(rows, entry.getKey());
+            row.totalCount = Math.max(row.totalCount, entry.getValue().totalCount);
+            row.errorCount = entry.getValue().failedCount;
+        }
+
+        for (AnalyzerFailure failure : failures) {
+            HtmlSummaryRow row =
+                    getOrCreateHtmlSummaryRow(rows, displayObjectType(failure.getStatementType()));
+            row.cost += failure.getEstimatedCost();
+            if (row.errorCount == 0) {
+                row.errorCount = 1;
+            }
+        }
+
+        return new ArrayList<HtmlSummaryRow>(rows.values());
+    }
+
+    private void appendObjectCountSummaryRows(Map<String, HtmlSummaryRow> rows) {
+        if (objectCountPreview == null) {
+            return;
+        }
+
+        if (objectCountPreview.oracleSourceLoaded()) {
+            putHtmlSummaryRow(rows, "SCHEMA", objectCountPreview.catalogSchemaCount());
+            putHtmlSummaryRow(rows, "TABLE", objectCountPreview.targetTableCount());
+            putHtmlSummaryRow(rows, "PK", objectCountPreview.targetPkCount());
+            putHtmlSummaryRow(rows, "FK", objectCountPreview.targetFkCount());
+            putHtmlSummaryRow(rows, "VIEW", objectCountPreview.targetViewCount());
+            putHtmlSummaryRow(rows, "SERIAL", objectCountPreview.targetSerialCount());
+            putHtmlSummaryRow(rows, "SYNONYM", objectCountPreview.targetSynonymCount());
+            putHtmlSummaryRow(rows, "GRANT", objectCountPreview.targetGrantCount());
+            putHtmlSummaryRow(rows, "PROCEDURE", objectCountPreview.targetProcedureCount());
+            putHtmlSummaryRow(rows, "FUNCTION", objectCountPreview.targetFunctionCount());
+            putHtmlSummaryRow(rows, "TRIGGER", objectCountPreview.targetTriggerCount());
+        }
+
+        if (objectCountPreview.xmlSourceLoaded()) {
+            putHtmlSummaryRow(rows, "SELECT", objectCountPreview.selectCount());
+            putHtmlSummaryRow(rows, "INSERT", objectCountPreview.insertCount());
+            putHtmlSummaryRow(rows, "UPDATE", objectCountPreview.updateCount());
+            putHtmlSummaryRow(rows, "DELETE", objectCountPreview.deleteCount());
+        }
+    }
+
+    private void putHtmlSummaryRow(Map<String, HtmlSummaryRow> rows, String objectType, long count) {
+        rows.put(objectType, new HtmlSummaryRow(objectType, count));
+    }
+
+    private HtmlSummaryRow getOrCreateHtmlSummaryRow(
+            Map<String, HtmlSummaryRow> rows,
+            String objectType) {
+        String safeObjectType = safeText(objectType);
+        if (safeObjectType.isEmpty()) {
+            safeObjectType = "UNKNOWN";
+        }
+        HtmlSummaryRow row = rows.get(safeObjectType);
+        if (row == null) {
+            row = new HtmlSummaryRow(safeObjectType, 0);
+            rows.put(safeObjectType, row);
+        }
+        return row;
+    }
+
+    private Map<String, StatementTypeSummary> buildDisplayStatementTypeSummaries() {
+        Map<String, StatementTypeSummary> summaries = new LinkedHashMap<String, StatementTypeSummary>();
+        for (StatementResult statementResult : statementResults) {
+            if ("CLEANUP".equals(statementResult.statementType)) {
+                continue;
+            }
+
+            String objectType = displayObjectType(statementResult.statementType);
+            StatementTypeSummary summary = summaries.get(objectType);
+            if (summary == null) {
+                summary = new StatementTypeSummary();
+                summaries.put(objectType, summary);
+            }
+            summary.add(statementResult.success);
+        }
+        return summaries;
+    }
+
+    private boolean isParserTarget() {
+        if (targetType == AnalyzerTargetType.PARSER) {
+            return true;
+        }
+        return overview != null
+                && overview.target() != null
+                && overview.target().type() == AnalyzerTargetType.PARSER;
+    }
+
+    private String resolveSchemaName() {
+        if (overview == null || overview.sources().isEmpty()) {
+            return "";
+        }
+        for (AnalyzerSourceOverviewViewModel source : overview.sources()) {
+            if (source.type() == AnalyzerSourceType.ORACLE && !safeText(source.user()).isEmpty()) {
+                return source.user();
+            }
+        }
+        AnalyzerSourceOverviewViewModel source = overview.source();
+        return source == null ? "" : formatText(source.databaseName());
+    }
+
+    private String formatHtmlLocation(SqlContextLocation location) {
+        if (location == null) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder();
+        sb.append("line ")
+                .append(location.lineNumber)
+                .append(", column ")
+                .append(location.columnNumber);
+        if (location.estimated) {
+            sb.append(" (estimated)");
+        }
+        return sb.toString();
+    }
+
+    private String formatGeneratedAt() {
+        long timeValue = generatedAt > 0 ? generatedAt : System.currentTimeMillis();
+        return CUBRIDTimeUtil.getDateFormat(
+                        "yyyy-MM-dd HH:mm:ss", Locale.US, TimeZone.getDefault())
+                .format(new Date(timeValue));
+    }
+
+    private String escapeHtml(String value) {
+        String text = safeText(value);
+        StringBuilder escaped = new StringBuilder(text.length());
+        for (int i = 0; i < text.length(); i++) {
+            char ch = text.charAt(i);
+            switch (ch) {
+                case '&':
+                    escaped.append("&amp;");
+                    break;
+                case '<':
+                    escaped.append("&lt;");
+                    break;
+                case '>':
+                    escaped.append("&gt;");
+                    break;
+                case '"':
+                    escaped.append("&quot;");
+                    break;
+                case '\'':
+                    escaped.append("&#39;");
+                    break;
+                default:
+                    escaped.append(ch);
+                    break;
+            }
+        }
+        return escaped.toString();
     }
 
     private void appendOverview(StringBuilder sb, String lineSeparator) {
@@ -567,6 +993,15 @@ public class AnalyzerReport {
                 + ".txt";
     }
 
+    private String buildHtmlReportFileName() {
+        long timeValue = generatedAt > 0 ? generatedAt : System.currentTimeMillis();
+        return "analyzer_result_"
+                + CUBRIDTimeUtil.getDateFormat(
+                        "yyyy_MM_dd_HH_mm_ss_SSS", Locale.US, TimeZone.getDefault())
+                        .format(new Date(timeValue))
+                + ".html";
+    }
+
     private String safeText(String value) {
         return value == null ? "" : value;
     }
@@ -621,10 +1056,10 @@ public class AnalyzerReport {
         String sql = safeText(failure.getSql());
         String[] lines = splitSqlLines(sql);
         SqlContextLocation location =
-                findSqlContextLocation(failure.getReason(), sql);
-        if (location != null
-                && location.lineNumber >= 1
-                && location.lineNumber <= lines.length) {
+                validSqlContextLocation(
+                        findSqlContextLocation(failure.getReason(), sql),
+                        lines.length);
+        if (location != null) {
             sb.append("  Location: line ")
                     .append(location.lineNumber)
                     .append(", column ")
@@ -633,22 +1068,32 @@ public class AnalyzerReport {
                 sb.append(" (estimated)");
             }
             sb.append(lineSeparator);
-        } else {
-            location = null;
         }
 
         sb.append("  SQL:").append(lineSeparator);
+        appendAnnotatedSqlLines(sb, sql, location, lineSeparator, false, "    ");
+    }
+
+    private void appendAnnotatedSqlLines(
+            StringBuilder sb,
+            String sql,
+            SqlContextLocation location,
+            String lineSeparator,
+            boolean html,
+            String linePrefix) {
+        String[] lines = splitSqlLines(sql);
+        location = validSqlContextLocation(location, lines.length);
         int lineNumberWidth = String.valueOf(lines.length).length();
         for (int lineNumber = 1; lineNumber <= lines.length; lineNumber++) {
             String sqlLine = lines[lineNumber - 1];
-            sb.append("    ")
-                    .append(formatLineNumber(lineNumber, lineNumberWidth))
-                    .append(" | ")
-                    .append(sqlLine)
-                    .append(lineSeparator);
+            appendMaybeEscaped(sb, linePrefix, html);
+            appendMaybeEscaped(sb, formatLineNumber(lineNumber, lineNumberWidth), html);
+            sb.append(" | ");
+            appendMaybeEscaped(sb, sqlLine, html);
+            sb.append(lineSeparator);
             if (location != null && lineNumber == location.lineNumber) {
-                sb.append("    ")
-                        .append(" ".repeat(lineNumberWidth))
+                appendMaybeEscaped(sb, linePrefix, html);
+                sb.append(" ".repeat(lineNumberWidth))
                         .append(" | ")
                         .append(" ".repeat(caretOffset(sqlLine, location.columnNumber)))
                         .append("^");
@@ -658,6 +1103,21 @@ public class AnalyzerReport {
                 sb.append(lineSeparator);
             }
         }
+    }
+
+    private SqlContextLocation validSqlContextLocation(
+            SqlContextLocation location,
+            int lineCount) {
+        if (location == null
+                || location.lineNumber < 1
+                || location.lineNumber > lineCount) {
+            return null;
+        }
+        return location;
+    }
+
+    private void appendMaybeEscaped(StringBuilder sb, String value, boolean html) {
+        sb.append(html ? escapeHtml(value) : safeText(value));
     }
 
     private SqlContextLocation findSqlContextLocation(String reason, String sql) {
