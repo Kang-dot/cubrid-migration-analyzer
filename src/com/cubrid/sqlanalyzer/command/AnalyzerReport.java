@@ -73,8 +73,15 @@ public class AnalyzerReport {
         }
     }
 
+    private enum HtmlSummaryPart {
+        DDL,
+        DML,
+        PLCSQL
+    }
+
     private static class HtmlSummaryRow {
         private final String objectType;
+        private final List<HtmlSummaryRow> childRows = new ArrayList<HtmlSummaryRow>();
         private long totalCount;
         private int errorCount;
         private float cost;
@@ -313,6 +320,7 @@ public class AnalyzerReport {
         appendHtmlFailureDetails(sb);
         appendHtmlConclusion(sb, totalCost);
 
+        appendHtmlScript(sb);
         sb.append("</body>\n");
         sb.append("</html>\n");
         return sb.toString();
@@ -323,6 +331,7 @@ public class AnalyzerReport {
         sb.append("header{border-bottom:1px solid #d7dde4;margin-bottom:24px;}\n");
         sb.append("h1{margin:0 0 8px;color:#006f9f;font-size:26px;}\n");
         sb.append("h2{margin:28px 0 12px;color:#006f9f;font-size:18px;}\n");
+        sb.append("h3{margin:18px 0 8px;color:#1f2933;font-size:15px;}\n");
         sb.append("p{margin:0 0 16px;}\n");
         sb.append("table{border-collapse:collapse;width:100%;background:#fff;margin-bottom:16px;}\n");
         sb.append("th,td{border:1px solid #d7dde4;padding:8px 10px;text-align:left;vertical-align:top;}\n");
@@ -332,11 +341,25 @@ public class AnalyzerReport {
         sb.append(".muted{color:#667085;}\n");
         sb.append(".status-ok{color:#147a3b;font-weight:bold;}\n");
         sb.append(".status-fail{color:#b42318;font-weight:bold;}\n");
+        sb.append(".row-toggle{border:0;background:transparent;color:#006f9f;cursor:pointer;font-weight:bold;margin:0 6px 0 0;padding:0;width:16px;}\n");
+        sb.append(".summary-child-object{display:inline-block;padding-left:22px;}\n");
         sb.append("details{background:#fff;border:1px solid #d7dde4;margin:0 0 12px;padding:10px;}\n");
         sb.append("summary{cursor:pointer;color:#006f9f;font-weight:bold;}\n");
         sb.append("pre{white-space:pre-wrap;word-break:break-word;background:#f8fafc;border:1px solid #e5e9ef;padding:10px;margin:8px 0 0;}\n");
         sb.append(".grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;}\n");
         sb.append(".box{background:#fff;border:1px solid #d7dde4;padding:12px;}\n");
+    }
+
+    private void appendHtmlScript(StringBuilder sb) {
+        sb.append("<script>\n");
+        sb.append("function toggleSummaryRows(button, groupId){\n");
+        sb.append("var rows=document.querySelectorAll('[data-summary-parent=\"'+groupId+'\"]');\n");
+        sb.append("var expanded=button.getAttribute('aria-expanded')==='true';\n");
+        sb.append("for(var i=0;i<rows.length;i++){rows[i].hidden=expanded;}\n");
+        sb.append("button.setAttribute('aria-expanded',String(!expanded));\n");
+        sb.append("button.innerHTML=expanded?'&#9656;':'&#9662;';\n");
+        sb.append("}\n");
+        sb.append("</script>\n");
     }
 
     private void appendHtmlConnectionInfo(StringBuilder sb) {
@@ -345,7 +368,6 @@ public class AnalyzerReport {
         sb.append("<table>\n");
         sb.append("<tr><th>Item</th><th>Value</th></tr>\n");
         appendHtmlInfoRow(sb, "Program", overview == null ? "" : overview.programVersion());
-        appendHtmlInfoRow(sb, "Source", sourceType == null ? "" : String.valueOf(sourceType));
         if (overview != null && !overview.sources().isEmpty()) {
             for (AnalyzerSourceOverviewViewModel source : overview.sources()) {
                 appendHtmlSourceInfo(sb, source);
@@ -354,7 +376,6 @@ public class AnalyzerReport {
         appendHtmlInfoRow(sb, "Target", targetType == null ? "" : String.valueOf(targetType));
         appendHtmlTargetInfo(sb, overview == null ? null : overview.target());
         appendHtmlInfoRow(sb, "Parser", isParserTarget() ? "Yes" : "No");
-        appendHtmlInfoRow(sb, "Mode", executionMode == null ? "" : String.valueOf(executionMode));
         appendHtmlInfoRow(sb, "Schema name", resolveSchemaName());
         appendHtmlInfoRow(sb, "Catalog schema count", objectCountPreview == null
                 ? ""
@@ -415,34 +436,162 @@ public class AnalyzerReport {
     private void appendHtmlTableSummary(StringBuilder sb) {
         sb.append("<section>\n");
         sb.append("<h2>Table Summary</h2>\n");
+        List<HtmlSummaryRow> rows = buildHtmlSummaryRows();
+        if (rows.isEmpty()) {
+            sb.append("<table>\n");
+            sb.append("<tr><th>Object</th><th>Total</th><th>Error</th><th>Cost</th></tr>\n");
+            sb.append("<tr><td colspan=\"4\" class=\"muted\">(none)</td></tr>\n");
+            sb.append("</table>\n");
+        } else {
+            appendHtmlSummaryPart(
+                    sb,
+                    "DDL",
+                    filterHtmlSummaryRows(rows, HtmlSummaryPart.DDL));
+            appendHtmlSummaryPart(
+                    sb,
+                    "DML",
+                    filterHtmlSummaryRows(rows, HtmlSummaryPart.DML));
+            appendHtmlSummaryPart(
+                    sb,
+                    "PLC/SQL",
+                    filterHtmlSummaryRows(rows, HtmlSummaryPart.PLCSQL));
+        }
+        sb.append("</section>\n");
+    }
+
+    private void appendHtmlSummaryPart(
+            StringBuilder sb,
+            String title,
+            List<HtmlSummaryRow> rows) {
+        sb.append("<h3>").append(escapeHtml(title)).append("</h3>\n");
         sb.append("<table>\n");
         sb.append("<tr><th>Object</th><th>Total</th><th>Error</th><th>Cost</th></tr>\n");
-        List<HtmlSummaryRow> rows = buildHtmlSummaryRows();
         if (rows.isEmpty()) {
             sb.append("<tr><td colspan=\"4\" class=\"muted\">(none)</td></tr>\n");
         } else {
             for (HtmlSummaryRow row : rows) {
-                sb.append("<tr><td>")
-                        .append(escapeHtml(row.objectType))
-                        .append("</td><td class=\"number\">")
-                        .append(formatNumber(row.totalCount))
-                        .append("</td><td class=\"number ")
-                        .append(row.errorCount > 0 ? "status-fail" : "status-ok")
-                        .append("\">")
-                        .append(formatNumber(row.errorCount))
-                        .append("</td><td class=\"number\">")
-                        .append(escapeHtml(formatEstimatedCostWithTime(row.cost)))
-                        .append("</td></tr>\n");
+                appendHtmlSummaryRow(sb, row);
             }
         }
         sb.append("</table>\n");
-        sb.append("</section>\n");
+    }
+
+    private List<HtmlSummaryRow> filterHtmlSummaryRows(
+            List<HtmlSummaryRow> rows,
+            HtmlSummaryPart part) {
+        List<HtmlSummaryRow> result = new ArrayList<HtmlSummaryRow>();
+        for (HtmlSummaryRow row : rows) {
+            if (htmlSummaryPart(row) == part) {
+                result.add(row);
+            }
+        }
+        return result;
+    }
+
+    private HtmlSummaryPart htmlSummaryPart(HtmlSummaryRow row) {
+        String objectType = formatText(row == null ? null : row.objectType);
+        if (isDmlSummaryType(objectType)) {
+            return HtmlSummaryPart.DML;
+        }
+        if (isPlcsqlSummaryType(objectType)) {
+            return HtmlSummaryPart.PLCSQL;
+        }
+        return HtmlSummaryPart.DDL;
+    }
+
+    private boolean isDmlSummaryType(String objectType) {
+        return "SELECT".equals(objectType)
+                || "INSERT".equals(objectType)
+                || "UPDATE".equals(objectType)
+                || "DELETE".equals(objectType);
+    }
+
+    private boolean isPlcsqlSummaryType(String objectType) {
+        return "PROCEDURE".equals(objectType)
+                || "FUNCTION".equals(objectType)
+                || "PROC_HEADER".equals(objectType)
+                || "PROC_BODY".equals(objectType)
+                || "FUNC_HEADER".equals(objectType)
+                || "FUNC_BODY".equals(objectType);
+    }
+
+    private void appendHtmlSummaryRow(StringBuilder sb, HtmlSummaryRow row) {
+        if (!row.childRows.isEmpty()) {
+            appendHtmlExpandableSummaryRow(sb, row);
+            return;
+        }
+
+        appendHtmlPlainSummaryRow(sb, row);
+    }
+
+    private void appendHtmlPlainSummaryRow(StringBuilder sb, HtmlSummaryRow row) {
+        appendHtmlPlainSummaryRow(sb, row, "", false);
+    }
+
+    private void appendHtmlPlainSummaryRow(
+            StringBuilder sb,
+            HtmlSummaryRow row,
+            String rowAttributes,
+            boolean childRow) {
+        sb.append("<tr")
+                .append(rowAttributes)
+                .append("><td>");
+        if (childRow) {
+            sb.append("<span class=\"summary-child-object\">");
+        }
+        sb.append(escapeHtml(row.objectType));
+        if (childRow) {
+            sb.append("</span>");
+        }
+        sb.append("</td><td class=\"number\">")
+                .append(formatNumber(row.totalCount))
+                .append("</td><td class=\"number ")
+                .append(row.errorCount > 0 ? "status-fail" : "status-ok")
+                .append("\">")
+                .append(formatNumber(row.errorCount))
+                .append("</td><td class=\"number\">")
+                .append(escapeHtml(formatEstimatedCostWithTime(row.cost)))
+                .append("</td></tr>\n");
+    }
+
+    private void appendHtmlExpandableSummaryRow(StringBuilder sb, HtmlSummaryRow row) {
+        String groupId = htmlSummaryGroupId(row.objectType);
+        sb.append("<tr><td><button type=\"button\" class=\"row-toggle\" aria-expanded=\"false\"")
+                .append(" onclick=\"toggleSummaryRows(this,'")
+                .append(groupId)
+                .append("')\">&#9656;</button>")
+                .append(escapeHtml(row.objectType))
+                .append("</td><td class=\"number\">")
+                .append(formatNumber(row.totalCount))
+                .append("</td><td class=\"number ")
+                .append(row.errorCount > 0 ? "status-fail" : "status-ok")
+                .append("\">")
+                .append(formatNumber(row.errorCount))
+                .append("</td><td class=\"number\">")
+                .append(escapeHtml(formatEstimatedCostWithTime(row.cost)))
+                .append("</td></tr>\n");
+        for (HtmlSummaryRow childRow : row.childRows) {
+            appendHtmlPlainSummaryRow(
+                    sb,
+                    childRow,
+                    " class=\"summary-child-row\" data-summary-parent=\"" + groupId + "\" hidden",
+                    true);
+        }
+    }
+
+    private String htmlSummaryGroupId(String objectType) {
+        String safeObjectType = formatText(objectType).toLowerCase(Locale.US);
+        safeObjectType = safeObjectType.replaceAll("[^a-z0-9]+", "-");
+        if (safeObjectType.isEmpty()) {
+            return "summary-unknown";
+        }
+        return "summary-" + safeObjectType;
     }
 
     private void appendHtmlFailureDetails(StringBuilder sb) {
         sb.append("<section>\n");
         sb.append("<h2>Detail</h2>\n");
-        if (failures.isEmpty() && failureMessages.isEmpty()) {
+        if (failures.isEmpty()) {
             sb.append("<p class=\"muted\">(none)</p>\n");
             sb.append("</section>\n");
             return;
@@ -450,11 +599,6 @@ public class AnalyzerReport {
 
         for (AnalyzerFailure failure : failures) {
             appendHtmlFailureDetail(sb, failure);
-        }
-        for (String failureMessage : failureMessages) {
-            sb.append("<details open><summary>Failure message</summary><pre>")
-                    .append(escapeHtml(failureMessage))
-                    .append("</pre></details>\n");
         }
         sb.append("</section>\n");
     }
@@ -555,7 +699,44 @@ public class AnalyzerReport {
             }
         }
 
+        groupChildSummaryRows(rows, "VIEW", "VIEW_CREATE", "VIEW_ALTER");
+        groupChildSummaryRows(rows, "PROCEDURE", "PROC_HEADER", "PROC_BODY");
+        groupChildSummaryRows(rows, "FUNCTION", "FUNC_HEADER", "FUNC_BODY");
         return new ArrayList<HtmlSummaryRow>(rows.values());
+    }
+
+    private void groupChildSummaryRows(
+            Map<String, HtmlSummaryRow> rows,
+            String parentObjectType,
+            String... childObjectTypes) {
+        HtmlSummaryRow parentRow = rows.get(parentObjectType);
+        long fallbackTotalCount = 0;
+        int errorCount = 0;
+        float cost = 0;
+        for (String childObjectType : childObjectTypes) {
+            HtmlSummaryRow childRow = rows.remove(childObjectType);
+            if (childRow == null) {
+                continue;
+            }
+            if (parentRow == null) {
+                parentRow = new HtmlSummaryRow(parentObjectType, 0);
+                rows.put(parentObjectType, parentRow);
+            }
+            parentRow.childRows.add(childRow);
+            fallbackTotalCount = Math.max(fallbackTotalCount, childRow.totalCount);
+            errorCount += childRow.errorCount;
+            cost += childRow.cost;
+        }
+
+        if (parentRow == null || parentRow.childRows.isEmpty()) {
+            return;
+        }
+
+        if (parentRow.totalCount == 0) {
+            parentRow.totalCount = fallbackTotalCount;
+        }
+        parentRow.errorCount = Math.max(parentRow.errorCount, errorCount);
+        parentRow.cost += cost;
     }
 
     private void appendObjectCountSummaryRows(Map<String, HtmlSummaryRow> rows) {

@@ -412,6 +412,93 @@ class AnalyzerReportTest {
     }
 
     @Test
+    @DisplayName("result html groups view create and alter under expandable view summary")
+    void shouldGroupViewExecutionRowsUnderViewSummaryInResultHtml() {
+        AnalyzerReport report = new AnalyzerReport();
+        report.setSourceType(AnalyzerSourceType.ALL);
+        report.setTargetType(AnalyzerTargetType.PARSER);
+        report.setExecutionMode(AnalyzerExecutionMode.ALL);
+        report.setObjectCountPreview(
+                new AnalyzerObjectCountPreviewViewModel(
+                        AnalyzerSourceType.ALL,
+                        1,
+                        0,
+                        0,
+                        0,
+                        2,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        1,
+                        0,
+                        0,
+                        0));
+        report.addStatementResult(
+                "DDL_VIEW_CREATE",
+                "VIEW_1",
+                "CREATE VIEW v1;",
+                true,
+                "parsed",
+                null);
+        report.addStatementResult(
+                "DDL_VIEW_CREATE",
+                "VIEW_2",
+                "CREATE VIEW v2;",
+                true,
+                "parsed",
+                null);
+        report.addStatementResult(
+                "DDL_VIEW_ALTER",
+                "VIEW_ALTER_1",
+                "ALTER VIEW v1 ADD QUERY SELECT 1;",
+                false,
+                "syntax error",
+                AnalyzerFailureStage.PARSER);
+        report.addStatementResult(
+                "SELECT",
+                "Q1",
+                "SELECT 1",
+                true,
+                "parsed",
+                null);
+
+        AnalyzerFailure failure = new AnalyzerFailure();
+        failure.setStatementType("DDL_VIEW_ALTER");
+        failure.setStatementId("VIEW_ALTER_1");
+        failure.setSql("ALTER VIEW v1 ADD QUERY SELECT broken");
+        failure.setReason("syntax error");
+        failure.setFailureStage(AnalyzerFailureStage.PARSER);
+        failure.setEstimatedCost(0.8f);
+        report.addFailure(failure);
+
+        String resultHtml = report.buildResultHtml();
+
+        assertTrue(resultHtml.contains("<h3>DDL</h3>"));
+        assertTrue(resultHtml.contains("<h3>DML</h3>"));
+        assertTrue(resultHtml.contains("<h3>PLC/SQL</h3>"));
+        assertTrue(resultHtml.contains("toggleSummaryRows(this,'summary-view')"));
+        assertTrue(resultHtml.contains(">&#9656;</button>VIEW</td>"));
+        assertTrue(resultHtml.contains("<td class=\"number\">2</td>"));
+        assertTrue(resultHtml.contains("<td class=\"number status-fail\">1</td>"));
+        assertTrue(resultHtml.contains("<td class=\"number\">0.8 (4.0 min)</td>"));
+        assertTrue(resultHtml.contains("data-summary-parent=\"summary-view\" hidden><td>"
+                + "<span class=\"summary-child-object\">VIEW_CREATE</span>"));
+        assertTrue(resultHtml.contains("data-summary-parent=\"summary-view\" hidden><td>"
+                + "<span class=\"summary-child-object\">VIEW_ALTER</span>"));
+        assertTrue(resultHtml.indexOf(">&#9656;</button>VIEW</td>")
+                < resultHtml.indexOf("<span class=\"summary-child-object\">VIEW_CREATE</span>"));
+        assertTrue(resultHtml.indexOf(">&#9656;</button>VIEW</td>")
+                < resultHtml.indexOf("<h3>DML</h3>"));
+        assertTrue(resultHtml.indexOf("<h3>DML</h3>")
+                < resultHtml.indexOf("<td>SELECT</td>"));
+        assertTrue(resultHtml.indexOf("<td>SELECT</td>")
+                < resultHtml.indexOf("<h3>PLC/SQL</h3>"));
+    }
+
+    @Test
     @DisplayName("result html shows estimated SQL location with full failed SQL")
     void shouldBuildResultHtmlWithEstimatedSqlLocation() {
         AnalyzerReport report = new AnalyzerReport();
