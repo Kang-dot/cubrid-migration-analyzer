@@ -18,6 +18,7 @@ public class AnalyzerSession {
     private boolean xmlSourceRequested;
     private boolean oracleSourceLoaded;
     private boolean xmlSourceLoaded;
+    private boolean debugFullQuery;
 
     private String sourceJdbcUrl;
     private String sourceUser;
@@ -84,6 +85,15 @@ public class AnalyzerSession {
     public void setXmlSourceLoaded(boolean xmlSourceLoaded) {
         this.xmlSourceLoaded = xmlSourceLoaded;
         refreshSourceType();
+    }
+
+    public boolean isDebugFullQuery() {
+        return debugFullQuery;
+    }
+
+    public void setDebugFullQuery(boolean debugFullQuery) {
+        this.debugFullQuery = debugFullQuery;
+        report.setDebugFullQuery(debugFullQuery);
     }
 
     public AnalyzerTargetType getTargetType() {

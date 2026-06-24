@@ -16,6 +16,7 @@ public final class AnalyzerStatementTypes {
     public static final String TYPE_DDL_FUNC_HEADER = "DDL_FUNC_HEADER";
     public static final String TYPE_DDL_FUNC_BODY = "DDL_FUNC_BODY";
     public static final String TYPE_DDL_TRIGGER = "DDL_TRIGGER";
+    public static final String TYPE_STATIC_SQL = "STATIC_SQL";
 
     private AnalyzerStatementTypes() {}
 }

@@ -22,6 +22,7 @@ import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerProgressObjectCount;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerSourceOverviewViewModel;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerTableSizeViewModel;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerTargetOverviewViewModel;
+import com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes;
 
 public class AnalyzerReport {
     private static final Pattern ERROR_LOCATION_PATTERN = Pattern.compile(
@@ -37,6 +38,7 @@ public class AnalyzerReport {
     private static class StatementResult {
         private final String statementType;
         private final String statementId;
+        private final String objectName;
         private final String sql;
         private final boolean success;
         private final String detail;
@@ -45,12 +47,14 @@ public class AnalyzerReport {
         StatementResult(
                 String statementType,
                 String statementId,
+                String objectName,
                 String sql,
                 boolean success,
                 String detail,
                 AnalyzerFailureStage failureStage) {
             this.statementType = statementType;
             this.statementId = statementId;
+            this.objectName = objectName;
             this.sql = sql;
             this.success = success;
             this.detail = detail;
@@ -104,12 +108,19 @@ public class AnalyzerReport {
         }
     }
 
+    private static class HtmlFailureGroup {
+        private StatementResult parentStatement;
+        private AnalyzerFailure parentFailure;
+        private final List<AnalyzerFailure> staticSqlFailures = new ArrayList<AnalyzerFailure>();
+    }
+
     private AnalyzerSourceType sourceType;
     private AnalyzerTargetType targetType;
     private AnalyzerExecutionMode executionMode;
     private int analyzedStatementCount;
     private int succeededStatementCount;
     private int failedStatementCount;
+    private boolean debugFullQuery;
     private long generatedAt;
     private final List<String> failureMessages = new ArrayList<String>();
     private final List<String> sourceStatusMessages = new ArrayList<String>();
@@ -166,6 +177,14 @@ public class AnalyzerReport {
         this.failedStatementCount = failedStatementCount;
     }
 
+    public boolean isDebugFullQuery() {
+        return debugFullQuery;
+    }
+
+    public void setDebugFullQuery(boolean debugFullQuery) {
+        this.debugFullQuery = debugFullQuery;
+    }
+
     public List<String> getFailureMessages() {
         return failureMessages;
     }
@@ -209,9 +228,21 @@ public class AnalyzerReport {
             boolean success,
             String detail,
             AnalyzerFailureStage failureStage) {
+        addStatementResult(
+                statementType, statementId, null, sql, success, detail, failureStage);
+    }
+
+    public void addStatementResult(
+            String statementType,
+            String statementId,
+            String objectName,
+            String sql,
+            boolean success,
+            String detail,
+            AnalyzerFailureStage failureStage) {
         statementResults.add(
                 new StatementResult(
-                        statementType, statementId, sql, success, detail, failureStage));
+                        statementType, statementId, objectName, sql, success, detail, failureStage));
     }
 
     public List<AnalyzerProgressObjectCount> getObjectExecutionCounts() {
@@ -292,6 +323,7 @@ public class AnalyzerReport {
         appendOverview(sb, lineSeparator);
         appendAnalysisSummary(sb, lineSeparator);
         appendFailedStatements(sb, lineSeparator);
+        appendExecutedFullQueries(sb, lineSeparator);
 
         return sb.toString();
     }
@@ -318,6 +350,7 @@ public class AnalyzerReport {
         appendHtmlConnectionInfo(sb);
         appendHtmlTableSummary(sb);
         appendHtmlFailureDetails(sb);
+        appendHtmlExecutedFullQueries(sb);
         appendHtmlConclusion(sb, totalCost);
 
         appendHtmlScript(sb);
@@ -433,6 +466,14 @@ public class AnalyzerReport {
                 .append("</td></tr>\n");
     }
 
+    private String formatHtmlSummaryObjectName(String objectName) {
+        String safeObjectName = formatText(objectName);
+        if (safeObjectName.isEmpty()) {
+            return "";
+        }
+        return " - " + escapeHtml(safeObjectName);
+    }
+
     private void appendHtmlTableSummary(StringBuilder sb) {
         sb.append("<section>\n");
         sb.append("<h2>Table Summary</h2>\n");
@@ -503,7 +544,8 @@ public class AnalyzerReport {
         return "SELECT".equals(objectType)
                 || "INSERT".equals(objectType)
                 || "UPDATE".equals(objectType)
-                || "DELETE".equals(objectType);
+                || "DELETE".equals(objectType)
+                || AnalyzerStatementTypes.TYPE_STATIC_SQL.equals(objectType);
     }
 
     private boolean isPlcsqlSummaryType(String objectType) {
@@ -597,41 +639,172 @@ public class AnalyzerReport {
             return;
         }
 
+        Map<String, HtmlFailureGroup> staticSqlFailureGroups = buildStaticSqlFailureGroups();
         for (AnalyzerFailure failure : failures) {
+            if (isStaticSqlStatement(failure.getStatementId())) {
+                continue;
+            }
             appendHtmlFailureDetail(sb, failure);
+        }
+        for (HtmlFailureGroup group : staticSqlFailureGroups.values()) {
+            appendHtmlStaticSqlFailureGroup(sb, group);
         }
         sb.append("</section>\n");
     }
 
+    private void appendHtmlExecutedFullQueries(StringBuilder sb) {
+        if (!debugFullQuery) {
+            return;
+        }
+
+        sb.append("<section>\n");
+        sb.append("<h2>Executed Full Queries</h2>\n");
+        if (statementResults.isEmpty()) {
+            sb.append("<p class=\"muted\">(none)</p>\n");
+            sb.append("</section>\n");
+            return;
+        }
+
+        for (StatementResult statementResult : statementResults) {
+            sb.append("<details>\n");
+            sb.append("<summary>")
+                    .append(escapeHtml(formatText(statementResult.statementType)))
+                    .append(" ")
+                    .append(escapeHtml(formatText(statementResult.statementId)))
+                    .append(formatHtmlSummaryObjectName(statementResult.objectName))
+                    .append(" [")
+                    .append(statementResult.success ? "OK" : "FAIL")
+                    .append("]</summary>\n");
+            sb.append("<table>\n");
+            appendHtmlInfoRow(sb, "Object", displayObjectType(statementResult.statementType));
+            appendHtmlInfoRow(sb, "Statement ID", statementResult.statementId);
+            appendHtmlInfoRow(sb, "Object name", statementResult.objectName);
+            appendHtmlInfoRow(sb, "Status", statementResult.success ? "OK" : "FAIL");
+            appendHtmlInfoRow(sb, "Stage", statementResult.failureStage == null
+                    ? ""
+                    : String.valueOf(statementResult.failureStage));
+            appendHtmlInfoRow(sb, "Detail", statementResult.detail);
+            sb.append("</table>\n");
+            appendHtmlStatementSql(sb, "Full Query", statementResult.sql);
+            sb.append("</details>\n");
+        }
+        sb.append("</section>\n");
+    }
+
+    private Map<String, HtmlFailureGroup> buildStaticSqlFailureGroups() {
+        Map<String, HtmlFailureGroup> groups = new LinkedHashMap<String, HtmlFailureGroup>();
+        for (AnalyzerFailure failure : failures) {
+            String parentId = staticSqlParentId(failure.getStatementId());
+            if (parentId == null) {
+                continue;
+            }
+
+            HtmlFailureGroup group = groups.get(parentId);
+            if (group == null) {
+                group = new HtmlFailureGroup();
+                group.parentStatement = findStatementResult(parentId);
+                group.parentFailure = findFailure(parentId);
+                groups.put(parentId, group);
+            }
+            group.staticSqlFailures.add(failure);
+        }
+        return groups;
+    }
+
+    private void appendHtmlStaticSqlFailureGroup(StringBuilder sb, HtmlFailureGroup group) {
+        StatementResult parent = group.parentStatement;
+        AnalyzerFailure parentFailure = group.parentFailure;
+        String parentType = parentFailure != null
+                ? parentFailure.getStatementType()
+                : parent == null ? "PLCSQL" : parent.statementType;
+        String parentId = parentFailure != null
+                ? parentFailure.getStatementId()
+                : parent == null ? staticSqlParentId(group.staticSqlFailures.get(0).getStatementId()) : parent.statementId;
+        String parentObjectName = parentFailure != null
+                ? parentFailure.getObjectName()
+                : parent == null ? "" : parent.objectName;
+
+        sb.append("<details open>\n");
+        sb.append("<summary>")
+                .append(escapeHtml(formatText(parentType)))
+                .append(" ")
+                .append(escapeHtml(formatText(parentId)))
+                .append(formatHtmlSummaryObjectName(parentObjectName))
+                .append(" [STATIC SQL]</summary>\n");
+        sb.append("<table>\n");
+        appendHtmlInfoRow(sb, "Object", displayObjectType(parentType));
+        appendHtmlInfoRow(sb, "Statement ID", parentId);
+        appendHtmlInfoRow(sb, "Object name", parentObjectName);
+        appendHtmlInfoRow(sb, "Status", parentFailure == null ? "parsed" : "failed");
+        appendHtmlInfoRow(sb, "Static SQL failures", formatNumber(group.staticSqlFailures.size()));
+        sb.append("</table>\n");
+
+        if (parentFailure != null) {
+            appendHtmlFailureBody(sb, parentFailure, "PL/CSQL Query");
+        } else if (parent != null) {
+            appendHtmlStatementSql(sb, "PL/CSQL Query", parent.sql);
+        }
+
+        for (AnalyzerFailure staticSqlFailure : group.staticSqlFailures) {
+            sb.append("<h3>Static SQL Failure</h3>\n");
+            appendHtmlFailureBody(sb, staticSqlFailure, "Static SQL Query");
+        }
+        sb.append("</details>\n");
+    }
+
+    private void appendHtmlStatementSql(StringBuilder sb, String title, String sql) {
+        sb.append("<h3>").append(escapeHtml(title)).append("</h3>\n");
+        sb.append("<pre>");
+        appendAnnotatedSqlLines(sb, formatText(sql), null, "\n", true, "");
+        sb.append("</pre>\n");
+    }
+
     private void appendHtmlFailureDetail(StringBuilder sb, AnalyzerFailure failure) {
-        SqlContextLocation location = findSqlContextLocation(failure.getReason(), failure.getSql());
         sb.append("<details open>\n");
         sb.append("<summary>")
                 .append(escapeHtml(formatText(failure.getStatementType())))
                 .append(" ")
                 .append(escapeHtml(formatText(failure.getStatementId())))
+                .append(formatHtmlSummaryObjectName(failure.getObjectName()))
                 .append(" [")
                 .append(escapeHtml(String.valueOf(failure.getFailureStage())))
                 .append("]</summary>\n");
+        appendHtmlFailureBody(sb, failure, "Full Query");
+        sb.append("</details>\n");
+    }
+
+    private void appendHtmlFailureBody(
+            StringBuilder sb,
+            AnalyzerFailure failure,
+            String queryTitle) {
+        SqlContextLocation location = findSqlContextLocation(failure.getReason(), failure.getSql());
         sb.append("<table>\n");
         appendHtmlInfoRow(sb, "Object", displayObjectType(failure.getStatementType()));
         appendHtmlInfoRow(sb, "Statement ID", failure.getStatementId());
+        appendHtmlInfoRow(sb, "Object name", failure.getObjectName());
         appendHtmlInfoRow(sb, "Failure stage", String.valueOf(failure.getFailureStage()));
         appendHtmlInfoRow(sb, "Location", formatHtmlLocation(location));
         appendHtmlInfoRow(sb, "Cost", formatEstimatedCostWithTime(failure.getEstimatedCost()));
         appendHtmlInfoRow(sb, "Reason", failure.getReason());
         sb.append("</table>\n");
         appendHtmlCostDetails(sb, failure);
-        appendHtmlAnnotatedSql(sb, failure, location);
-        sb.append("</details>\n");
+        appendHtmlAnnotatedSql(sb, failure, location, queryTitle);
     }
 
     private void appendHtmlAnnotatedSql(
             StringBuilder sb,
             AnalyzerFailure failure,
             SqlContextLocation location) {
+        appendHtmlAnnotatedSql(sb, failure, location, "Full Query");
+    }
+
+    private void appendHtmlAnnotatedSql(
+            StringBuilder sb,
+            AnalyzerFailure failure,
+            SqlContextLocation location,
+            String title) {
         String sql = formatText(failure.getSql());
-        sb.append("<h3>Full Query</h3>\n");
+        sb.append("<h3>").append(escapeHtml(title)).append("</h3>\n");
         sb.append("<pre>");
         appendAnnotatedSqlLines(sb, sql, location, "\n", true, "");
         sb.append("</pre>\n");
@@ -684,15 +857,52 @@ public class AnalyzerReport {
         Map<String, HtmlSummaryRow> rows = new LinkedHashMap<String, HtmlSummaryRow>();
         appendObjectCountSummaryRows(rows);
 
-        Map<String, StatementTypeSummary> executionSummaries = buildDisplayStatementTypeSummaries();
-        for (Map.Entry<String, StatementTypeSummary> entry : executionSummaries.entrySet()) {
+        Map<String, StatementTypeSummary> rootExecutionSummaries =
+                new LinkedHashMap<String, StatementTypeSummary>();
+        for (StatementResult statementResult : statementResults) {
+            if ("CLEANUP".equals(statementResult.statementType)) {
+                continue;
+            }
+
+            String objectType = displayObjectType(statementResult.statementType);
+            String parentObjectType = staticSqlParentObjectType(statementResult.statementId);
+            if (parentObjectType == null) {
+                StatementTypeSummary summary = rootExecutionSummaries.get(objectType);
+                if (summary == null) {
+                    summary = new StatementTypeSummary();
+                    rootExecutionSummaries.put(objectType, summary);
+                }
+                summary.add(statementResult.success);
+                continue;
+            }
+
+            addHtmlSummaryChildResult(
+                    rows,
+                    parentObjectType,
+                    "STATIC " + objectType,
+                    statementResult.success);
+        }
+
+        for (Map.Entry<String, StatementTypeSummary> entry : rootExecutionSummaries.entrySet()) {
             HtmlSummaryRow row = getOrCreateHtmlSummaryRow(rows, entry.getKey());
             row.totalCount = Math.max(row.totalCount, entry.getValue().totalCount);
             row.errorCount = entry.getValue().failedCount;
         }
 
         for (AnalyzerFailure failure : failures) {
-            HtmlSummaryRow row = getOrCreateHtmlSummaryRow(rows, displayObjectType(failure.getStatementType()));
+            String objectType = displayObjectType(failure.getStatementType());
+            String parentObjectType = staticSqlParentObjectType(failure.getStatementId());
+            HtmlSummaryRow row;
+            if (parentObjectType == null) {
+                row = getOrCreateHtmlSummaryRow(rows, objectType);
+            } else {
+                row = addHtmlSummaryChildCost(
+                        rows,
+                        parentObjectType,
+                        "STATIC " + objectType,
+                        failure.getEstimatedCost());
+                continue;
+            }
             row.cost += failure.getEstimatedCost();
             if (row.errorCount == 0) {
                 row.errorCount = 1;
@@ -702,7 +912,24 @@ public class AnalyzerReport {
         groupChildSummaryRows(rows, "VIEW", "VIEW_CREATE", "VIEW_ALTER");
         groupChildSummaryRows(rows, "PROCEDURE", "PROC_HEADER", "PROC_BODY");
         groupChildSummaryRows(rows, "FUNCTION", "FUNC_HEADER", "FUNC_BODY");
+        removeEmptySummaryRows(rows);
         return new ArrayList<HtmlSummaryRow>(rows.values());
+    }
+
+    private void removeEmptySummaryRows(Map<String, HtmlSummaryRow> rows) {
+        List<String> emptyKeys = new ArrayList<String>();
+        for (Map.Entry<String, HtmlSummaryRow> entry : rows.entrySet()) {
+            HtmlSummaryRow row = entry.getValue();
+            if (row.totalCount == 0
+                    && row.errorCount == 0
+                    && row.cost == 0
+                    && row.childRows.isEmpty()) {
+                emptyKeys.add(entry.getKey());
+            }
+        }
+        for (String emptyKey : emptyKeys) {
+            rows.remove(emptyKey);
+        }
     }
 
     private void groupChildSummaryRows(
@@ -710,6 +937,7 @@ public class AnalyzerReport {
             String parentObjectType,
             String... childObjectTypes) {
         HtmlSummaryRow parentRow = rows.get(parentObjectType);
+        boolean hadExistingChildRows = parentRow != null && !parentRow.childRows.isEmpty();
         long fallbackTotalCount = 0;
         int errorCount = 0;
         float cost = 0;
@@ -734,8 +962,12 @@ public class AnalyzerReport {
 
         if (parentRow.totalCount == 0) {
             parentRow.totalCount = fallbackTotalCount;
+        } else if (hadExistingChildRows) {
+            parentRow.totalCount += fallbackTotalCount;
         }
-        parentRow.errorCount = Math.max(parentRow.errorCount, errorCount);
+        parentRow.errorCount = hadExistingChildRows
+                ? parentRow.errorCount + errorCount
+                : Math.max(parentRow.errorCount, errorCount);
         parentRow.cost += cost;
     }
 
@@ -785,22 +1017,58 @@ public class AnalyzerReport {
         return row;
     }
 
-    private Map<String, StatementTypeSummary> buildDisplayStatementTypeSummaries() {
-        Map<String, StatementTypeSummary> summaries = new LinkedHashMap<String, StatementTypeSummary>();
-        for (StatementResult statementResult : statementResults) {
-            if ("CLEANUP".equals(statementResult.statementType)) {
-                continue;
-            }
-
-            String objectType = displayObjectType(statementResult.statementType);
-            StatementTypeSummary summary = summaries.get(objectType);
-            if (summary == null) {
-                summary = new StatementTypeSummary();
-                summaries.put(objectType, summary);
-            }
-            summary.add(statementResult.success);
+    private HtmlSummaryRow getOrCreateHtmlSummaryChildRow(
+            Map<String, HtmlSummaryRow> rows,
+            String parentObjectType,
+            String childObjectType) {
+        HtmlSummaryRow parentRow = getOrCreateHtmlSummaryRow(rows, parentObjectType);
+        String safeChildObjectType = formatText(childObjectType);
+        if (safeChildObjectType.isEmpty()) {
+            safeChildObjectType = "UNKNOWN";
         }
-        return summaries;
+
+        for (HtmlSummaryRow childRow : parentRow.childRows) {
+            if (safeChildObjectType.equals(childRow.objectType)) {
+                return childRow;
+            }
+        }
+
+        HtmlSummaryRow childRow = new HtmlSummaryRow(safeChildObjectType, 0);
+        parentRow.childRows.add(childRow);
+        return childRow;
+    }
+
+    private void addHtmlSummaryChildResult(
+            Map<String, HtmlSummaryRow> rows,
+            String parentObjectType,
+            String childObjectType,
+            boolean success) {
+        HtmlSummaryRow parentRow = getOrCreateHtmlSummaryRow(rows, parentObjectType);
+        HtmlSummaryRow childRow =
+                getOrCreateHtmlSummaryChildRow(rows, parentObjectType, childObjectType);
+        parentRow.totalCount++;
+        childRow.totalCount++;
+        if (!success) {
+            parentRow.errorCount++;
+            childRow.errorCount++;
+        }
+    }
+
+    private HtmlSummaryRow addHtmlSummaryChildCost(
+            Map<String, HtmlSummaryRow> rows,
+            String parentObjectType,
+            String childObjectType,
+            float cost) {
+        HtmlSummaryRow parentRow = getOrCreateHtmlSummaryRow(rows, parentObjectType);
+        HtmlSummaryRow childRow =
+                getOrCreateHtmlSummaryChildRow(rows, parentObjectType, childObjectType);
+        parentRow.cost += cost;
+        childRow.cost += cost;
+        if (childRow.errorCount == 0 && cost > 0) {
+            parentRow.errorCount++;
+            childRow.errorCount = 1;
+        }
+        return childRow;
     }
 
     private boolean isParserTarget() {
@@ -1124,6 +1392,48 @@ public class AnalyzerReport {
         }
     }
 
+    private void appendExecutedFullQueries(StringBuilder sb, String lineSeparator) {
+        if (!debugFullQuery) {
+            return;
+        }
+
+        sb.append(lineSeparator);
+        sb.append("Executed full queries").append(lineSeparator);
+        if (statementResults.isEmpty()) {
+            sb.append("(none)").append(lineSeparator);
+            return;
+        }
+
+        for (StatementResult statementResult : statementResults) {
+            sb.append("----------------------------------------").append(lineSeparator);
+            sb.append("- ")
+                    .append(formatText(statementResult.statementType))
+                    .append(" ")
+                    .append(formatText(statementResult.statementId))
+                    .append(" [")
+                    .append(statementResult.success ? "OK" : "FAIL")
+                    .append("]")
+                    .append(lineSeparator);
+            if (!formatText(statementResult.objectName).isEmpty()) {
+                sb.append("  Object: ")
+                        .append(formatText(statementResult.objectName))
+                        .append(lineSeparator);
+            }
+            sb.append("  Detail: ")
+                    .append(formatText(statementResult.detail))
+                    .append(lineSeparator);
+            sb.append("  SQL:").append(lineSeparator);
+            appendAnnotatedSqlLines(
+                    sb,
+                    statementResult.sql,
+                    null,
+                    lineSeparator,
+                    false,
+                    "    ");
+        }
+        sb.append("----------------------------------------").append(lineSeparator);
+    }
+
     private Map<String, StatementTypeSummary> buildStatementTypeSummaries() {
         Map<String, StatementTypeSummary> summaries = new LinkedHashMap<String, StatementTypeSummary>();
         for (StatementResult statementResult : statementResults) {
@@ -1156,6 +1466,53 @@ public class AnalyzerReport {
             return type.substring("DDL_".length());
         }
         return type;
+    }
+
+    private boolean isStaticSqlStatement(String statementId) {
+        return staticSqlParentId(statementId) != null;
+    }
+
+    private String staticSqlParentId(String statementId) {
+        String id = formatText(statementId);
+        int staticMarkerIndex = id.indexOf("_STATIC_");
+        if (staticMarkerIndex <= 0) {
+            return null;
+        }
+        return id.substring(0, staticMarkerIndex);
+    }
+
+    private String staticSqlParentObjectType(String statementId) {
+        String parentId = staticSqlParentId(statementId);
+        if (parentId == null) {
+            return null;
+        }
+        if (parentId.startsWith("PROC_")) {
+            return "PROCEDURE";
+        }
+        if (parentId.startsWith("FUNC_")) {
+            return "FUNCTION";
+        }
+        return "PLCSQL";
+    }
+
+    private StatementResult findStatementResult(String statementId) {
+        String id = formatText(statementId);
+        for (StatementResult statementResult : statementResults) {
+            if (id.equals(formatText(statementResult.statementId))) {
+                return statementResult;
+            }
+        }
+        return null;
+    }
+
+    private AnalyzerFailure findFailure(String statementId) {
+        String id = formatText(statementId);
+        for (AnalyzerFailure failure : failures) {
+            if (id.equals(formatText(failure.getStatementId()))) {
+                return failure;
+            }
+        }
+        return null;
     }
 
     private File getReportDirectory() {
@@ -1213,6 +1570,9 @@ public class AnalyzerReport {
                 .append(failure.getFailureStage())
                 .append("]")
                 .append(lineSeparator);
+        if (!formatText(failure.getObjectName()).isEmpty()) {
+            sb.append("  Object: ").append(formatText(failure.getObjectName())).append(lineSeparator);
+        }
         sb.append("  Reason: ").append(formatText(failure.getReason())).append(lineSeparator);
         sb.append("  Cost  : ")
                 .append(formatEstimatedCostWithTime(failure.getEstimatedCost()))

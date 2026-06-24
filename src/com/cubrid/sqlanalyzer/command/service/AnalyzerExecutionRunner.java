@@ -7,6 +7,7 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import com.cubrid.cubridmigration.core.dbobject.PlcsqlFunction;
@@ -35,6 +36,8 @@ import com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes;
 import com.cubrid.sqlanalyzer.core.plan.CatalogDDLPlanBuilder;
 import com.cubrid.sqlanalyzer.core.plan.QueryDictionaryPlanBuilder;
 import com.cubrid.sqlanalyzer.core.runner.PlcsqlChecker;
+import com.cubrid.sqlanalyzer.core.runner.PlcsqlChecker.PlcsqlCheckResult;
+import com.cubrid.sqlanalyzer.core.runner.PlcsqlChecker.StaticSql;
 import com.cubrid.sqlanalyzer.core.runner.QueryParser;
 import com.cubrid.sqlanalyzer.core.runner.SQLParserException;
 import org.slf4j.Logger;
@@ -130,13 +133,15 @@ public class AnalyzerExecutionRunner {
                     continue;
                 }
                 try {
-                    checkStatement(queryParser, plcsqlChecker, statement);
+                    PlcsqlCheckResult plcsqlCheckResult =
+                            checkStatement(queryParser, plcsqlChecker, statement);
                     succeeded++;
                     objectProgressTracker.record(statement, true);
                     session.getReport()
                             .addStatementResult(
                                     statement.getType(),
                                     statement.getId(),
+                                    statement.getObjectName(),
                                     statement.getSQL(),
                                     true,
                                     "parsed",
@@ -147,6 +152,22 @@ public class AnalyzerExecutionRunner {
                                     statement,
                                     "parsed",
                                     objectProgressTracker.snapshot(analyzed, succeeded, failed)));
+                    if (plcsqlCheckResult != null) {
+                        AnalysisCounters counters =
+                                analyzeStaticSqls(
+                                        queryParser,
+                                        session,
+                                        progressListener,
+                                        objectProgressTracker,
+                                        statement,
+                                        plcsqlCheckResult,
+                                        analyzed,
+                                        succeeded,
+                                        failed);
+                        analyzed = counters.analyzed;
+                        succeeded = counters.succeeded;
+                        failed = counters.failed;
+                    }
                 } catch (SQLParserException ex) {
                     failed++;
                     objectProgressTracker.record(statement, false);
@@ -164,6 +185,7 @@ public class AnalyzerExecutionRunner {
                             .addStatementResult(
                                     statement.getType(),
                                     statement.getId(),
+                                    statement.getObjectName(),
                                     statement.getSQL(),
                                     false,
                                     ex.getMessage(),
@@ -191,6 +213,7 @@ public class AnalyzerExecutionRunner {
                             .addStatementResult(
                                     statement.getType(),
                                     statement.getId(),
+                                    statement.getObjectName(),
                                     statement.getSQL(),
                                     false,
                                     ex.toString(),
@@ -220,15 +243,15 @@ public class AnalyzerExecutionRunner {
                 objectProgressTracker.snapshot(analyzed, succeeded, failed));
     }
 
-    private void checkStatement(
+    private PlcsqlCheckResult checkStatement(
             QueryParser queryParser,
             PlcsqlChecker plcsqlChecker,
             AnalyzerStatement statement) throws SQLParserException {
         if (isPlcsqlStatement(statement)) {
-            plcsqlChecker.checkSQL(statement.getSQL());
-            return;
+            return plcsqlChecker.checkSQLAndGetStaticSqls(statement.getSQL());
         }
         queryParser.checkSQL(statement.getSQL());
+        return null;
     }
 
     private void runJdbcAnalysis(
@@ -259,11 +282,26 @@ public class AnalyzerExecutionRunner {
                 }
                 try {
                     if (isPlcsqlStatement(statement)) {
-                        plcsqlChecker.checkSQL(statement.getSQL());
+                        PlcsqlCheckResult plcsqlCheckResult =
+                                plcsqlChecker.checkSQLAndGetStaticSqls(statement.getSQL());
                         succeeded++;
                         objectProgressTracker.record(statement, true);
                         recordParsedStatement(session, progressListener, statement,
                                 objectProgressTracker.snapshot(analyzed, succeeded, failed));
+                        AnalysisCounters counters =
+                                analyzeStaticSqls(
+                                        queryParser,
+                                        session,
+                                        progressListener,
+                                        objectProgressTracker,
+                                        statement,
+                                        plcsqlCheckResult,
+                                        analyzed,
+                                        succeeded,
+                                        failed);
+                        analyzed = counters.analyzed;
+                        succeeded = counters.succeeded;
+                        failed = counters.failed;
                         continue;
                     }
 
@@ -274,6 +312,7 @@ public class AnalyzerExecutionRunner {
                             .addStatementResult(
                                     statement.getType(),
                                     statement.getId(),
+                                    statement.getObjectName(),
                                     statement.getSQL(),
                                     true,
                                     resultSummary,
@@ -357,6 +396,7 @@ public class AnalyzerExecutionRunner {
                 .addStatementResult(
                         statement.getType(),
                         statement.getId(),
+                        statement.getObjectName(),
                         statement.getSQL(),
                         true,
                         "parsed",
@@ -379,6 +419,7 @@ public class AnalyzerExecutionRunner {
                 .addStatementResult(
                         statement.getType(),
                         statement.getId(),
+                        statement.getObjectName(),
                         statement.getSQL(),
                         false,
                         reason,
@@ -386,6 +427,175 @@ public class AnalyzerExecutionRunner {
         notifyProgress(
                 progressListener,
                 AnalyzerProgressEventViewModel.statementFailed(statement, reason, stage, counts));
+    }
+
+    private AnalysisCounters analyzeStaticSqls(
+            QueryParser queryParser,
+            AnalyzerSession session,
+            AnalyzerProgressListener progressListener,
+            ObjectProgressTracker objectProgressTracker,
+            AnalyzerStatement parentStatement,
+            PlcsqlCheckResult plcsqlCheckResult,
+            int analyzed,
+            int succeeded,
+            int failed) {
+        if (plcsqlCheckResult == null || plcsqlCheckResult.getStaticSqls().isEmpty()) {
+            return new AnalysisCounters(analyzed, succeeded, failed);
+        }
+
+        int staticSqlIndex = 0;
+        for (StaticSql staticSql : plcsqlCheckResult.getStaticSqls()) {
+            if (staticSql == null || staticSql.getCode() == null || staticSql.getCode().isBlank()) {
+                continue;
+            }
+
+            AnalyzerStatement staticStatement =
+                    buildStaticSqlStatement(parentStatement, staticSql, ++staticSqlIndex);
+            objectProgressTracker.addDiscovered(staticStatement);
+            analyzed++;
+            try {
+                queryParser.checkSQL(staticStatement.getSQL());
+                succeeded++;
+                objectProgressTracker.record(staticStatement, true);
+                session.getReport()
+                        .addStatementResult(
+                                staticStatement.getType(),
+                                staticStatement.getId(),
+                                staticStatement.getObjectName(),
+                                staticStatement.getSQL(),
+                                true,
+                                "parsed",
+                                null);
+                notifyProgress(
+                        progressListener,
+                        AnalyzerProgressEventViewModel.statementSucceeded(
+                                staticStatement,
+                                "parsed",
+                                objectProgressTracker.snapshot(analyzed, succeeded, failed)));
+            } catch (SQLParserException ex) {
+                failed++;
+                objectProgressTracker.record(staticStatement, false);
+                LOG.warn(
+                        "Static SQL parser analysis failed. parentType={}, parentId={}, staticId={}, reason={}",
+                        parentStatement.getType(),
+                        parentStatement.getId(),
+                        staticStatement.getId(),
+                        ex.getMessage(),
+                        ex);
+                recordFailedStatement(
+                        session,
+                        progressListener,
+                        staticStatement,
+                        ex.getMessage(),
+                        AnalyzerFailureStage.PARSER,
+                        objectProgressTracker.snapshot(analyzed, succeeded, failed));
+            } catch (Exception ex) {
+                failed++;
+                objectProgressTracker.record(staticStatement, false);
+                LOG.warn(
+                        "Unexpected static SQL parser analysis exception. parentType={}, parentId={}, staticId={}",
+                        parentStatement.getType(),
+                        parentStatement.getId(),
+                        staticStatement.getId(),
+                        ex);
+                recordFailedStatement(
+                        session,
+                        progressListener,
+                        staticStatement,
+                        ex.toString(),
+                        AnalyzerFailureStage.PARSER,
+                        objectProgressTracker.snapshot(analyzed, succeeded, failed));
+            }
+        }
+
+        return new AnalysisCounters(analyzed, succeeded, failed);
+    }
+
+    private AnalyzerStatement buildStaticSqlStatement(
+            AnalyzerStatement parentStatement,
+            StaticSql staticSql,
+            int staticSqlIndex) {
+        String parentId = parentStatement.getId();
+        if (parentId == null || parentId.isBlank()) {
+            parentId = "PLCSQL";
+        }
+
+        StringBuilder id = new StringBuilder(parentId)
+                .append("_STATIC_")
+                .append(staticSqlIndex);
+        if (staticSql.getRow() > 0) {
+            id.append("_L").append(staticSql.getRow());
+        }
+        if (staticSql.getColumn() > 0) {
+            id.append("_C").append(staticSql.getColumn());
+        }
+
+        return new AnalyzerStatement(
+                inferStaticSqlType(staticSql.getCode()),
+                id.toString(),
+                staticSql.getCode(),
+                staticSqlObjectName(parentStatement, staticSqlIndex));
+    }
+
+    private String staticSqlObjectName(AnalyzerStatement parentStatement, int staticSqlIndex) {
+        String parentObjectName = parentStatement.getObjectName();
+        if (parentObjectName == null || parentObjectName.isBlank()) {
+            return "";
+        }
+        return parentObjectName + " / static SQL #" + staticSqlIndex;
+    }
+
+    private String inferStaticSqlType(String sql) {
+        String normalizedSql = stripLeadingSqlComments(sql).stripLeading().toUpperCase(Locale.ENGLISH);
+        if (startsWithKeyword(normalizedSql, "SELECT")) {
+            return "SELECT";
+        }
+        if (startsWithKeyword(normalizedSql, "INSERT")) {
+            return "INSERT";
+        }
+        if (startsWithKeyword(normalizedSql, "UPDATE")) {
+            return "UPDATE";
+        }
+        if (startsWithKeyword(normalizedSql, "DELETE")) {
+            return "DELETE";
+        }
+        return AnalyzerStatementTypes.TYPE_STATIC_SQL;
+    }
+
+    private String stripLeadingSqlComments(String sql) {
+        String remaining = sql == null ? "" : sql;
+        while (true) {
+            remaining = remaining.stripLeading();
+            if (remaining.startsWith("--")) {
+                int lineEnd = remaining.indexOf('\n');
+                if (lineEnd < 0) {
+                    return "";
+                }
+                remaining = remaining.substring(lineEnd + 1);
+                continue;
+            }
+            if (remaining.startsWith("/*")) {
+                int commentEnd = remaining.indexOf("*/");
+                if (commentEnd < 0) {
+                    return "";
+                }
+                remaining = remaining.substring(commentEnd + 2);
+                continue;
+            }
+            return remaining;
+        }
+    }
+
+    private boolean startsWithKeyword(String sql, String keyword) {
+        if (!sql.startsWith(keyword)) {
+            return false;
+        }
+        if (sql.length() == keyword.length()) {
+            return true;
+        }
+
+        char nextChar = sql.charAt(keyword.length());
+        return !Character.isLetterOrDigit(nextChar) && nextChar != '_';
     }
 
     private String executeJdbcStatement(Connection connection, AnalyzerStatement statement)
@@ -473,7 +683,12 @@ public class AnalyzerExecutionRunner {
     private AnalyzerFailure buildFailure(
             AnalyzerStatement statement, String reason, AnalyzerFailureStage stage) {
         return buildFailure(
-                statement.getType(), statement.getId(), statement.getSQL(), reason, stage);
+                statement.getType(),
+                statement.getId(),
+                statement.getObjectName(),
+                statement.getSQL(),
+                reason,
+                stage);
     }
 
     private AnalyzerFailure buildFailure(
@@ -482,10 +697,21 @@ public class AnalyzerExecutionRunner {
             String sql,
             String reason,
             AnalyzerFailureStage stage) {
+        return buildFailure(statementType, statementId, null, sql, reason, stage);
+    }
+
+    private AnalyzerFailure buildFailure(
+            String statementType,
+            String statementId,
+            String objectName,
+            String sql,
+            String reason,
+            AnalyzerFailureStage stage) {
         AnalyzerFailure failure = new AnalyzerFailure();
         failure.setFailureStage(stage);
         failure.setStatementType(statementType);
         failure.setStatementId(statementId);
+        failure.setObjectName(objectName);
         failure.setSql(sql);
         failure.setReason(reason);
         return failure;
@@ -614,6 +840,7 @@ public class AnalyzerExecutionRunner {
                 .addStatementResult(
                         statement.getType(),
                         statement.getId(),
+                        statement.getObjectName(),
                         statement.getSQL(),
                         false,
                         reason,
@@ -679,7 +906,7 @@ public class AnalyzerExecutionRunner {
     }
 
     private static class ObjectProgressTracker {
-        private final int totalCount;
+        private int totalCount;
         private final Map<String, MutableObjectProgressCount> objectCounts =
                 new LinkedHashMap<String, MutableObjectProgressCount>();
 
@@ -694,6 +921,11 @@ public class AnalyzerExecutionRunner {
                 tracker.getOrCreate(displayObjectType(statement)).totalCount++;
             }
             return tracker;
+        }
+
+        void addDiscovered(AnalyzerStatement statement) {
+            totalCount++;
+            getOrCreate(displayObjectType(statement)).totalCount++;
         }
 
         void record(AnalyzerStatement statement, boolean success) {
@@ -751,5 +983,17 @@ public class AnalyzerExecutionRunner {
         private int totalCount;
         private int succeededCount;
         private int failedCount;
+    }
+
+    private static class AnalysisCounters {
+        private final int analyzed;
+        private final int succeeded;
+        private final int failed;
+
+        private AnalysisCounters(int analyzed, int succeeded, int failed) {
+            this.analyzed = analyzed;
+            this.succeeded = succeeded;
+            this.failed = failed;
+        }
     }
 }

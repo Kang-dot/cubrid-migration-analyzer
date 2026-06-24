@@ -18,6 +18,7 @@ class AnalyzerSettingsLoaderTest {
         Files.writeString(
                 settingsFile,
                 "ui.mode=tui\n"
+                        + "debug.fullquery=true\n"
                         + "tui.width=120\n"
                         + "tui.height=40\n"
                         + "source.type=xml\n"
@@ -35,6 +36,24 @@ class AnalyzerSettingsLoaderTest {
         assertEquals(AnalyzerUiMode.TUI, arguments.getUiMode());
         assertEquals(120, arguments.getTuiWidth());
         assertEquals(40, arguments.getTuiHeight());
+        assertEquals(true, arguments.isDebugFullQuery());
+    }
+
+    @Test
+    void shouldAppendDebugFullQueryOptionToExplicitArgumentsSetting() throws Exception {
+        Path settingsFile = tempDir.resolve("setting.conf");
+        Files.writeString(
+                settingsFile,
+                "arguments=-sx -xd /tmp/sqlmap -tp\n"
+                        + "debug.fullquery=true\n");
+
+        String[] args = AnalyzerSettingsLoader.loadStartupArguments(new String[0], settingsFile);
+        AnalyzerArgumentsController arguments = AnalyzerArgumentsController.parse(args);
+
+        assertArrayEquals(
+                new String[] { "-sx", "-xd", "/tmp/sqlmap", "-tp", "--debug-fullquery" },
+                args);
+        assertEquals(true, arguments.isDebugFullQuery());
     }
 
     @Test

@@ -99,6 +99,7 @@ public class FailureCostCalculator implements AnalyzerCostCalculator {
             case "INSERT":
             case "UPDATE":
             case "DELETE":
+            case AnalyzerStatementTypes.TYPE_STATIC_SQL:
                 return calculateDml(sql);
             default:
                 return result;

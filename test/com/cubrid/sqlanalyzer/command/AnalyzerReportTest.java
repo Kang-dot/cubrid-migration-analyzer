@@ -530,6 +530,41 @@ class AnalyzerReportTest {
         assertTrue(resultHtml.contains("4 | );"));
     }
 
+    @Test
+    @DisplayName("debug full query option includes successful statements in reports")
+    void shouldIncludeExecutedFullQueriesWhenDebugFullQueryIsEnabled() {
+        AnalyzerReport report = new AnalyzerReport();
+        report.addStatementResult(
+                "SELECT",
+                "Q_OK",
+                "EMP_QUERY",
+                "SELECT *\nFROM emp",
+                true,
+                "parsed",
+                null);
+
+        String normalHtml = report.buildResultHtml();
+        String normalText = report.buildResultText();
+
+        assertFalse(normalHtml.contains("Executed Full Queries"));
+        assertFalse(normalText.contains("Executed full queries"));
+
+        report.setDebugFullQuery(true);
+        String debugHtml = report.buildResultHtml();
+        String debugText = report.buildResultText();
+
+        assertTrue(debugHtml.contains("Executed Full Queries"));
+        assertTrue(debugHtml.contains("Q_OK"));
+        assertTrue(debugHtml.contains("EMP_QUERY"));
+        assertTrue(debugHtml.contains("1 | SELECT *"));
+        assertTrue(debugHtml.contains("2 | FROM emp"));
+        assertTrue(debugText.contains("Executed full queries"));
+        assertTrue(debugText.contains("Q_OK"));
+        assertTrue(debugText.contains("EMP_QUERY"));
+        assertTrue(debugText.contains("1 | SELECT *"));
+        assertTrue(debugText.contains("2 | FROM emp"));
+    }
+
     private int countOccurrences(String text, String pattern) {
         int count = 0;
         int index = text.indexOf(pattern);

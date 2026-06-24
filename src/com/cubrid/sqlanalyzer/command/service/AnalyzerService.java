@@ -62,6 +62,7 @@ public class AnalyzerService {
         session.setSourceType(arguments.getSourceType());
         session.setOracleSourceRequested(arguments.isOracleSourceRequested());
         session.setXmlSourceRequested(arguments.isXmlSourceRequested());
+        session.setDebugFullQuery(arguments.isDebugFullQuery());
         for (String message : arguments.getSourceInputMessages()) {
             session.addSourceStatusMessage(message);
         }

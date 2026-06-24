@@ -8,6 +8,7 @@ public class AnalyzerFailure {
     private AnalyzerFailureStage failureStage;
     private String statementType;
     private String statementId;
+    private String objectName;
     private String sql;
     private String reason;
     private float estimatedCost;
@@ -36,6 +37,14 @@ public class AnalyzerFailure {
 
     public void setStatementId(String statementId) {
         this.statementId = statementId;
+    }
+
+    public String getObjectName() {
+        return objectName;
+    }
+
+    public void setObjectName(String objectName) {
+        this.objectName = objectName;
     }
 
     public String getSql() {

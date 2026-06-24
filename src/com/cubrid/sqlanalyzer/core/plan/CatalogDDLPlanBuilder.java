@@ -159,7 +159,10 @@ public class CatalogDDLPlanBuilder implements AnalyzerExecutionPlanBuilder {
             plan.add(
                     DDL_PROCEDURE_HEADER,
                     new AnalyzerStatement(
-                            TYPE_DDL_PROC_HEADER, "PROC_" + (++seq), sql));
+                            TYPE_DDL_PROC_HEADER,
+                            "PROC_" + (++seq),
+                            sql,
+                            objectName(procedure.getOwner(), procedure.getName())));
         }
 
         seq = 0;
@@ -168,7 +171,10 @@ public class CatalogDDLPlanBuilder implements AnalyzerExecutionPlanBuilder {
             plan.add(
                     DDL_PROCEDURE_BODY,
                     new AnalyzerStatement(
-                            TYPE_DDL_PROC_BODY, "PROC_BODY_" + (++seq), sql));
+                            TYPE_DDL_PROC_BODY,
+                            "PROC_BODY_" + (++seq),
+                            sql,
+                            objectName(procedure.getOwner(), procedure.getName())));
         }
 
         seq = 0;
@@ -177,7 +183,10 @@ public class CatalogDDLPlanBuilder implements AnalyzerExecutionPlanBuilder {
             plan.add(
                     DDL_FUNCTION_HEADER,
                     new AnalyzerStatement(
-                            TYPE_DDL_FUNC_HEADER, "FUNC_" + (++seq), sql));
+                            TYPE_DDL_FUNC_HEADER,
+                            "FUNC_" + (++seq),
+                            sql,
+                            objectName(function.getOwner(), function.getName())));
         }
 
         seq = 0;
@@ -186,7 +195,10 @@ public class CatalogDDLPlanBuilder implements AnalyzerExecutionPlanBuilder {
             plan.add(
                     DDL_FUNCTION_BODY,
                     new AnalyzerStatement(
-                            TYPE_DDL_FUNC_BODY, "FUNC_BODY_" + (++seq), sql));
+                            TYPE_DDL_FUNC_BODY,
+                            "FUNC_BODY_" + (++seq),
+                            sql,
+                            objectName(function.getOwner(), function.getName())));
         }
 
         seq = 0;
@@ -206,6 +218,16 @@ public class CatalogDDLPlanBuilder implements AnalyzerExecutionPlanBuilder {
         }
 
         return plan;
+    }
+
+    private String objectName(String owner, String name) {
+        if (name == null || name.isBlank()) {
+            return owner == null ? "" : owner;
+        }
+        if (owner == null || owner.isBlank()) {
+            return name;
+        }
+        return owner + "." + name;
     }
 
     private Trigger getExportTrigger(AnalyzerConfiguration config, String triggerConfig) {

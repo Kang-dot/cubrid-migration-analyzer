@@ -27,6 +27,12 @@ buildNumber.properties
 .mvn/wrapper/maven-wrapper.jar
 
 ##############################
+## Native build artifacts
+##############################
+jni/sqlvalidator.o
+jni/libsqlvalidator.so
+
+##############################
 ## Gradle
 ##############################
 bin/

@@ -29,6 +29,9 @@ public class AnalyzerArgumentsController {
     @Parameter(names = { "-th", "--tui-height" }, description = "TUI initial terminal height. Default: 30")
     private int tuiHeight = DEFAULT_TUI_HEIGHT;
 
+    @Parameter(names = "--debug-fullquery", description = "Include every analyzed full query in the report")
+    private boolean debugFullQuery;
+
     private AnalyzerUiMode uiMode = AnalyzerUiMode.CONSOLE;
     private AnalyzerSourceType sourceType;
     private AnalyzerTargetType targetType = AnalyzerTargetType.PARSER;
@@ -126,6 +129,8 @@ public class AnalyzerArgumentsController {
                 + System.lineSeparator()
                 + "  -jr <path>   Optional JDBC driver repository directory"
                 + System.lineSeparator()
+                + "  --debug-fullquery Include every analyzed full query in the report"
+                + System.lineSeparator()
                 + "  -so          Enable Oracle JDBC source for DDL" + System.lineSeparator()
                 + "  -oj <spec>   Oracle connection spec: <jdbcUrl|user|password>"
                 + System.lineSeparator()
@@ -160,6 +165,10 @@ public class AnalyzerArgumentsController {
 
     public int getTuiHeight() {
         return tuiHeight;
+    }
+
+    public boolean isDebugFullQuery() {
+        return debugFullQuery;
     }
 
     public AnalyzerSourceType getSourceType() {

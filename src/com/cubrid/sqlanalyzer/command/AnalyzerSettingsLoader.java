@@ -82,7 +82,9 @@ public final class AnalyzerSettingsLoader {
 
         String rawArguments = trimToNull(properties.getProperty("arguments"));
         if (rawArguments != null) {
-            return splitArguments(rawArguments);
+            List<String> tokens = new ArrayList<String>(List.of(splitArguments(rawArguments)));
+            addDebugOptions(tokens, properties);
+            return tokens.toArray(new String[tokens.size()]);
         }
 
         List<String> tokens = new ArrayList<String>();
@@ -90,6 +92,7 @@ public final class AnalyzerSettingsLoader {
         addOption(tokens, "-tw", getFirst(properties, "tui.width", "tuiWidth"));
         addOption(tokens, "-th", getFirst(properties, "tui.height", "tuiHeight"));
         addOption(tokens, "-jr", getFirst(properties, "jdbc.repository.dir", "jdbcRepositoryDir"));
+        addDebugOptions(tokens, properties);
 
         String source = getFirst(properties, "source.type", "source");
         if (source != null) {
@@ -101,6 +104,12 @@ public final class AnalyzerSettingsLoader {
         addTarget(tokens, properties, getFirst(properties, "target.type", "target"));
 
         return tokens.toArray(new String[tokens.size()]);
+    }
+
+    private static void addDebugOptions(List<String> tokens, Properties properties) {
+        if (isTrue(getFirst(properties, "debug.fullquery", "debug.fullQuery"))) {
+            tokens.add("--debug-fullquery");
+        }
     }
 
     private static Properties loadProperties(Path settingsPath) {
@@ -273,6 +282,18 @@ public final class AnalyzerSettingsLoader {
             }
         }
         return null;
+    }
+
+    private static boolean isTrue(String value) {
+        if (value == null) {
+            return false;
+        }
+        String normalized = value.trim().toLowerCase(Locale.ENGLISH);
+        return "true".equals(normalized)
+                || "yes".equals(normalized)
+                || "y".equals(normalized)
+                || "1".equals(normalized)
+                || "on".equals(normalized);
     }
 
     private static String trimToNull(String value) {
