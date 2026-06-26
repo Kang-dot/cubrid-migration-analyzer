@@ -79,6 +79,40 @@ class AnalyzerTuiObjectCountPageTest {
     }
 
     @Test
+    @DisplayName("object count TUI page renders skipped source reason")
+    void shouldRenderSkippedSourceReason() {
+        AnalyzerObjectCountPreviewViewModel preview =
+                new AnalyzerObjectCountPreviewViewModel(
+                        AnalyzerSourceType.XML,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        1,
+                        0,
+                        0,
+                        0,
+                        0,
+                        List.of(),
+                        false,
+                        true,
+                        List.of("Oracle source skipped: Connection refused"));
+
+        Panel panel = new AnalyzerTuiObjectCountPage().build(preview);
+        String screenText = String.join(System.lineSeparator(), collectLabelTexts(panel));
+
+        assertTrue(screenText.contains("DDL objects"));
+        assertTrue(screenText.contains("Oracle source skipped: Connection refused"));
+    }
+
+    @Test
     @DisplayName("object count TUI page renders Oracle table sizes")
     void shouldRenderOracleTableSizes() {
         AnalyzerObjectCountPreviewViewModel preview =

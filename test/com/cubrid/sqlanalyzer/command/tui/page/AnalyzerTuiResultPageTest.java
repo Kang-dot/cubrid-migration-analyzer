@@ -47,7 +47,7 @@ class AnalyzerTuiResultPageTest {
         assertTrue(screenText.contains("OK     : 8"));
         assertTrue(screenText.contains("FAIL   : 2"));
         assertTrue(screenText.contains("Cost   : 12.5"));
-        assertTrue(screenText.contains("Cost   : 12.5 (62.5 min)"));
+        assertTrue(screenText.contains("Cost   : 12.5 (1.04 hr)"));
         assertTrue(screenText.contains("Report : /tmp/analyzer-result.txt"));
         assertTrue(screenText.contains("HTML   : /tmp/analyzer-result.html"));
         assertTrue(screenText.contains("See the report file for detailed execution logs."));
@@ -104,7 +104,7 @@ class AnalyzerTuiResultPageTest {
 
         assertTrue(body.isReadOnly());
         assertTrue(body.getText().contains("[4/4] Result summary"));
-        assertTrue(body.getText().contains("Cost   : 12.5 (62.5 min)"));
+        assertTrue(body.getText().contains("Cost   : 12.5 (1.04 hr)"));
         assertTrue(body.getPreferredSize().getRows() < body.getText().split("\\R").length);
     }
 

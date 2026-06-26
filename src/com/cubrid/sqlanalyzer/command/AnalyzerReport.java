@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.TimeZone;
+import java.util.function.UnaryOperator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -86,6 +87,8 @@ public class AnalyzerReport {
     private static class HtmlSummaryRow {
         private final String objectType;
         private final List<HtmlSummaryRow> childRows = new ArrayList<HtmlSummaryRow>();
+        private final List<AnalyzerTableSizeViewModel> tableSizeRows =
+                new ArrayList<AnalyzerTableSizeViewModel>();
         private long totalCount;
         private int errorCount;
         private float cost;
@@ -376,8 +379,18 @@ public class AnalyzerReport {
         sb.append(".status-fail{color:#b42318;font-weight:bold;}\n");
         sb.append(".row-toggle{border:0;background:transparent;color:#006f9f;cursor:pointer;font-weight:bold;margin:0 6px 0 0;padding:0;width:16px;}\n");
         sb.append(".summary-child-object{display:inline-block;padding-left:22px;}\n");
+        sb.append(".nested-summary-cell{background:#f8fafc;padding:10px 10px 10px 32px;}\n");
+        sb.append(".nested-summary-table{margin:0;background:#fff;}\n");
         sb.append("details{background:#fff;border:1px solid #d7dde4;margin:0 0 12px;padding:10px;}\n");
         sb.append("summary{cursor:pointer;color:#006f9f;font-weight:bold;}\n");
+        sb.append("details.detail-item[open]>summary{padding-bottom:10px;}\n");
+        sb.append(".report-section{background:#fff;border:1px solid #d7dde4;margin:0 0 18px;padding:14px;}\n");
+        sb.append(".report-section table:last-child{margin-bottom:0;}\n");
+        sb.append(".section-heading{display:flex;align-items:center;gap:8px;margin:0 0 12px;padding-bottom:10px;border-bottom:1px solid #e5e9ef;cursor:pointer;}\n");
+        sb.append(".section-heading h2{margin:0;}\n");
+        sb.append(".section-toggle{border:1px solid #d7dde4;background:#f8fafc;color:#006f9f;cursor:pointer;font-weight:bold;width:24px;height:24px;line-height:20px;padding:0;}\n");
+        sb.append(".collapsed-section-summary{margin:0;}\n");
+        sb.append(".collapsed-section-summary .metric{width:180px;}\n");
         sb.append("pre{white-space:pre-wrap;word-break:break-word;background:#f8fafc;border:1px solid #e5e9ef;padding:10px;margin:8px 0 0;}\n");
         sb.append(".grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;}\n");
         sb.append(".box{background:#fff;border:1px solid #d7dde4;padding:12px;}\n");
@@ -392,12 +405,63 @@ public class AnalyzerReport {
         sb.append("button.setAttribute('aria-expanded',String(!expanded));\n");
         sb.append("button.innerHTML=expanded?'&#9656;':'&#9662;';\n");
         sb.append("}\n");
+        sb.append("function toggleReportSection(button, sectionId){\n");
+        sb.append("if(!button){return;}\n");
+        sb.append("var body=document.getElementById(sectionId+'-body');\n");
+        sb.append("var summary=document.getElementById(sectionId+'-summary');\n");
+        sb.append("var expanded=button.getAttribute('aria-expanded')==='true';\n");
+        sb.append("if(body){body.hidden=expanded;}\n");
+        sb.append("if(summary){summary.hidden=!expanded;}\n");
+        sb.append("button.setAttribute('aria-expanded',String(!expanded));\n");
+        sb.append("button.innerHTML=expanded?'&#9656;':'&#9662;';\n");
+        sb.append("}\n");
+        sb.append("function toggleReportSectionFromHeading(heading, sectionId){\n");
+        sb.append("var button=heading?heading.querySelector('.section-toggle'):null;\n");
+        sb.append("toggleReportSection(button,sectionId);\n");
+        sb.append("}\n");
         sb.append("</script>\n");
     }
 
+    private void appendHtmlReportSectionStart(StringBuilder sb, String title) {
+        String sectionId = htmlSummaryGroupId("report-section-" + title);
+        sb.append("<section class=\"report-section\">\n");
+        sb.append("<div class=\"section-heading\" onclick=\"toggleReportSectionFromHeading(this,'")
+                .append(sectionId)
+                .append("')\"><button type=\"button\" class=\"section-toggle\"")
+                .append(" aria-expanded=\"true\" onclick=\"toggleReportSection(this,'")
+                .append(sectionId)
+                .append("');event.stopPropagation();\">&#9662;</button><h2>")
+                .append(escapeHtml(title))
+                .append("</h2></div>\n");
+        appendHtmlCollapsedSectionSummary(sb, sectionId);
+        sb.append("<div class=\"section-body\" id=\"")
+                .append(sectionId)
+                .append("-body\">\n");
+    }
+
+    private void appendHtmlReportSectionEnd(StringBuilder sb) {
+        sb.append("</div>\n");
+        sb.append("</section>\n");
+    }
+
+    private void appendHtmlCollapsedSectionSummary(StringBuilder sb, String sectionId) {
+        sb.append("<table class=\"collapsed-section-summary\" id=\"")
+                .append(sectionId)
+                .append("-summary\" hidden>\n");
+        sb.append("<tr><td class=\"metric\">Source schema</td><td>")
+                .append(escapeHtml(resolveSchemaName()))
+                .append("</td></tr>\n");
+        sb.append("<tr><td class=\"metric\">Target type</td><td>")
+                .append(escapeHtml(resolveTargetTypeName()))
+                .append("</td></tr>\n");
+        sb.append("<tr><td class=\"metric\">Source table size</td><td>")
+                .append(escapeHtml(resolveSourceTableSize()))
+                .append("</td></tr>\n");
+        sb.append("</table>\n");
+    }
+
     private void appendHtmlConnectionInfo(StringBuilder sb) {
-        sb.append("<section>\n");
-        sb.append("<h2>Connection Info</h2>\n");
+        appendHtmlReportSectionStart(sb, "Connection Info");
         sb.append("<table>\n");
         sb.append("<tr><th>Item</th><th>Value</th></tr>\n");
         appendHtmlInfoRow(sb, "Program", overview == null ? "" : overview.programVersion());
@@ -417,7 +481,7 @@ public class AnalyzerReport {
                 ? ""
                 : formatBytes(objectCountPreview.totalTableBytes()));
         sb.append("</table>\n");
-        sb.append("</section>\n");
+        appendHtmlReportSectionEnd(sb);
     }
 
     private void appendHtmlSourceInfo(StringBuilder sb, AnalyzerSourceOverviewViewModel source) {
@@ -426,7 +490,7 @@ public class AnalyzerReport {
         }
         if (source.type() == AnalyzerSourceType.ORACLE) {
             appendHtmlInfoRow(sb, "Source Oracle URL",
-                    formatText(source.jdbcUrl()) + formatVersionSuffix(source.version()));
+                    nullToEmpty(source.jdbcUrl()) + formatVersionSuffix(source.version()));
             appendHtmlInfoRow(sb, "Source Oracle Host", formatHost(source.host(), source.port()));
             appendHtmlInfoRow(sb, "Source Oracle DB", source.databaseName());
             appendHtmlInfoRow(sb, "Source Oracle User", source.user());
@@ -446,7 +510,7 @@ public class AnalyzerReport {
         }
         if (target.type() == AnalyzerTargetType.JDBC) {
             appendHtmlInfoRow(sb, "Target JDBC URL",
-                    formatText(target.jdbcUrl()) + formatVersionSuffix(target.version()));
+                    nullToEmpty(target.jdbcUrl()) + formatVersionSuffix(target.version()));
             appendHtmlInfoRow(sb, "Target Host", formatHost(target.host(), target.port()));
             appendHtmlInfoRow(sb, "Target DB", target.databaseName());
             appendHtmlInfoRow(sb, "Target User", target.user());
@@ -462,12 +526,12 @@ public class AnalyzerReport {
         sb.append("<tr><td class=\"metric\">")
                 .append(escapeHtml(label))
                 .append("</td><td>")
-                .append(escapeHtml(formatText(value)))
+                .append(escapeHtml(nullToEmpty(value)))
                 .append("</td></tr>\n");
     }
 
     private String formatHtmlSummaryObjectName(String objectName) {
-        String safeObjectName = formatText(objectName);
+        String safeObjectName = nullToEmpty(objectName);
         if (safeObjectName.isEmpty()) {
             return "";
         }
@@ -475,8 +539,7 @@ public class AnalyzerReport {
     }
 
     private void appendHtmlTableSummary(StringBuilder sb) {
-        sb.append("<section>\n");
-        sb.append("<h2>Table Summary</h2>\n");
+        appendHtmlReportSectionStart(sb, "Table Summary");
         List<HtmlSummaryRow> rows = buildHtmlSummaryRows();
         if (rows.isEmpty()) {
             sb.append("<table>\n");
@@ -494,10 +557,10 @@ public class AnalyzerReport {
                     filterHtmlSummaryRows(rows, HtmlSummaryPart.DML));
             appendHtmlSummaryPart(
                     sb,
-                    "PLC/SQL",
+                    "PL/CSQL",
                     filterHtmlSummaryRows(rows, HtmlSummaryPart.PLCSQL));
         }
-        sb.append("</section>\n");
+        appendHtmlReportSectionEnd(sb);
     }
 
     private void appendHtmlSummaryPart(
@@ -530,7 +593,7 @@ public class AnalyzerReport {
     }
 
     private HtmlSummaryPart htmlSummaryPart(HtmlSummaryRow row) {
-        String objectType = formatText(row == null ? null : row.objectType);
+        String objectType = nullToEmpty(row == null ? null : row.objectType);
         if (isDmlSummaryType(objectType)) {
             return HtmlSummaryPart.DML;
         }
@@ -558,6 +621,11 @@ public class AnalyzerReport {
     }
 
     private void appendHtmlSummaryRow(StringBuilder sb, HtmlSummaryRow row) {
+        if (!row.tableSizeRows.isEmpty()) {
+            appendHtmlTableSizeExpandableSummaryRow(sb, row);
+            return;
+        }
+
         if (!row.childRows.isEmpty()) {
             appendHtmlExpandableSummaryRow(sb, row);
             return;
@@ -596,6 +664,46 @@ public class AnalyzerReport {
                 .append("</td></tr>\n");
     }
 
+    private void appendHtmlTableSizeExpandableSummaryRow(StringBuilder sb, HtmlSummaryRow row) {
+        String groupId = htmlSummaryGroupId(row.objectType);
+        sb.append("<tr><td><button type=\"button\" class=\"row-toggle\" aria-expanded=\"false\"")
+                .append(" onclick=\"toggleSummaryRows(this,'")
+                .append(groupId)
+                .append("')\">&#9656;</button>")
+                .append(escapeHtml(row.objectType))
+                .append("</td><td class=\"number\">")
+                .append(formatNumber(row.totalCount))
+                .append("</td><td class=\"number ")
+                .append(row.errorCount > 0 ? "status-fail" : "status-ok")
+                .append("\">")
+                .append(formatNumber(row.errorCount))
+                .append("</td><td class=\"number\">")
+                .append(escapeHtml(formatEstimatedCostWithTime(row.cost)))
+                .append("</td></tr>\n");
+        sb.append("<tr class=\"summary-child-row\" data-summary-parent=\"")
+                .append(groupId)
+                .append("\" hidden><td colspan=\"4\" class=\"nested-summary-cell\">\n");
+        appendHtmlTableSizeNestedTable(sb, row.tableSizeRows);
+        sb.append("</td></tr>\n");
+    }
+
+    private void appendHtmlTableSizeNestedTable(
+            StringBuilder sb,
+            List<AnalyzerTableSizeViewModel> tableSizes) {
+        sb.append("<table class=\"nested-summary-table\">\n");
+        sb.append("<tr><th>Table</th><th>Size</th><th>Est. rows</th></tr>\n");
+        for (AnalyzerTableSizeViewModel tableSize : tableSizes) {
+            sb.append("<tr><td>")
+                    .append(escapeHtml(tableSize.tableName()))
+                    .append("</td><td class=\"number\">")
+                    .append(escapeHtml(formatBytes(tableSize.bytes())))
+                    .append("</td><td class=\"number\">")
+                    .append(formatNumber(tableSize.estimatedRows()))
+                    .append("</td></tr>\n");
+        }
+        sb.append("</table>\n");
+    }
+
     private void appendHtmlExpandableSummaryRow(StringBuilder sb, HtmlSummaryRow row) {
         String groupId = htmlSummaryGroupId(row.objectType);
         sb.append("<tr><td><button type=\"button\" class=\"row-toggle\" aria-expanded=\"false\"")
@@ -622,7 +730,7 @@ public class AnalyzerReport {
     }
 
     private String htmlSummaryGroupId(String objectType) {
-        String safeObjectType = formatText(objectType).toLowerCase(Locale.US);
+        String safeObjectType = nullToEmpty(objectType).toLowerCase(Locale.US);
         safeObjectType = safeObjectType.replaceAll("[^a-z0-9]+", "-");
         if (safeObjectType.isEmpty()) {
             return "summary-unknown";
@@ -631,11 +739,10 @@ public class AnalyzerReport {
     }
 
     private void appendHtmlFailureDetails(StringBuilder sb) {
-        sb.append("<section>\n");
-        sb.append("<h2>Detail</h2>\n");
+        appendHtmlReportSectionStart(sb, "Detail");
         if (failures.isEmpty()) {
             sb.append("<p class=\"muted\">(none)</p>\n");
-            sb.append("</section>\n");
+            appendHtmlReportSectionEnd(sb);
             return;
         }
 
@@ -649,7 +756,7 @@ public class AnalyzerReport {
         for (HtmlFailureGroup group : staticSqlFailureGroups.values()) {
             appendHtmlStaticSqlFailureGroup(sb, group);
         }
-        sb.append("</section>\n");
+        appendHtmlReportSectionEnd(sb);
     }
 
     private void appendHtmlExecutedFullQueries(StringBuilder sb) {
@@ -657,20 +764,19 @@ public class AnalyzerReport {
             return;
         }
 
-        sb.append("<section>\n");
-        sb.append("<h2>Executed Full Queries</h2>\n");
+        appendHtmlReportSectionStart(sb, "Executed Full Queries");
         if (statementResults.isEmpty()) {
             sb.append("<p class=\"muted\">(none)</p>\n");
-            sb.append("</section>\n");
+            appendHtmlReportSectionEnd(sb);
             return;
         }
 
         for (StatementResult statementResult : statementResults) {
             sb.append("<details>\n");
             sb.append("<summary>")
-                    .append(escapeHtml(formatText(statementResult.statementType)))
+                    .append(escapeHtml(nullToEmpty(statementResult.statementType)))
                     .append(" ")
-                    .append(escapeHtml(formatText(statementResult.statementId)))
+                    .append(escapeHtml(nullToEmpty(statementResult.statementId)))
                     .append(formatHtmlSummaryObjectName(statementResult.objectName))
                     .append(" [")
                     .append(statementResult.success ? "OK" : "FAIL")
@@ -688,7 +794,7 @@ public class AnalyzerReport {
             appendHtmlStatementSql(sb, "Full Query", statementResult.sql);
             sb.append("</details>\n");
         }
-        sb.append("</section>\n");
+        appendHtmlReportSectionEnd(sb);
     }
 
     private Map<String, HtmlFailureGroup> buildStaticSqlFailureGroups() {
@@ -724,11 +830,11 @@ public class AnalyzerReport {
                 ? parentFailure.getObjectName()
                 : parent == null ? "" : parent.objectName;
 
-        sb.append("<details open>\n");
+        sb.append("<details class=\"detail-item\" open>\n");
         sb.append("<summary>")
-                .append(escapeHtml(formatText(parentType)))
+                .append(escapeHtml(nullToEmpty(parentType)))
                 .append(" ")
-                .append(escapeHtml(formatText(parentId)))
+                .append(escapeHtml(nullToEmpty(parentId)))
                 .append(formatHtmlSummaryObjectName(parentObjectName))
                 .append(" [STATIC SQL]</summary>\n");
         sb.append("<table>\n");
@@ -755,16 +861,16 @@ public class AnalyzerReport {
     private void appendHtmlStatementSql(StringBuilder sb, String title, String sql) {
         sb.append("<h3>").append(escapeHtml(title)).append("</h3>\n");
         sb.append("<pre>");
-        appendAnnotatedSqlLines(sb, formatText(sql), null, "\n", true, "");
+        appendAnnotatedSqlLines(sb, nullToEmpty(sql), null, "\n", this::escapeHtml, "");
         sb.append("</pre>\n");
     }
 
     private void appendHtmlFailureDetail(StringBuilder sb, AnalyzerFailure failure) {
-        sb.append("<details open>\n");
+        sb.append("<details class=\"detail-item\" open>\n");
         sb.append("<summary>")
-                .append(escapeHtml(formatText(failure.getStatementType())))
+                .append(escapeHtml(nullToEmpty(failure.getStatementType())))
                 .append(" ")
-                .append(escapeHtml(formatText(failure.getStatementId())))
+                .append(escapeHtml(nullToEmpty(failure.getStatementId())))
                 .append(formatHtmlSummaryObjectName(failure.getObjectName()))
                 .append(" [")
                 .append(escapeHtml(String.valueOf(failure.getFailureStage())))
@@ -803,10 +909,10 @@ public class AnalyzerReport {
             AnalyzerFailure failure,
             SqlContextLocation location,
             String title) {
-        String sql = formatText(failure.getSql());
+        String sql = nullToEmpty(failure.getSql());
         sb.append("<h3>").append(escapeHtml(title)).append("</h3>\n");
         sb.append("<pre>");
-        appendAnnotatedSqlLines(sb, sql, location, "\n", true, "");
+        appendAnnotatedSqlLines(sb, sql, location, "\n", this::escapeHtml, "");
         sb.append("</pre>\n");
     }
 
@@ -837,8 +943,7 @@ public class AnalyzerReport {
         sb.append("<h2>Conclusion</h2>\n");
         sb.append("<div class=\"grid\">\n");
         appendHtmlConclusionBox(sb, "Total Cost", AnalyzerCostFormatter.formatCost(totalCost));
-        appendHtmlConclusionBox(sb, "Estimated Time",
-                String.format(Locale.US, "%.1f min", AnalyzerCostFormatter.toMinutes(totalCost)));
+        appendHtmlConclusionBox(sb, "Estimated Time", AnalyzerCostFormatter.formatTime(totalCost));
         appendHtmlConclusionBox(sb, "Analyzed", formatNumber(analyzedStatementCount));
         appendHtmlConclusionBox(sb, "Failed", formatNumber(failedStatementCount));
         sb.append("</div>\n");
@@ -912,24 +1017,18 @@ public class AnalyzerReport {
         groupChildSummaryRows(rows, "VIEW", "VIEW_CREATE", "VIEW_ALTER");
         groupChildSummaryRows(rows, "PROCEDURE", "PROC_HEADER", "PROC_BODY");
         groupChildSummaryRows(rows, "FUNCTION", "FUNC_HEADER", "FUNC_BODY");
-        removeEmptySummaryRows(rows);
+        appendTableSizeSummaryRows(rows);
         return new ArrayList<HtmlSummaryRow>(rows.values());
     }
 
-    private void removeEmptySummaryRows(Map<String, HtmlSummaryRow> rows) {
-        List<String> emptyKeys = new ArrayList<String>();
-        for (Map.Entry<String, HtmlSummaryRow> entry : rows.entrySet()) {
-            HtmlSummaryRow row = entry.getValue();
-            if (row.totalCount == 0
-                    && row.errorCount == 0
-                    && row.cost == 0
-                    && row.childRows.isEmpty()) {
-                emptyKeys.add(entry.getKey());
-            }
+    private void appendTableSizeSummaryRows(Map<String, HtmlSummaryRow> rows) {
+        if (objectCountPreview == null || objectCountPreview.tableSizes().isEmpty()) {
+            return;
         }
-        for (String emptyKey : emptyKeys) {
-            rows.remove(emptyKey);
-        }
+
+        HtmlSummaryRow tableRow = getOrCreateHtmlSummaryRow(rows, "TABLE");
+        tableRow.tableSizeRows.clear();
+        tableRow.tableSizeRows.addAll(objectCountPreview.tableSizes());
     }
 
     private void groupChildSummaryRows(
@@ -1005,7 +1104,7 @@ public class AnalyzerReport {
     private HtmlSummaryRow getOrCreateHtmlSummaryRow(
             Map<String, HtmlSummaryRow> rows,
             String objectType) {
-        String safeObjectType = formatText(objectType);
+        String safeObjectType = nullToEmpty(objectType);
         if (safeObjectType.isEmpty()) {
             safeObjectType = "UNKNOWN";
         }
@@ -1022,7 +1121,7 @@ public class AnalyzerReport {
             String parentObjectType,
             String childObjectType) {
         HtmlSummaryRow parentRow = getOrCreateHtmlSummaryRow(rows, parentObjectType);
-        String safeChildObjectType = formatText(childObjectType);
+        String safeChildObjectType = nullToEmpty(childObjectType);
         if (safeChildObjectType.isEmpty()) {
             safeChildObjectType = "UNKNOWN";
         }
@@ -1085,12 +1184,23 @@ public class AnalyzerReport {
             return "";
         }
         for (AnalyzerSourceOverviewViewModel source : overview.sources()) {
-            if (source.type() == AnalyzerSourceType.ORACLE && !formatText(source.user()).isEmpty()) {
+            if (source.type() == AnalyzerSourceType.ORACLE && !nullToEmpty(source.user()).isEmpty()) {
                 return source.user();
             }
         }
         AnalyzerSourceOverviewViewModel source = overview.source();
-        return source == null ? "" : formatText(source.databaseName());
+        return source == null ? "" : nullToEmpty(source.databaseName());
+    }
+
+    private String resolveTargetTypeName() {
+        if (overview != null && overview.target() != null && overview.target().type() != null) {
+            return String.valueOf(overview.target().type());
+        }
+        return targetType == null ? "" : String.valueOf(targetType);
+    }
+
+    private String resolveSourceTableSize() {
+        return objectCountPreview == null ? "0 B" : formatBytes(objectCountPreview.totalTableBytes());
     }
 
     private String formatHtmlLocation(SqlContextLocation location) {
@@ -1116,7 +1226,7 @@ public class AnalyzerReport {
     }
 
     private String escapeHtml(String value) {
-        String text = formatText(value);
+        String text = nullToEmpty(value);
         StringBuilder escaped = new StringBuilder(text.length());
         for (int i = 0; i < text.length(); i++) {
             char ch = text.charAt(i);
@@ -1147,7 +1257,7 @@ public class AnalyzerReport {
     private void appendOverview(StringBuilder sb, String lineSeparator) {
         sb.append("Overview").append(lineSeparator);
         if (overview != null) {
-            sb.append("Program     : ").append(formatText(overview.programVersion())).append(lineSeparator);
+            sb.append("Program     : ").append(nullToEmpty(overview.programVersion())).append(lineSeparator);
             appendSourceOverviews(sb, overview.sources(), lineSeparator);
             appendTargetOverview(sb, overview.target(), lineSeparator);
             sb.append("Mode        : ").append(overview.executionMode()).append(lineSeparator);
@@ -1269,23 +1379,23 @@ public class AnalyzerReport {
         sb.append("Source      : ").append(source.type()).append(lineSeparator);
         if (source.type() == AnalyzerSourceType.ORACLE) {
             sb.append("Oracle URL  : ")
-                    .append(formatText(source.jdbcUrl()))
+                    .append(nullToEmpty(source.jdbcUrl()))
                     .append(formatVersionSuffix(source.version()))
                     .append(lineSeparator);
             sb.append("Oracle Host : ")
                     .append(formatHost(source.host(), source.port()))
                     .append(lineSeparator);
             sb.append("Oracle DB   : ")
-                    .append(formatText(source.databaseName()))
+                    .append(nullToEmpty(source.databaseName()))
                     .append(lineSeparator);
             sb.append("Oracle User : ")
-                    .append(formatText(source.user()))
+                    .append(nullToEmpty(source.user()))
                     .append(lineSeparator);
             return;
         }
 
-        sb.append("XML dir     : ").append(formatText(source.xmlDirectory())).append(lineSeparator);
-        sb.append("XML charset : ").append(formatText(source.xmlCharset())).append(lineSeparator);
+        sb.append("XML dir     : ").append(nullToEmpty(source.xmlDirectory())).append(lineSeparator);
+        sb.append("XML charset : ").append(nullToEmpty(source.xmlCharset())).append(lineSeparator);
         sb.append("XML files   : ").append(source.xmlFileCount()).append(lineSeparator);
     }
 
@@ -1294,7 +1404,7 @@ public class AnalyzerReport {
             List<AnalyzerSourceOverviewViewModel> sources,
             String lineSeparator) {
         if (sources == null || sources.isEmpty()) {
-            sb.append("Source      : ").append(formatText(null)).append(lineSeparator);
+            sb.append("Source      : ").append(nullToEmpty(null)).append(lineSeparator);
             return;
         }
 
@@ -1313,7 +1423,7 @@ public class AnalyzerReport {
 
         sb.append("Source status").append(lineSeparator);
         for (String message : messages) {
-            sb.append("  - ").append(formatText(message)).append(lineSeparator);
+            sb.append("  - ").append(nullToEmpty(message)).append(lineSeparator);
         }
     }
 
@@ -1328,23 +1438,23 @@ public class AnalyzerReport {
         sb.append("Target      : ").append(target.type()).append(lineSeparator);
         if (target.type() == AnalyzerTargetType.JDBC) {
             sb.append("Target URL  : ")
-                    .append(formatText(target.jdbcUrl()))
+                    .append(nullToEmpty(target.jdbcUrl()))
                     .append(formatVersionSuffix(target.version()))
                     .append(lineSeparator);
             sb.append("Target Host : ")
                     .append(formatHost(target.host(), target.port()))
                     .append(lineSeparator);
             sb.append("Target DB   : ")
-                    .append(formatText(target.databaseName()))
+                    .append(nullToEmpty(target.databaseName()))
                     .append(lineSeparator);
             sb.append("Target User : ")
-                    .append(formatText(target.user()))
+                    .append(nullToEmpty(target.user()))
                     .append(lineSeparator);
             return;
         }
 
         if (target.type() == AnalyzerTargetType.PARSER) {
-            sb.append("Parser      : ").append(formatText(target.parserVersion())).append(lineSeparator);
+            sb.append("Parser      : ").append(nullToEmpty(target.parserVersion())).append(lineSeparator);
         }
     }
 
@@ -1383,7 +1493,7 @@ public class AnalyzerReport {
             sb.append("Failed statements").append(lineSeparator);
             for (String failureMessage : failureMessages) {
                 sb.append("----------------------------------------").append(lineSeparator);
-                sb.append("- ").append(formatText(failureMessage)).append(lineSeparator);
+                sb.append("- ").append(nullToEmpty(failureMessage)).append(lineSeparator);
             }
             sb.append("----------------------------------------").append(lineSeparator);
         } else {
@@ -1407,20 +1517,20 @@ public class AnalyzerReport {
         for (StatementResult statementResult : statementResults) {
             sb.append("----------------------------------------").append(lineSeparator);
             sb.append("- ")
-                    .append(formatText(statementResult.statementType))
+                    .append(nullToEmpty(statementResult.statementType))
                     .append(" ")
-                    .append(formatText(statementResult.statementId))
+                    .append(nullToEmpty(statementResult.statementId))
                     .append(" [")
                     .append(statementResult.success ? "OK" : "FAIL")
                     .append("]")
                     .append(lineSeparator);
-            if (!formatText(statementResult.objectName).isEmpty()) {
+            if (!nullToEmpty(statementResult.objectName).isEmpty()) {
                 sb.append("  Object: ")
-                        .append(formatText(statementResult.objectName))
+                        .append(nullToEmpty(statementResult.objectName))
                         .append(lineSeparator);
             }
             sb.append("  Detail: ")
-                    .append(formatText(statementResult.detail))
+                    .append(nullToEmpty(statementResult.detail))
                     .append(lineSeparator);
             sb.append("  SQL:").append(lineSeparator);
             appendAnnotatedSqlLines(
@@ -1428,7 +1538,7 @@ public class AnalyzerReport {
                     statementResult.sql,
                     null,
                     lineSeparator,
-                    false,
+                    this::nullToEmpty,
                     "    ");
         }
         sb.append("----------------------------------------").append(lineSeparator);
@@ -1441,10 +1551,7 @@ public class AnalyzerReport {
                 continue;
             }
 
-            String statementType = formatText(statementResult.statementType);
-            if (statementType.isEmpty()) {
-                statementType = "UNKNOWN";
-            }
+            String statementType = displayStatementSummaryType(statementResult.statementType);
 
             StatementTypeSummary summary = summaries.get(statementType);
             if (summary == null) {
@@ -1457,13 +1564,27 @@ public class AnalyzerReport {
     }
 
     private String displayObjectType(String statementType) {
-        String type = formatText(statementType);
+        String type = nullToEmpty(statementType);
         if (type.isEmpty()) {
             return "UNKNOWN";
         }
 
+        if (AnalyzerStatementTypes.TYPE_DDL_SEQUENCE.equals(type)) {
+            return "SERIAL";
+        }
         if (type.startsWith("DDL_")) {
             return type.substring("DDL_".length());
+        }
+        return type;
+    }
+
+    private String displayStatementSummaryType(String statementType) {
+        String type = nullToEmpty(statementType);
+        if (type.isEmpty()) {
+            return "UNKNOWN";
+        }
+        if (AnalyzerStatementTypes.TYPE_DDL_SEQUENCE.equals(type)) {
+            return "SERIAL";
         }
         return type;
     }
@@ -1473,7 +1594,7 @@ public class AnalyzerReport {
     }
 
     private String staticSqlParentId(String statementId) {
-        String id = formatText(statementId);
+        String id = nullToEmpty(statementId);
         int staticMarkerIndex = id.indexOf("_STATIC_");
         if (staticMarkerIndex <= 0) {
             return null;
@@ -1496,9 +1617,9 @@ public class AnalyzerReport {
     }
 
     private StatementResult findStatementResult(String statementId) {
-        String id = formatText(statementId);
+        String id = nullToEmpty(statementId);
         for (StatementResult statementResult : statementResults) {
-            if (id.equals(formatText(statementResult.statementId))) {
+            if (id.equals(nullToEmpty(statementResult.statementId))) {
                 return statementResult;
             }
         }
@@ -1506,9 +1627,9 @@ public class AnalyzerReport {
     }
 
     private AnalyzerFailure findFailure(String statementId) {
-        String id = formatText(statementId);
+        String id = nullToEmpty(statementId);
         for (AnalyzerFailure failure : failures) {
-            if (id.equals(formatText(failure.getStatementId()))) {
+            if (id.equals(nullToEmpty(failure.getStatementId()))) {
                 return failure;
             }
         }
@@ -1535,7 +1656,7 @@ public class AnalyzerReport {
                         .format(new Date(timeValue));
     }
 
-    private String formatText(String value) {
+    private String nullToEmpty(String value) {
         return value == null ? "" : value;
     }
 
@@ -1563,17 +1684,17 @@ public class AnalyzerReport {
             StringBuilder sb, AnalyzerFailure failure, String lineSeparator) {
         sb.append("----------------------------------------").append(lineSeparator);
         sb.append("- ")
-                .append(formatText(failure.getStatementType()))
+                .append(nullToEmpty(failure.getStatementType()))
                 .append(" ")
-                .append(formatText(failure.getStatementId()))
+                .append(nullToEmpty(failure.getStatementId()))
                 .append(" [")
                 .append(failure.getFailureStage())
                 .append("]")
                 .append(lineSeparator);
-        if (!formatText(failure.getObjectName()).isEmpty()) {
-            sb.append("  Object: ").append(formatText(failure.getObjectName())).append(lineSeparator);
+        if (!nullToEmpty(failure.getObjectName()).isEmpty()) {
+            sb.append("  Object: ").append(nullToEmpty(failure.getObjectName())).append(lineSeparator);
         }
-        sb.append("  Reason: ").append(formatText(failure.getReason())).append(lineSeparator);
+        sb.append("  Reason: ").append(nullToEmpty(failure.getReason())).append(lineSeparator);
         sb.append("  Cost  : ")
                 .append(formatEstimatedCostWithTime(failure.getEstimatedCost()))
                 .append(lineSeparator);
@@ -1585,7 +1706,7 @@ public class AnalyzerReport {
             StringBuilder sb,
             AnalyzerFailure failure,
             String lineSeparator) {
-        String sql = formatText(failure.getSql());
+        String sql = nullToEmpty(failure.getSql());
         String[] lines = splitSqlLines(sql);
         SqlContextLocation location = validSqlContextLocation(
                 findSqlContextLocation(failure.getReason(), sql),
@@ -1602,7 +1723,7 @@ public class AnalyzerReport {
         }
 
         sb.append("  SQL:").append(lineSeparator);
-        appendAnnotatedSqlLines(sb, sql, location, lineSeparator, false, "    ");
+        appendAnnotatedSqlLines(sb, sql, location, lineSeparator, this::nullToEmpty, "    ");
     }
 
     private void appendAnnotatedSqlLines(
@@ -1610,20 +1731,20 @@ public class AnalyzerReport {
             String sql,
             SqlContextLocation location,
             String lineSeparator,
-            boolean html,
+            UnaryOperator<String> transform,
             String linePrefix) {
         String[] lines = splitSqlLines(sql);
         location = validSqlContextLocation(location, lines.length);
         int lineNumberWidth = String.valueOf(lines.length).length();
         for (int lineNumber = 1; lineNumber <= lines.length; lineNumber++) {
             String sqlLine = lines[lineNumber - 1];
-            appendMaybeEscaped(sb, linePrefix, html);
-            appendMaybeEscaped(sb, formatLineNumber(lineNumber, lineNumberWidth), html);
+            sb.append(transform.apply(linePrefix));
+            sb.append(transform.apply(formatLineNumber(lineNumber, lineNumberWidth)));
             sb.append(" | ");
-            appendMaybeEscaped(sb, sqlLine, html);
+            sb.append(transform.apply(sqlLine));
             sb.append(lineSeparator);
             if (location != null && lineNumber == location.lineNumber) {
-                appendMaybeEscaped(sb, linePrefix, html);
+                sb.append(transform.apply(linePrefix));
                 sb.append(" ".repeat(lineNumberWidth))
                         .append(" | ")
                         .append(" ".repeat(caretOffset(sqlLine, location.columnNumber)))
@@ -1647,17 +1768,13 @@ public class AnalyzerReport {
         return location;
     }
 
-    private void appendMaybeEscaped(StringBuilder sb, String value, boolean html) {
-        sb.append(html ? escapeHtml(value) : formatText(value));
-    }
-
     private SqlContextLocation findSqlContextLocation(String reason, String sql) {
         if (sql == null || sql.isEmpty()) {
             return null;
         }
 
         String[] lines = splitSqlLines(sql);
-        Matcher locationMatcher = ERROR_LOCATION_PATTERN.matcher(formatText(reason));
+        Matcher locationMatcher = ERROR_LOCATION_PATTERN.matcher(nullToEmpty(reason));
         if (locationMatcher.find()) {
             int lineNumber = parsePositiveInt(locationMatcher.group(1));
             int columnNumber = parsePositiveInt(locationMatcher.group(2));
@@ -1689,7 +1806,7 @@ public class AnalyzerReport {
     }
 
     private void addTokenCandidates(List<String> candidates, Pattern pattern, String reason) {
-        Matcher matcher = pattern.matcher(formatText(reason));
+        Matcher matcher = pattern.matcher(nullToEmpty(reason));
         while (matcher.find()) {
             String candidate = matcher.group(1);
             if (candidate != null && !candidate.isEmpty()) {
@@ -1699,7 +1816,7 @@ public class AnalyzerReport {
     }
 
     private String[] splitSqlLines(String sql) {
-        return formatText(sql).split("\\R", -1);
+        return nullToEmpty(sql).split("\\R", -1);
     }
 
     private int parsePositiveInt(String value) {
@@ -1730,7 +1847,7 @@ public class AnalyzerReport {
 
         for (AnalyzerCostDetail costDetail : failure.getCostDetails()) {
             sb.append("    - ")
-                    .append(formatText(costDetail.getItemName()))
+                    .append(nullToEmpty(costDetail.getItemName()))
                     .append(" : count=")
                     .append(costDetail.getCount())
                     .append(", unit=")

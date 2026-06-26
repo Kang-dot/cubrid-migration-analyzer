@@ -548,7 +548,7 @@ public class FailureCostCalculator implements AnalyzerCostCalculator {
      * the SQL uses spaces, tabs, or line breaks between words.
      */
     private String buildKeywordPattern(String keyword) {
-        String normalizedKeyword = normalizeKeywordPattern(keyword);
+        String normalizedKeyword = normalizeKeyword(keyword);
         StringBuilder pattern = new StringBuilder();
         if (startsWithWordChar(normalizedKeyword)) {
             pattern.append("(?<![A-Z0-9_])");
@@ -564,7 +564,7 @@ public class FailureCostCalculator implements AnalyzerCostCalculator {
     }
 
     /** Normalizes the input keyword to a stable single-space representation. */
-    private String normalizeKeywordPattern(String keyword) {
+    private String normalizeKeyword(String keyword) {
         return KEYWORD_WHITESPACE_PATTERN.matcher(keyword.trim()).replaceAll(" ");
     }
 

@@ -1,9 +1,10 @@
 package com.cubrid.sqlanalyzer.command;
 
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -12,8 +13,6 @@ import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerOverviewViewModel;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerSourceOverviewViewModel;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerTableSizeViewModel;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerTargetOverviewViewModel;
-
-import java.util.List;
 
 class AnalyzerReportTest {
     @Test
@@ -60,7 +59,7 @@ class AnalyzerReportTest {
         assertTrue(resultText.contains("Mode        : DML"));
         assertTrue(resultText.contains("FAIL        : 1"));
         assertTrue(resultText.contains("Cost        : 0.7"));
-        assertTrue(resultText.contains("Cost        : 0.7 (3.5 min)"));
+        assertTrue(resultText.contains("Cost        : 0.7 (0.06 hr)"));
         assertTrue(resultText.contains("Analysis summary"));
         assertTrue(resultText.contains("Object counts"));
         assertTrue(resultText.contains("Execution results"));
@@ -71,10 +70,10 @@ class AnalyzerReportTest {
         assertTrue(resultText.contains("- SELECT Q1 [PARSER]"));
         assertTrue(resultText.contains("Reason: syntax error"));
         assertTrue(resultText.contains("Cost  : 0.7"));
-        assertTrue(resultText.contains("Cost  : 0.7 (3.5 min)"));
+        assertTrue(resultText.contains("Cost  : 0.7 (0.06 hr)"));
         assertTrue(resultText.contains("Cost details:"));
-        assertTrue(resultText.contains("Base DML : count=1, unit=0.2 (1.0 min), total=0.2 (1.0 min)"));
-        assertTrue(resultText.contains("JOIN detected : count=1, unit=0.5 (2.5 min), total=0.5 (2.5 min)"));
+        assertTrue(resultText.contains("Base DML : count=1, unit=0.2 (0.02 hr), total=0.2 (0.02 hr)"));
+        assertTrue(resultText.contains("JOIN detected : count=1, unit=0.5 (0.04 hr), total=0.5 (0.04 hr)"));
         assertTrue(resultText.contains("----------------------------------------"));
         assertFalse(resultText.contains("Result summary"));
         assertFalse(resultText.contains("Statement results"));
@@ -175,6 +174,47 @@ class AnalyzerReportTest {
         assertTrue(resultText.contains("Target triggers : 0"));
         assertTrue(resultText.contains("Execution results"));
         assertTrue(resultText.contains("(none)"));
+    }
+
+    @Test
+    @DisplayName("result html includes zero object counts for empty Oracle objects")
+    void shouldBuildResultHtmlWithZeroOracleObjectCounts() {
+        AnalyzerReport report = new AnalyzerReport();
+        report.setSourceType(AnalyzerSourceType.ORACLE);
+        report.setTargetType(AnalyzerTargetType.PARSER);
+        report.setExecutionMode(AnalyzerExecutionMode.DDL);
+        report.setObjectCountPreview(
+                new AnalyzerObjectCountPreviewViewModel(
+                        AnalyzerSourceType.ORACLE,
+                        1,
+                        2,
+                        1,
+                        0,
+                        1,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0));
+
+        String resultHtml = report.buildResultHtml();
+
+        assertTrue(resultHtml.contains("<td>SCHEMA</td><td class=\"number\">1</td>"));
+        assertTrue(resultHtml.contains("<td>TABLE</td><td class=\"number\">2</td>"));
+        assertTrue(resultHtml.contains("<td>PK</td><td class=\"number\">1</td>"));
+        assertTrue(resultHtml.contains("<td>FK</td><td class=\"number\">0</td>"));
+        assertTrue(resultHtml.contains("<td>VIEW</td><td class=\"number\">1</td>"));
+        assertTrue(resultHtml.contains("<td>SERIAL</td><td class=\"number\">0</td>"));
+        assertTrue(resultHtml.contains("<td>SYNONYM</td><td class=\"number\">0</td>"));
+        assertTrue(resultHtml.contains("<td>GRANT</td><td class=\"number\">0</td>"));
+        assertTrue(resultHtml.contains("<td>TRIGGER</td><td class=\"number\">0</td>"));
+        assertTrue(resultHtml.contains("<td>PROCEDURE</td><td class=\"number\">0</td>"));
+        assertTrue(resultHtml.contains("<td>FUNCTION</td><td class=\"number\">0</td>"));
     }
 
     @Test
@@ -389,15 +429,29 @@ class AnalyzerReportTest {
 
         String resultHtml = report.buildResultHtml();
 
+        assertEquals(3, countOccurrences(resultHtml, "<section class=\"report-section\">"));
+        assertTrue(resultHtml.contains("toggleReportSection(this,'summary-report-section-connection-info')"));
         assertTrue(resultHtml.contains("<h2>Connection Info</h2>"));
+        assertTrue(resultHtml.contains("<table class=\"collapsed-section-summary\" "
+                + "id=\"summary-report-section-connection-info-summary\" hidden>"));
+        assertTrue(resultHtml.contains("<tr><td class=\"metric\">Source schema</td><td>HR</td></tr>"));
+        assertTrue(resultHtml.contains("<tr><td class=\"metric\">Target type</td><td>PARSER</td></tr>"));
+        assertTrue(resultHtml.contains("<tr><td class=\"metric\">Source table size</td><td>3.00 MB</td></tr>"));
         assertTrue(resultHtml.contains("jdbc:oracle:thin:@localhost:1521/XE"));
         assertTrue(resultHtml.contains("<td class=\"metric\">Parser</td><td>Yes</td>"));
         assertTrue(resultHtml.contains("<td class=\"metric\">Schema name</td><td>HR</td>"));
         assertTrue(resultHtml.contains("<td class=\"metric\">Source table size</td><td>3.00 MB</td>"));
         assertTrue(resultHtml.contains("<h2>Table Summary</h2>"));
-        assertTrue(resultHtml.contains("<td>TABLE</td>"));
-        assertTrue(resultHtml.contains("1.2 (6.0 min)"));
+        assertTrue(resultHtml.contains(">&#9656;</button>TABLE</td>"));
+        assertTrue(resultHtml.contains("data-summary-parent=\"summary-table\" hidden>"
+                + "<td colspan=\"4\" class=\"nested-summary-cell\">"));
+        assertTrue(resultHtml.contains("<table class=\"nested-summary-table\">"));
+        assertTrue(resultHtml.contains("<tr><th>Table</th><th>Size</th><th>Est. rows</th></tr>"));
+        assertTrue(resultHtml.contains("<tr><td>EMP</td><td class=\"number\">2.00 MB</td>"
+                + "<td class=\"number\">1,234</td></tr>"));
+        assertTrue(resultHtml.contains("1.2 (0.10 hr)"));
         assertTrue(resultHtml.contains("<h2>Detail</h2>"));
+        assertTrue(resultHtml.contains("<details class=\"detail-item\" open>"));
         assertTrue(resultHtml.contains("line 2, column 13"));
         assertTrue(resultHtml.contains("1 | CREATE TABLE t("));
         assertTrue(resultHtml.contains("2 | col DEFAULT broken"));
@@ -408,7 +462,7 @@ class AnalyzerReportTest {
         assertTrue(resultHtml.contains("<h2>Conclusion</h2>"));
         assertTrue(resultHtml.contains("Total Cost"));
         assertTrue(resultHtml.contains("Estimated Time"));
-        assertTrue(resultHtml.contains("6.0 min"));
+        assertTrue(resultHtml.contains("0.10 hr"));
     }
 
     @Test
@@ -478,12 +532,12 @@ class AnalyzerReportTest {
 
         assertTrue(resultHtml.contains("<h3>DDL</h3>"));
         assertTrue(resultHtml.contains("<h3>DML</h3>"));
-        assertTrue(resultHtml.contains("<h3>PLC/SQL</h3>"));
+        assertTrue(resultHtml.contains("<h3>PL/CSQL</h3>"));
         assertTrue(resultHtml.contains("toggleSummaryRows(this,'summary-view')"));
         assertTrue(resultHtml.contains(">&#9656;</button>VIEW</td>"));
         assertTrue(resultHtml.contains("<td class=\"number\">2</td>"));
         assertTrue(resultHtml.contains("<td class=\"number status-fail\">1</td>"));
-        assertTrue(resultHtml.contains("<td class=\"number\">0.8 (4.0 min)</td>"));
+        assertTrue(resultHtml.contains("<td class=\"number\">0.8 (0.07 hr)</td>"));
         assertTrue(resultHtml.contains("data-summary-parent=\"summary-view\" hidden><td>"
                 + "<span class=\"summary-child-object\">VIEW_CREATE</span>"));
         assertTrue(resultHtml.contains("data-summary-parent=\"summary-view\" hidden><td>"
@@ -495,7 +549,58 @@ class AnalyzerReportTest {
         assertTrue(resultHtml.indexOf("<h3>DML</h3>")
                 < resultHtml.indexOf("<td>SELECT</td>"));
         assertTrue(resultHtml.indexOf("<td>SELECT</td>")
-                < resultHtml.indexOf("<h3>PLC/SQL</h3>"));
+                < resultHtml.indexOf("<h3>PL/CSQL</h3>"));
+    }
+
+    @Test
+    @DisplayName("sequence execution rows are reported as serial")
+    void shouldReportSequenceExecutionRowsAsSerial() {
+        AnalyzerReport report = new AnalyzerReport();
+        report.setSourceType(AnalyzerSourceType.ORACLE);
+        report.setTargetType(AnalyzerTargetType.PARSER);
+        report.setExecutionMode(AnalyzerExecutionMode.DDL);
+        report.setObjectCountPreview(
+                new AnalyzerObjectCountPreviewViewModel(
+                        AnalyzerSourceType.ORACLE,
+                        1,
+                        0,
+                        0,
+                        0,
+                        0,
+                        2,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0));
+        report.addStatementResult(
+                "DDL_SEQUENCE",
+                "SEQ_1",
+                "CREATE SERIAL s1",
+                true,
+                "parsed",
+                null);
+        report.addStatementResult(
+                "DDL_SEQUENCE",
+                "SEQ_2",
+                "CREATE SERIAL s2",
+                true,
+                "parsed",
+                null);
+
+        String resultText = report.buildResultText();
+        String resultHtml = report.buildResultHtml();
+
+        assertTrue(resultText.contains("Target serials  : 2"));
+        assertTrue(resultText.contains("SERIAL                         2       2       0"));
+        assertFalse(resultText.contains("DDL_SEQUENCE"));
+        assertEquals(1, countOccurrences(resultHtml, "<td>SERIAL</td>"));
+        assertTrue(resultHtml.contains("<td>SERIAL</td><td class=\"number\">2</td>"));
+        assertFalse(resultHtml.contains("<td>SEQUENCE</td>"));
     }
 
     @Test
