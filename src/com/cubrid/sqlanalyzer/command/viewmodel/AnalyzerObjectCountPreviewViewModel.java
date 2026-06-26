@@ -24,7 +24,8 @@ public record AnalyzerObjectCountPreviewViewModel(
         long totalTableBytes,
         List<AnalyzerTableSizeViewModel> tableSizes,
         boolean oracleSourceLoaded,
-        boolean xmlSourceLoaded) {
+        boolean xmlSourceLoaded,
+        List<String> sourceStatusMessages) {
 
     public AnalyzerObjectCountPreviewViewModel(
             AnalyzerSourceType sourceType,
@@ -63,7 +64,8 @@ public record AnalyzerObjectCountPreviewViewModel(
                 0,
                 List.of(),
                 sourceType == AnalyzerSourceType.ORACLE || sourceType == AnalyzerSourceType.ALL,
-                sourceType == AnalyzerSourceType.XML || sourceType == AnalyzerSourceType.ALL);
+                sourceType == AnalyzerSourceType.XML || sourceType == AnalyzerSourceType.ALL,
+                List.of());
     }
 
     public AnalyzerObjectCountPreviewViewModel(
@@ -105,10 +107,13 @@ public record AnalyzerObjectCountPreviewViewModel(
                 totalTableBytes,
                 tableSizes,
                 sourceType == AnalyzerSourceType.ORACLE || sourceType == AnalyzerSourceType.ALL,
-                sourceType == AnalyzerSourceType.XML || sourceType == AnalyzerSourceType.ALL);
+                sourceType == AnalyzerSourceType.XML || sourceType == AnalyzerSourceType.ALL,
+                List.of());
     }
 
     public AnalyzerObjectCountPreviewViewModel {
         tableSizes = tableSizes == null ? List.of() : List.copyOf(tableSizes);
+        sourceStatusMessages =
+                sourceStatusMessages == null ? List.of() : List.copyOf(sourceStatusMessages);
     }
 }

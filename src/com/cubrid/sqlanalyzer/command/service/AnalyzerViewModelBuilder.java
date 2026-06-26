@@ -68,7 +68,8 @@ public class AnalyzerViewModelBuilder {
                 sumTableBytes(session.getOracleTableSizes()),
                 session.getOracleTableSizes(),
                 session.isOracleSourceLoaded(),
-                session.isXmlSourceLoaded());
+                session.isXmlSourceLoaded(),
+                session.getSourceStatusMessages());
     }
 
     public AnalyzerResultViewModel buildResult(AnalyzerReport report, String savedReportPath) {

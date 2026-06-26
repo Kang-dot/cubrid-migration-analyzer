@@ -76,7 +76,7 @@ public class AnalyzerTuiObjectCountPage {
                 lines.add("  (none)");
             }
         } else {
-            lines.add("  (none)");
+            appendSourceSkippedLines(lines, preview, "Oracle");
         }
 
         return lines;
@@ -91,9 +91,26 @@ public class AnalyzerTuiObjectCountPage {
             lines.add("UPDATE count    : " + preview.updateCount());
             lines.add("DELETE count    : " + preview.deleteCount());
         } else {
-            lines.add("  (none)");
+            appendSourceSkippedLines(lines, preview, "XML");
         }
         return lines;
+    }
+
+    private void appendSourceSkippedLines(
+            List<String> lines,
+            AnalyzerObjectCountPreviewViewModel preview,
+            String sourceName) {
+        boolean appended = false;
+        String prefix = sourceName + " source skipped:";
+        for (String message : preview.sourceStatusMessages()) {
+            if (message != null && message.startsWith(prefix)) {
+                lines.add("  " + message);
+                appended = true;
+            }
+        }
+        if (!appended) {
+            lines.add("  " + sourceName + " source not loaded.");
+        }
     }
 
     private Table<String> buildTableSizeTable(
