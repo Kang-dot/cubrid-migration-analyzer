@@ -4,6 +4,7 @@ import java.util.Locale;
 
 public final class AnalyzerCostFormatter {
     public static final float MINUTES_PER_COST_POINT = 5.0f;
+    private static final float MINUTES_PER_HOUR = 60.0f;
 
     private AnalyzerCostFormatter() {
     }
@@ -13,14 +14,18 @@ public final class AnalyzerCostFormatter {
     }
 
     public static String formatCostWithTime(float cost) {
-        return formatCost(cost) + " (" + formatMinutes(toMinutes(cost)) + " min)";
+        return formatCost(cost) + " (" + formatTime(cost) + ")";
     }
 
     public static float toMinutes(float cost) {
         return cost * MINUTES_PER_COST_POINT;
     }
 
-    private static String formatMinutes(float minutes) {
-        return String.format(Locale.US, "%.1f", minutes);
+    public static float toHours(float cost) {
+        return toMinutes(cost) / MINUTES_PER_HOUR;
+    }
+
+    public static String formatTime(float cost) {
+        return String.format(Locale.US, "%.2f hr", toHours(cost));
     }
 }
