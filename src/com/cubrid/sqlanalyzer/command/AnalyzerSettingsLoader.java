@@ -87,6 +87,8 @@ public final class AnalyzerSettingsLoader {
             return tokens.toArray(new String[tokens.size()]);
         }
 
+        validateRequiredSettings(properties);
+
         List<String> tokens = new ArrayList<String>();
         addOption(tokens, "-ui", getFirst(properties, "ui.mode", "ui"));
         addOption(tokens, "-tw", getFirst(properties, "tui.width", "tuiWidth"));
@@ -110,6 +112,79 @@ public final class AnalyzerSettingsLoader {
         if (isTrue(getFirst(properties, "debug.fullquery", "debug.fullQuery"))) {
             tokens.add("--debug-fullquery");
         }
+    }
+
+    private static void validateRequiredSettings(Properties properties) {
+        List<String> missing = new ArrayList<String>();
+        String source = getFirst(properties, "source.type", "source");
+        if (source == null) {
+            missing.add("source.type");
+        } else {
+            addMissingSourceSettings(properties, source, missing);
+        }
+
+        String target = getFirst(properties, "target.type", "target");
+        if (target == null) {
+            missing.add("target.type");
+        }
+
+        if (!missing.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "Missing required settings: " + String.join(", ", missing));
+        }
+    }
+
+    private static void addMissingSourceSettings(
+            Properties properties,
+            String source,
+            List<String> missing) {
+        String normalized = source.toLowerCase(Locale.ENGLISH);
+        if ("all".equals(normalized) || "unified".equals(normalized)) {
+            addMissingOracleSourceSettings(properties, missing);
+            addMissingXmlSourceSettings(properties, missing);
+            return;
+        }
+        if ("oracle".equals(normalized)) {
+            addMissingOracleSourceSettings(properties, missing);
+            return;
+        }
+        if ("xml".equals(normalized)) {
+            addMissingXmlSourceSettings(properties, missing);
+        }
+    }
+
+    private static void addMissingOracleSourceSettings(
+            Properties properties,
+            List<String> missing) {
+        if (!hasAny(properties, "source.jdbc", "oracle.jdbc")) {
+            if (!hasAny(properties, "source.jdbc.url", "oracle.jdbc.url")) {
+                addMissingIfAbsent(properties, missing, "source.host", "oracle.host");
+                addMissingIfAbsent(properties, missing, "source.port", "oracle.port");
+                addMissingIfAbsent(properties, missing, "source.sid", "oracle.sid");
+            }
+        }
+        addMissingIfAbsent(properties, missing, "source.username", "source.user",
+                "oracle.username", "oracle.user");
+    }
+
+    private static void addMissingXmlSourceSettings(
+            Properties properties,
+            List<String> missing) {
+        addMissingIfAbsent(properties, missing, "xml.directory", "xmlDirectory");
+    }
+
+    private static void addMissingIfAbsent(
+            Properties properties,
+            List<String> missing,
+            String... names) {
+        if (hasAny(properties, names)) {
+            return;
+        }
+        missing.add(names[0]);
+    }
+
+    private static boolean hasAny(Properties properties, String... names) {
+        return getFirst(properties, names) != null;
     }
 
     private static Properties loadProperties(Path settingsPath) {

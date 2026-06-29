@@ -113,6 +113,41 @@ class AnalyzerTuiObjectCountPageTest {
     }
 
     @Test
+    @DisplayName("object count TUI page renders XML no files reason")
+    void shouldRenderXmlNoFilesReason() {
+        AnalyzerObjectCountPreviewViewModel preview =
+                new AnalyzerObjectCountPreviewViewModel(
+                        AnalyzerSourceType.ORACLE,
+                        1,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        List.of(),
+                        true,
+                        false,
+                        List.of("XML source skipped: No XML files found in directory: /tmp/sqlmap"));
+
+        Panel panel = new AnalyzerTuiObjectCountPage().build(preview);
+        String screenText = String.join(System.lineSeparator(), collectLabelTexts(panel));
+
+        assertTrue(screenText.contains("DML statements"));
+        assertTrue(screenText.contains(
+                "XML source skipped: No XML files found in directory: /tmp/sqlmap"));
+    }
+
+    @Test
     @DisplayName("object count TUI page renders Oracle table sizes")
     void shouldRenderOracleTableSizes() {
         AnalyzerObjectCountPreviewViewModel preview =

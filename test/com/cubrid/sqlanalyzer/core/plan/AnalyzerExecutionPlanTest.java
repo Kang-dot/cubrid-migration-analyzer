@@ -6,6 +6,10 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
+import com.cubrid.cubridmigration.core.dbobject.Table;
+import com.cubrid.cubridmigration.core.dbobject.View;
+import com.cubrid.sqlanalyzer.core.AnalyzerConfiguration;
+
 class AnalyzerExecutionPlanTest {
     @Test
     void shouldKeepPhaseOrderRegardlessOfObjectCountAndInsertionOrder() {
@@ -75,9 +79,38 @@ class AnalyzerExecutionPlanTest {
         assertEquals(List.of("TABLE_1", "SELECT_1"), statementIds(plan.getStatements()));
     }
 
+    @Test
+    void shouldPreserveCatalogObjectNamesInDdlPlan() {
+        AnalyzerConfiguration config = new AnalyzerConfiguration();
+        Table table = new Table();
+        table.setOwner("HR");
+        table.setName("EMP");
+        config.addTargetTableSchema(table);
+
+        View view = new View();
+        view.setOwner("HR");
+        view.setName("EMP_VIEW");
+        view.setQuerySpec("SELECT * FROM EMP;");
+        config.addTargetViewSchema(view);
+
+        List<AnalyzerStatement> statements =
+                new CatalogDDLPlanBuilder().build(config).getStatements();
+
+        assertEquals("HR.EMP", statementById(statements, "TABLE_1").getObjectName());
+        assertEquals("HR.EMP_VIEW", statementById(statements, "VIEW_1").getObjectName());
+        assertEquals("HR.EMP_VIEW", statementById(statements, "VIEW_ALTER_1").getObjectName());
+    }
+
     private List<String> statementIds(List<AnalyzerStatement> statements) {
         return statements.stream()
                 .map(AnalyzerStatement::getId)
                 .toList();
+    }
+
+    private AnalyzerStatement statementById(List<AnalyzerStatement> statements, String id) {
+        return statements.stream()
+                .filter(statement -> id.equals(statement.getId()))
+                .findFirst()
+                .orElseThrow();
     }
 }

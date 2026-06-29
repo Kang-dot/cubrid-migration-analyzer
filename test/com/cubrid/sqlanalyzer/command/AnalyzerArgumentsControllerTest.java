@@ -25,8 +25,19 @@ class AnalyzerArgumentsControllerTest {
         assertEquals("/tmp/sqlmap", arguments.getXmlDirectory());
         assertEquals(AnalyzerTargetType.PARSER, arguments.getTargetType());
         assertEquals("UTF-8", arguments.getXmlCharset());
+        assertEquals(AnalyzerUiMode.TUI, arguments.getUiMode());
+        assertTrue(arguments.isTuiMode());
         assertEquals(100, arguments.getTuiWidth());
         assertEquals(30, arguments.getTuiHeight());
+    }
+
+    @Test
+    @DisplayName("console UI mode can be selected explicitly")
+    void shouldParseConsoleModeOption() {
+        AnalyzerArgumentsController arguments = AnalyzerArgumentsController.parse(
+                new String[] { "-ui", "console", "-sx", "-xd", "/tmp/sqlmap", "-tp" });
+
+        assertEquals(AnalyzerUiMode.CONSOLE, arguments.getUiMode());
     }
 
     @Test

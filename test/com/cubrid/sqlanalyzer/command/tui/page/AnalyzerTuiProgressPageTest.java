@@ -67,8 +67,12 @@ class AnalyzerTuiProgressPageTest {
     @DisplayName("progress TUI page reduces recent event viewport for constrained terminal size")
     void shouldReduceRecentEventViewportForConstrainedTerminalSize() {
         ProgressView progressView = new AnalyzerTuiProgressPage().buildView(new TerminalSize(70, 22));
-        TextBox recentTextBox = collectTextBoxes(progressView.getPanel()).get(0);
+        List<TextBox> textBoxes = collectTextBoxes(progressView.getPanel());
+        TextBox objectSummaryTextBox = textBoxes.get(0);
+        TextBox recentTextBox = textBoxes.get(1);
 
+        assertTrue(objectSummaryTextBox.isReadOnly());
+        assertTrue(objectSummaryTextBox.getPreferredSize().getRows() <= 5);
         assertTrue(recentTextBox.isReadOnly());
         assertTrue(recentTextBox.getPreferredSize().getRows() < 8);
         assertTrue(recentTextBox.getPreferredSize().getColumns() <= 64);
@@ -95,15 +99,17 @@ class AnalyzerTuiProgressPageTest {
 
         String screenText = String.join(
                 System.lineSeparator(), collectLabelTexts(progressView.getPanel()));
+        String objectSummaryText = collectTextBoxes(progressView.getPanel()).get(0).getText();
 
-        assertTrue(screenText.contains("TABLE"));
-        assertTrue(screenText.contains("VIEW_CREATE"));
-        assertTrue(screenText.contains("    2    1    1"));
+        assertTrue(screenText.contains("Object summary"));
+        assertTrue(objectSummaryText.contains("TABLE"));
+        assertTrue(objectSummaryText.contains("VIEW_CREATE"));
+        assertTrue(objectSummaryText.contains("    2    1    1"));
     }
 
     @Test
-    @DisplayName("progress TUI page renders every object summary row")
-    void shouldRenderEveryObjectSummaryRow() {
+    @DisplayName("progress TUI page keeps every object summary row in a scrollable viewport")
+    void shouldRenderObjectSummaryRowsInScrollableViewport() {
         ProgressView progressView = new AnalyzerTuiProgressPage().buildView();
         List<AnalyzerProgressObjectCount> objectCounts = new ArrayList<AnalyzerProgressObjectCount>();
         for (int i = 1; i <= 10; i++) {
@@ -116,12 +122,13 @@ class AnalyzerTuiProgressPageTest {
                         "parsed",
                         new AnalyzerProgressCounts(10, 1, 1, 0, objectCounts)));
 
-        String screenText = String.join(
-                System.lineSeparator(), collectLabelTexts(progressView.getPanel()));
+        TextBox objectSummaryTextBox = collectTextBoxes(progressView.getPanel()).get(0);
+        String objectSummaryText = objectSummaryTextBox.getText();
 
-        assertTrue(screenText.contains("TYPE_1"));
-        assertTrue(screenText.contains("TYPE_10"));
-        assertFalse(screenText.contains("more"));
+        assertTrue(objectSummaryText.contains("TYPE_1"));
+        assertTrue(objectSummaryText.contains("TYPE_10"));
+        assertTrue(objectSummaryTextBox.getPreferredSize().getRows() <= 5);
+        assertFalse(objectSummaryText.contains("more"));
     }
 
     @Test

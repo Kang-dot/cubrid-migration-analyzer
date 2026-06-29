@@ -35,7 +35,8 @@ import org.slf4j.LoggerFactory;
 
 public class AnalyzerTuiRunner {
     private static final TerminalSize DEFAULT_TERMINAL_SIZE = new TerminalSize(100, 30);
-    private static final int METADATA_LOADING_TICK_MILLIS = 1000;
+    private static final int METADATA_LOADING_TICK_MILLIS = 500;
+    private static final int METADATA_LOADING_MAX_DOTS = 5;
     private static final Logger LOG = LoggerFactory.getLogger(AnalyzerTuiRunner.class);
 
     private final TerminalSize initialTerminalSize;
@@ -272,7 +273,7 @@ public class AnalyzerTuiRunner {
                 () -> {
                     while (loading.get()) {
                         int currentTick = tick.getAndIncrement();
-                        String dots = ".".repeat(currentTick % 4);
+                        String dots = ".".repeat(currentTick % (METADATA_LOADING_MAX_DOTS + 1));
                         try {
                             gui.getGUIThread().invokeLater(
                                     () -> loadingStatus.setText("Loading source metadata" + dots));
@@ -316,8 +317,53 @@ public class AnalyzerTuiRunner {
         } catch (Throwable ex) {
             loading.set(false);
             LOG.error("Failed to load source metadata in TUI worker.", ex);
-            gui.getGUIThread().invokeLater(() -> showError(window, ex));
+            gui.getGUIThread().invokeLater(
+                    () -> showNoSourceLoadedOrError(window, session, ex));
         }
+    }
+
+    private void showNoSourceLoadedOrError(
+            BasicWindow window,
+            AnalyzerSession session,
+            Throwable ex) {
+        if (isNoAnalyzerSourceLoaded(ex)) {
+            showNoSourceLoaded(window, session, ex);
+            return;
+        }
+        showError(window, ex);
+    }
+
+    boolean isNoAnalyzerSourceLoaded(Throwable ex) {
+        return ex instanceof IllegalStateException
+                && AnalyzerService.NO_ANALYZER_SOURCE_LOADED_MESSAGE.equals(ex.getMessage());
+    }
+
+    private void showNoSourceLoaded(
+            BasicWindow window,
+            AnalyzerSession session,
+            Throwable ex) {
+        LOG.info("Showing TUI no source loaded page.");
+        Panel content = buildNoSourceLoadedContent(session, ex);
+        Button closeButton = new Button("Close", window::close);
+        content.addComponent(closeButton);
+        setContent(window, content, closeButton);
+    }
+
+    Panel buildNoSourceLoadedContent(AnalyzerSession session, Throwable ex) {
+        Panel content = new Panel();
+        content.setLayoutManager(new LinearLayout());
+        content.addComponent(new Label(AnalyzerService.NO_ANALYZER_SOURCE_LOADED_MESSAGE));
+        content.addComponent(new Label("No Oracle metadata or XML files were loaded."));
+        if (session != null && !session.getSourceStatusMessages().isEmpty()) {
+            content.addComponent(new Label(""));
+            content.addComponent(new Label("Source status"));
+            for (String message : session.getSourceStatusMessages()) {
+                content.addComponent(new Label("  - " + message));
+            }
+        } else if (ex != null && ex.getMessage() != null && !ex.getMessage().isEmpty()) {
+            content.addComponent(new Label(ex.getMessage()));
+        }
+        return content;
     }
 
     private void showProgressAndRun(

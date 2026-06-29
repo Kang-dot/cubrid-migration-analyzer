@@ -18,7 +18,7 @@ public class AnalyzerArgumentsController {
     private String jdbcRepositoryDir;
 
     @Parameter(names = { "-ui", "--ui" }, description = "UI mode: console or tui")
-    private String parsedUiMode = AnalyzerUiMode.CONSOLE.name().toLowerCase();
+    private String parsedUiMode = AnalyzerUiMode.TUI.name().toLowerCase();
 
     @Parameter(names = "-tui", description = "Shortcut for -ui tui")
     private boolean tuiMode;
@@ -32,7 +32,7 @@ public class AnalyzerArgumentsController {
     @Parameter(names = "--debug-fullquery", description = "Include every analyzed full query in the report")
     private boolean debugFullQuery;
 
-    private AnalyzerUiMode uiMode = AnalyzerUiMode.CONSOLE;
+    private AnalyzerUiMode uiMode = AnalyzerUiMode.TUI;
     private AnalyzerSourceType sourceType;
     private AnalyzerTargetType targetType = AnalyzerTargetType.PARSER;
     private String sourceJdbcUrl;
@@ -120,7 +120,7 @@ public class AnalyzerArgumentsController {
                 + "Options:" + System.lineSeparator()
                 + "  -conf <path> Settings file path. Default: settings/setting.conf"
                 + System.lineSeparator()
-                + "  -ui <mode>   UI mode: console or tui. Default: console"
+                + "  -ui <mode>   UI mode: console or tui. Default: tui"
                 + System.lineSeparator()
                 + "  -tui         Shortcut for -ui tui" + System.lineSeparator()
                 + "  -tw <num>    TUI initial terminal width. Default: 100"
@@ -279,7 +279,7 @@ public class AnalyzerArgumentsController {
         }
 
         if (parsedUiMode == null || parsedUiMode.trim().isEmpty()) {
-            uiMode = AnalyzerUiMode.CONSOLE;
+            uiMode = AnalyzerUiMode.TUI;
             return;
         }
 

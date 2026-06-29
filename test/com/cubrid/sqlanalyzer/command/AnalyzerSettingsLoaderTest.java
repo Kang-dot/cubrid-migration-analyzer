@@ -5,6 +5,8 @@ import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -57,6 +59,21 @@ class AnalyzerSettingsLoaderTest {
     }
 
     @Test
+    void shouldUseTuiModeByDefaultWhenSettingsHasNoUiMode() throws Exception {
+        Path settingsFile = tempDir.resolve("setting.conf");
+        Files.writeString(
+                settingsFile,
+                "source.type=xml\n"
+                        + "xml.directory=/tmp/sqlmap\n"
+                        + "target.type=parser\n");
+
+        String[] args = AnalyzerSettingsLoader.loadStartupArguments(new String[0], settingsFile);
+        AnalyzerArgumentsController arguments = AnalyzerArgumentsController.parse(args);
+
+        assertEquals(AnalyzerUiMode.TUI, arguments.getUiMode());
+    }
+
+    @Test
     void shouldPreferCliArgumentsOverDefaultSettings() throws Exception {
         Path settingsFile = tempDir.resolve("setting.conf");
         Files.writeString(
@@ -106,7 +123,8 @@ class AnalyzerSettingsLoaderTest {
                         + "source.username=cubrid\n"
                         + "source.password=cubrid\n"
                         + "xml.directory=/tmp/sqlmap\n"
-                        + "xml.charset=UTF-8\n");
+                        + "xml.charset=UTF-8\n"
+                        + "target.type=parser\n");
 
         String[] args = AnalyzerSettingsLoader.loadStartupArguments(new String[0], settingsFile);
         AnalyzerArgumentsController arguments = AnalyzerArgumentsController.parse(args);
@@ -115,6 +133,42 @@ class AnalyzerSettingsLoaderTest {
         assertEquals("jdbc:oracle:thin:@//192.168.1.6:1521/xe", arguments.getSourceJdbcUrl());
         assertEquals("/tmp/sqlmap", arguments.getXmlDirectory());
         assertEquals(AnalyzerTargetType.PARSER, arguments.getTargetType());
+    }
+
+    @Test
+    void shouldRejectSettingsMissingRequiredSourceAndTarget() throws Exception {
+        Path settingsFile = tempDir.resolve("setting.conf");
+        Files.writeString(
+                settingsFile,
+                "ui.mode=tui\n"
+                        + "debug.fullquery=true\n");
+
+        IllegalArgumentException ex = assertThrows(
+                IllegalArgumentException.class,
+                () -> AnalyzerSettingsLoader.loadStartupArguments(new String[0], settingsFile));
+
+        assertTrue(ex.getMessage().contains("Missing required settings"));
+        assertTrue(ex.getMessage().contains("source.type"));
+        assertTrue(ex.getMessage().contains("target.type"));
+    }
+
+    @Test
+    void shouldRejectSettingsMissingSelectedSourceDetails() throws Exception {
+        Path settingsFile = tempDir.resolve("setting.conf");
+        Files.writeString(
+                settingsFile,
+                "source.type=all\n"
+                        + "source.host=localhost\n"
+                        + "source.port=1521\n"
+                        + "source.username=scott\n"
+                        + "target.type=parser\n");
+
+        IllegalArgumentException ex = assertThrows(
+                IllegalArgumentException.class,
+                () -> AnalyzerSettingsLoader.loadStartupArguments(new String[0], settingsFile));
+
+        assertTrue(ex.getMessage().contains("source.sid"));
+        assertTrue(ex.getMessage().contains("xml.directory"));
     }
 
     @Test

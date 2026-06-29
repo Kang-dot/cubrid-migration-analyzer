@@ -55,7 +55,11 @@ public class CatalogDDLPlanBuilder implements AnalyzerExecutionPlanBuilder {
             String sql = helper.getTableDDL(table, config.isAddUserSchema());
             plan.add(
                     DDL_TABLE,
-                    new AnalyzerStatement(TYPE_DDL_TABLE, "TABLE_" + (++seq), sql));
+                    new AnalyzerStatement(
+                            TYPE_DDL_TABLE,
+                            "TABLE_" + (++seq),
+                            sql,
+                            objectName(table.getOwner(), table.getName())));
         }
 
         seq = 0;
@@ -73,7 +77,11 @@ public class CatalogDDLPlanBuilder implements AnalyzerExecutionPlanBuilder {
                             config.isAddUserSchema());
             plan.add(
                     DDL_PRIMARY_KEY,
-                    new AnalyzerStatement(TYPE_DDL_PK, "PK_" + (++seq), sql));
+                    new AnalyzerStatement(
+                            TYPE_DDL_PK,
+                            "PK_" + (++seq),
+                            sql,
+                            objectName(table.getOwner(), table.getName())));
         }
 
         seq = 0;
@@ -84,7 +92,11 @@ public class CatalogDDLPlanBuilder implements AnalyzerExecutionPlanBuilder {
                                 table.getOwner(), table.getName(), fk, config.isAddUserSchema());
                 plan.add(
                         DDL_FOREIGN_KEY,
-                        new AnalyzerStatement(TYPE_DDL_FK, "FK_" + (++seq), sql));
+                        new AnalyzerStatement(
+                                TYPE_DDL_FK,
+                                "FK_" + (++seq),
+                                sql,
+                                objectName(table.getOwner(), table.getName())));
             }
         }
 
@@ -100,7 +112,11 @@ public class CatalogDDLPlanBuilder implements AnalyzerExecutionPlanBuilder {
                                 config.isAddUserSchema());
                 plan.add(
                         DDL_INDEX,
-                        new AnalyzerStatement(TYPE_DDL_INDEX, "INDEX_" + (++seq), sql));
+                        new AnalyzerStatement(
+                                TYPE_DDL_INDEX,
+                                "INDEX_" + (++seq),
+                                sql,
+                                objectName(table.getOwner(), table.getName())));
             }
         }
 
@@ -109,7 +125,11 @@ public class CatalogDDLPlanBuilder implements AnalyzerExecutionPlanBuilder {
             String sql = helper.getSequenceDDL(sequence, config.isAddUserSchema());
             plan.add(
                     DDL_SEQUENCE,
-                    new AnalyzerStatement(TYPE_DDL_SEQUENCE, "SEQ_" + (++seq), sql));
+                    new AnalyzerStatement(
+                            TYPE_DDL_SEQUENCE,
+                            "SEQ_" + (++seq),
+                            sql,
+                            objectName(sequence.getOwner(), sequence.getName())));
         }
 
         seq = 0;
@@ -117,7 +137,11 @@ public class CatalogDDLPlanBuilder implements AnalyzerExecutionPlanBuilder {
             String sql = helper.getViewDDL(view, config.isAddUserSchema());
             plan.add(
                     DDL_VIEW_CREATE,
-                    new AnalyzerStatement(TYPE_DDL_VIEW_CREATE, "VIEW_" + (++seq), sql));
+                    new AnalyzerStatement(
+                            TYPE_DDL_VIEW_CREATE,
+                            "VIEW_" + (++seq),
+                            sql,
+                            objectName(view.getOwner(), view.getName())));
         }
 
         seq = 0;
@@ -129,7 +153,10 @@ public class CatalogDDLPlanBuilder implements AnalyzerExecutionPlanBuilder {
             plan.add(
                     DDL_VIEW_ALTER,
                     new AnalyzerStatement(
-                            TYPE_DDL_VIEW_ALTER, "VIEW_ALTER_" + (++seq), sql));
+                            TYPE_DDL_VIEW_ALTER,
+                            "VIEW_ALTER_" + (++seq),
+                            sql,
+                            objectName(view.getOwner(), view.getName())));
         }
 
         seq = 0;
@@ -138,7 +165,10 @@ public class CatalogDDLPlanBuilder implements AnalyzerExecutionPlanBuilder {
             plan.add(
                     DDL_SYNONYM,
                     new AnalyzerStatement(
-                            TYPE_DDL_SYNONYM, "SYNONYM_" + (++seq), sql));
+                            TYPE_DDL_SYNONYM,
+                            "SYNONYM_" + (++seq),
+                            sql,
+                            objectName(synonym.getOwner(), synonym.getName())));
         }
 
         seq = 0;
@@ -214,7 +244,10 @@ public class CatalogDDLPlanBuilder implements AnalyzerExecutionPlanBuilder {
             plan.add(
                     DDL_TRIGGER,
                     new AnalyzerStatement(
-                            TYPE_DDL_TRIGGER, "TRIGGER_" + (++seq), sql));
+                            TYPE_DDL_TRIGGER,
+                            "TRIGGER_" + (++seq),
+                            sql,
+                            objectName(trigger.getOwner(), trigger.getName())));
         }
 
         return plan;

@@ -1,5 +1,7 @@
 package com.cubrid.sqlanalyzer.command.service;
 
+import java.io.File;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,6 +27,9 @@ import com.cubrid.sqlanalyzer.xmlmetadata.XMLDirSchemaFetcher;
 import com.cubrid.sqlanalyzer.xmlmetadata.XMLDirSource;
 
 public class AnalyzerService {
+    public static final String NO_ANALYZER_SOURCE_LOADED_MESSAGE =
+            "No analyzer source could be loaded.";
+
     private static final Logger LOG = LoggerFactory.getLogger(AnalyzerService.class);
     private static final String SOURCE_CONNECTION_NAME = "console-source";
     private static final String TARGET_CONNECTION_NAME = "console-target";
@@ -160,7 +165,7 @@ public class AnalyzerService {
         }
 
         if (!session.isOracleSourceLoaded() && !session.isXmlSourceLoaded()) {
-            throw new IllegalStateException("No analyzer source could be loaded.");
+            throw new IllegalStateException(NO_ANALYZER_SOURCE_LOADED_MESSAGE);
         }
     }
 
@@ -244,6 +249,7 @@ public class AnalyzerService {
         if (session.getXmlDirectory() == null || session.getXmlDirectory().isEmpty()) {
             throw new RuntimeException("XML directory is required.");
         }
+        ensureXmlFilesExist(session.getXmlDirectory());
 
         config.setSourceType(AnalyzerConfiguration.SOURCE_TYPE_XML);
         XMLDirSource source = new XMLDirSource(session.getXmlDirectory(), session.getXmlCharset());
@@ -264,5 +270,23 @@ public class AnalyzerService {
                 queryDictionary.getInsertQueryMap().size(),
                 queryDictionary.getUpdateQueryMap().size(),
                 queryDictionary.getDeleteQueryMap().size());
+    }
+
+    private void ensureXmlFilesExist(String xmlDirectory) {
+        File directory = new File(xmlDirectory);
+        if (!directory.exists()) {
+            throw new RuntimeException("XML directory not found: " + xmlDirectory);
+        }
+        if (!directory.isDirectory()) {
+            throw new RuntimeException("XML path is not a directory: " + xmlDirectory);
+        }
+
+        File[] files = directory.listFiles((dir, name) -> name.toLowerCase().endsWith(".xml"));
+        if (files == null) {
+            throw new RuntimeException("XML files could not be listed: " + xmlDirectory);
+        }
+        if (files.length == 0) {
+            throw new RuntimeException("No XML files found in directory: " + xmlDirectory);
+        }
     }
 }
