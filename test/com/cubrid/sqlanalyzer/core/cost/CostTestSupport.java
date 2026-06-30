@@ -1,7 +1,7 @@
 package com.cubrid.sqlanalyzer.core.cost;
 
-import com.cubrid.sqlanalyzer.command.AnalyzerFailure;
-import com.cubrid.sqlanalyzer.command.AnalyzerReport;
+import com.cubrid.sqlanalyzer.command.model.AnalyzerFailure;
+import com.cubrid.sqlanalyzer.command.report.AnalyzerReport;
 
 abstract class CostTestSupport {
     protected static final float DELTA = 0.0001f;

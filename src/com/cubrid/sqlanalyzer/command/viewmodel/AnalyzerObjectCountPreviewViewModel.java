@@ -2,7 +2,7 @@ package com.cubrid.sqlanalyzer.command.viewmodel;
 
 import java.util.List;
 
-import com.cubrid.sqlanalyzer.command.AnalyzerSourceType;
+import com.cubrid.sqlanalyzer.command.model.AnalyzerSourceType;
 
 public record AnalyzerObjectCountPreviewViewModel(
         AnalyzerSourceType sourceType,

@@ -9,9 +9,9 @@ import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import com.cubrid.sqlanalyzer.command.AnalyzerExecutionMode;
-import com.cubrid.sqlanalyzer.command.AnalyzerSourceType;
-import com.cubrid.sqlanalyzer.command.AnalyzerTargetType;
+import com.cubrid.sqlanalyzer.command.model.AnalyzerExecutionMode;
+import com.cubrid.sqlanalyzer.command.model.AnalyzerSourceType;
+import com.cubrid.sqlanalyzer.command.model.AnalyzerTargetType;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerProgressObjectCount;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerResultViewModel;
 import com.googlecode.lanterna.TerminalSize;

@@ -2,10 +2,10 @@ package com.cubrid.sqlanalyzer.command.viewmodel;
 
 import java.util.List;
 
-import com.cubrid.sqlanalyzer.command.AnalyzerFailure;
-import com.cubrid.sqlanalyzer.command.AnalyzerExecutionMode;
-import com.cubrid.sqlanalyzer.command.AnalyzerSourceType;
-import com.cubrid.sqlanalyzer.command.AnalyzerTargetType;
+import com.cubrid.sqlanalyzer.command.model.AnalyzerFailure;
+import com.cubrid.sqlanalyzer.command.model.AnalyzerExecutionMode;
+import com.cubrid.sqlanalyzer.command.model.AnalyzerSourceType;
+import com.cubrid.sqlanalyzer.command.model.AnalyzerTargetType;
 
 public record AnalyzerResultViewModel(
         List<AnalyzerSourceType> sourceTypes,

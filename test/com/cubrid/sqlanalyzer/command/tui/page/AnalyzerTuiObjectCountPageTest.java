@@ -8,7 +8,7 @@ import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import com.cubrid.sqlanalyzer.command.AnalyzerSourceType;
+import com.cubrid.sqlanalyzer.command.model.AnalyzerSourceType;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerObjectCountPreviewViewModel;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerTableSizeViewModel;
 import com.googlecode.lanterna.TerminalSize;

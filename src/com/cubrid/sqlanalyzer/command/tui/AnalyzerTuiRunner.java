@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import com.cubrid.sqlanalyzer.command.AnalyzerSession;
+import com.cubrid.sqlanalyzer.command.model.AnalyzerSession;
 import com.cubrid.sqlanalyzer.command.service.AnalyzerService;
 import com.cubrid.sqlanalyzer.command.tui.page.AnalyzerTuiObjectCountPage;
 import com.cubrid.sqlanalyzer.command.tui.page.AnalyzerTuiLayout;

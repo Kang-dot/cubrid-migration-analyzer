@@ -3,8 +3,8 @@ package com.cubrid.sqlanalyzer.command.tui.page;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.cubrid.sqlanalyzer.command.AnalyzerSourceType;
-import com.cubrid.sqlanalyzer.command.AnalyzerTargetType;
+import com.cubrid.sqlanalyzer.command.model.AnalyzerSourceType;
+import com.cubrid.sqlanalyzer.command.model.AnalyzerTargetType;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerOverviewViewModel;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerSourceOverviewViewModel;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerTargetOverviewViewModel;

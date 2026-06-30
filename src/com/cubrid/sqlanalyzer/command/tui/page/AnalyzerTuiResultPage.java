@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-import com.cubrid.sqlanalyzer.command.AnalyzerCostFormatter;
+import com.cubrid.sqlanalyzer.command.report.AnalyzerCostFormatter;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerProgressObjectCount;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerResultViewModel;
 import com.googlecode.lanterna.TerminalSize;

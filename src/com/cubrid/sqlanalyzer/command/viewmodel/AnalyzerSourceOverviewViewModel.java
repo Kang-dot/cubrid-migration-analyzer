@@ -1,6 +1,6 @@
 package com.cubrid.sqlanalyzer.command.viewmodel;
 
-import com.cubrid.sqlanalyzer.command.AnalyzerSourceType;
+import com.cubrid.sqlanalyzer.command.model.AnalyzerSourceType;
 
 public record AnalyzerSourceOverviewViewModel(
         AnalyzerSourceType type,

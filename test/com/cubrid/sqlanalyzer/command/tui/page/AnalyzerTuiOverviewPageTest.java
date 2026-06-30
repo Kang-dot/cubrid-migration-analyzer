@@ -11,9 +11,9 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import com.cubrid.sqlanalyzer.command.AnalyzerExecutionMode;
-import com.cubrid.sqlanalyzer.command.AnalyzerSourceType;
-import com.cubrid.sqlanalyzer.command.AnalyzerTargetType;
+import com.cubrid.sqlanalyzer.command.model.AnalyzerExecutionMode;
+import com.cubrid.sqlanalyzer.command.model.AnalyzerSourceType;
+import com.cubrid.sqlanalyzer.command.model.AnalyzerTargetType;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerOverviewViewModel;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerSourceOverviewViewModel;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerTargetOverviewViewModel;

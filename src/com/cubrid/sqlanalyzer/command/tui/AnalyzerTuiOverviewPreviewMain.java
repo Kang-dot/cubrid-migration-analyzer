@@ -2,10 +2,10 @@ package com.cubrid.sqlanalyzer.command.tui;
 
 import java.io.IOException;
 
-import com.cubrid.sqlanalyzer.command.AnalyzerSession;
-import com.cubrid.sqlanalyzer.command.AnalyzerExecutionMode;
-import com.cubrid.sqlanalyzer.command.AnalyzerSourceType;
-import com.cubrid.sqlanalyzer.command.AnalyzerTargetType;
+import com.cubrid.sqlanalyzer.command.model.AnalyzerSession;
+import com.cubrid.sqlanalyzer.command.model.AnalyzerExecutionMode;
+import com.cubrid.sqlanalyzer.command.model.AnalyzerSourceType;
+import com.cubrid.sqlanalyzer.command.model.AnalyzerTargetType;
 import com.cubrid.sqlanalyzer.command.service.AnalyzerService;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerOverviewViewModel;
 

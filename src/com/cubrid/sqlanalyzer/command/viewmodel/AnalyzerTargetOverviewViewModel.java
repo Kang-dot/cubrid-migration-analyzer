@@ -1,6 +1,6 @@
 package com.cubrid.sqlanalyzer.command.viewmodel;
 
-import com.cubrid.sqlanalyzer.command.AnalyzerTargetType;
+import com.cubrid.sqlanalyzer.command.model.AnalyzerTargetType;
 
 public record AnalyzerTargetOverviewViewModel(
         AnalyzerTargetType type,

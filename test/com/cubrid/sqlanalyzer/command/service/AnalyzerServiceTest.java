@@ -10,7 +10,7 @@ import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import com.cubrid.sqlanalyzer.command.AnalyzerSession;
+import com.cubrid.sqlanalyzer.command.model.AnalyzerSession;
 
 class AnalyzerServiceTest {
     @TempDir

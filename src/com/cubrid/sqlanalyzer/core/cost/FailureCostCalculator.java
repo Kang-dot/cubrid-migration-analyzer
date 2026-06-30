@@ -8,9 +8,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import com.cubrid.sqlanalyzer.command.AnalyzerCostDetail;
-import com.cubrid.sqlanalyzer.command.AnalyzerFailure;
-import com.cubrid.sqlanalyzer.command.AnalyzerReport;
+import com.cubrid.sqlanalyzer.command.model.AnalyzerCostDetail;
+import com.cubrid.sqlanalyzer.command.model.AnalyzerFailure;
+import com.cubrid.sqlanalyzer.command.report.AnalyzerReport;
 import com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes;
 
 public class FailureCostCalculator implements AnalyzerCostCalculator {

@@ -2,7 +2,7 @@ package com.cubrid.sqlanalyzer.command.viewmodel;
 
 import java.util.Objects;
 
-import com.cubrid.sqlanalyzer.command.AnalyzerFailureStage;
+import com.cubrid.sqlanalyzer.command.model.AnalyzerFailureStage;
 import com.cubrid.sqlanalyzer.core.plan.AnalyzerStatement;
 
 public record AnalyzerProgressEventViewModel(

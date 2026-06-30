@@ -5,8 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import com.cubrid.sqlanalyzer.command.AnalyzerCostDetail;
-import com.cubrid.sqlanalyzer.command.AnalyzerFailure;
+import com.cubrid.sqlanalyzer.command.model.AnalyzerCostDetail;
+import com.cubrid.sqlanalyzer.command.model.AnalyzerFailure;
 import com.cubrid.sqlanalyzer.core.plan.AnalyzerStatementTypes;
 
 class CalculatorKeywordCostTest extends CostTestSupport {

@@ -1,6 +1,6 @@
 package com.cubrid.sqlanalyzer.core.cost;
 
-import com.cubrid.sqlanalyzer.command.AnalyzerReport;
+import com.cubrid.sqlanalyzer.command.report.AnalyzerReport;
 import com.cubrid.sqlanalyzer.core.plan.AnalyzerExecutionPlan;
 
 public interface AnalyzerCostCalculator {

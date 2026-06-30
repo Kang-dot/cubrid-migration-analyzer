@@ -2,7 +2,7 @@ package com.cubrid.sqlanalyzer.command.viewmodel;
 
 import java.util.List;
 
-import com.cubrid.sqlanalyzer.command.AnalyzerExecutionMode;
+import com.cubrid.sqlanalyzer.command.model.AnalyzerExecutionMode;
 
 public record AnalyzerOverviewViewModel(
         String programVersion,

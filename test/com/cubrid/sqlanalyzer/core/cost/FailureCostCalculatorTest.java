@@ -6,8 +6,8 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import org.junit.jupiter.api.Test;
 
-import com.cubrid.sqlanalyzer.command.AnalyzerFailure;
-import com.cubrid.sqlanalyzer.command.AnalyzerReport;
+import com.cubrid.sqlanalyzer.command.model.AnalyzerFailure;
+import com.cubrid.sqlanalyzer.command.report.AnalyzerReport;
 
 class FailureCostCalculatorTest {
     @Test
