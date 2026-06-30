@@ -41,7 +41,7 @@ public class AnalyzerTuiProgressPage {
         private final Label currentLabel;
         private final Label statusLabel;
         private final ProgressBar progressBar;
-        private final TextBox objectSummaryTextBox;
+        private final Panel objectSummaryPanel;
         private final Table<String> recentTable;
         private final TextBox recentTextBox;
         private final List<String> recentMessages = new ArrayList<String>();
@@ -66,11 +66,8 @@ public class AnalyzerTuiProgressPage {
             statusLabel = new Label("Analysis is running...");
             progressBar = new ProgressBar(0, 100, 0);
             progressBar.setPreferredWidth(40);
-            objectSummaryTextBox = new TextBox(
-                    new TerminalSize(Math.min(42, contentWidth), objectSummaryVisibleRows),
-                    "(none)",
-                    TextBox.Style.MULTI_LINE);
-            objectSummaryTextBox.setReadOnly(true);
+            objectSummaryPanel = new Panel();
+            objectSummaryPanel.addComponent(new Label("(none)"));
             if (terminalSize == null) {
                 recentTable = new Table<String>("No.", "Event");
                 recentTable.setVisibleColumns(2);
@@ -98,13 +95,14 @@ public class AnalyzerTuiProgressPage {
             panel.addComponent(new Label("Object summary"));
             panel.addComponent(new Label(
                     "  Type             Total   OK FAIL"));
-            panel.addComponent(objectSummaryTextBox);
-            panel.addComponent(new Label("Recent"));
-            if (recentTable != null) {
-                panel.addComponent(recentTable);
-            } else {
-                panel.addComponent(recentTextBox);
-            }
+            panel.addComponent(objectSummaryPanel);
+            // Recent output is temporarily hidden from the analysis progress page.
+            // panel.addComponent(new Label("Recent"));
+            // if (recentTable != null) {
+            //     panel.addComponent(recentTable);
+            // } else {
+            //     panel.addComponent(recentTextBox);
+            // }
             panel.addComponent(new Label(""));
             panel.addComponent(statusLabel);
         }
@@ -158,25 +156,23 @@ public class AnalyzerTuiProgressPage {
             String message = formatMessage(event);
             if (!message.isEmpty()) {
                 currentLabel.setText("Current  : " + message);
-                if (shouldShowAsRecent(event.stage())) {
-                    addRecentMessage(message);
-                }
+                // if (shouldShowAsRecent(event.stage())) {
+                //     addRecentMessage(message);
+                // }
             }
         }
 
         private void updateObjectSummary(List<AnalyzerProgressObjectCount> objectCounts) {
             int objectCountSize = objectCounts == null ? 0 : objectCounts.size();
+            objectSummaryPanel.removeAllComponents();
             if (objectCountSize == 0) {
-                objectSummaryTextBox.setText("(none)");
-                objectSummaryTextBox.setCaretPosition(0, 0);
+                objectSummaryPanel.addComponent(new Label("(none)"));
                 return;
             }
-            List<String> lines = new ArrayList<String>();
             for (int i = 0; i < objectCountSize; i++) {
-                lines.add("  " + formatObjectSummary(objectCounts.get(i)));
+                objectSummaryPanel.addComponent(
+                        new Label("  " + formatObjectSummary(objectCounts.get(i))));
             }
-            objectSummaryTextBox.setText(String.join("\n", lines));
-            objectSummaryTextBox.setCaretPosition(0, 0);
         }
 
         private String formatObjectSummary(AnalyzerProgressObjectCount objectCount) {

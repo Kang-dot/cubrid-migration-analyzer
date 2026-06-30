@@ -460,7 +460,14 @@ class AnalyzerReportTest {
         assertTrue(resultHtml.contains("CREATE TABLE t("));
         assertTrue(resultHtml.contains("Syntax error before &#39;broken&#39;"));
         assertTrue(resultHtml.contains("<h2>Conclusion</h2>"));
-        assertTrue(resultHtml.contains("Total Cost"));
+        assertTrue(resultHtml.contains("<tr><th>Category</th><th>Analyzed</th><th>Failed</th>"
+                + "<th>Total Cost</th><th>Estimated Time</th></tr>"));
+        assertTrue(resultHtml.contains("<tr><td class=\"metric\">DDL + PL/CSQL</td>"
+                + "<td class=\"number\">1</td><td class=\"number status-fail\">1</td>"
+                + "<td class=\"number\">1.2</td><td class=\"number\">0.10 hr</td></tr>"));
+        assertTrue(resultHtml.contains("<tr><td class=\"metric\">DML</td>"
+                + "<td class=\"number\">0</td><td class=\"number status-ok\">0</td>"
+                + "<td class=\"number\">0.0</td><td class=\"number\">0.00 hr</td></tr>"));
         assertTrue(resultHtml.contains("Estimated Time"));
         assertTrue(resultHtml.contains("0.10 hr"));
     }
@@ -530,14 +537,22 @@ class AnalyzerReportTest {
 
         String resultHtml = report.buildResultHtml();
 
-        assertTrue(resultHtml.contains("<h3>DDL</h3>"));
-        assertTrue(resultHtml.contains("<h3>DML</h3>"));
-        assertTrue(resultHtml.contains("<h3>PL/CSQL</h3>"));
+        assertTrue(resultHtml.contains("<details class=\"summary-part\" open>"
+                + "<summary>1. Database Objects (DDL Migration)</summary>"));
+        assertTrue(resultHtml.contains("<details class=\"summary-part\" open>"
+                + "<summary>2. Application Queries (DML/SQL Mapping Migration)</summary>"));
+        assertTrue(resultHtml.contains("<details class=\"summary-part\" open><summary>PL/CSQL</summary>"));
         assertTrue(resultHtml.contains("toggleSummaryRows(this,'summary-view')"));
         assertTrue(resultHtml.contains(">&#9656;</button>VIEW</td>"));
         assertTrue(resultHtml.contains("<td class=\"number\">2</td>"));
         assertTrue(resultHtml.contains("<td class=\"number status-fail\">1</td>"));
         assertTrue(resultHtml.contains("<td class=\"number\">0.8 (0.07 hr)</td>"));
+        assertTrue(resultHtml.contains("<tr class=\"summary-total-row\"><td>Total</td><td class=\"number\">3</td>"
+                + "<td class=\"number status-fail\">1</td><td class=\"number\">0.8 (0.07 hr)</td></tr>"));
+        assertTrue(resultHtml.contains("<tr class=\"summary-total-row\"><td>Total</td><td class=\"number\">1</td>"
+                + "<td class=\"number status-ok\">0</td><td class=\"number\">0.0 (0.00 hr)</td></tr>"));
+        assertTrue(resultHtml.contains("<tr class=\"summary-total-row\"><td>Total</td><td class=\"number\">0</td>"
+                + "<td class=\"number status-ok\">0</td><td class=\"number\">0.0 (0.00 hr)</td></tr>"));
         assertTrue(resultHtml.contains("data-summary-parent=\"summary-view\" hidden><td>"
                 + "<span class=\"summary-child-object\">VIEW_CREATE</span>"));
         assertTrue(resultHtml.contains("data-summary-parent=\"summary-view\" hidden><td>"
@@ -545,11 +560,66 @@ class AnalyzerReportTest {
         assertTrue(resultHtml.indexOf(">&#9656;</button>VIEW</td>")
                 < resultHtml.indexOf("<span class=\"summary-child-object\">VIEW_CREATE</span>"));
         assertTrue(resultHtml.indexOf(">&#9656;</button>VIEW</td>")
-                < resultHtml.indexOf("<h3>DML</h3>"));
-        assertTrue(resultHtml.indexOf("<h3>DML</h3>")
+                < resultHtml.indexOf("<summary>2. Application Queries (DML/SQL Mapping Migration)</summary>"));
+        assertTrue(resultHtml.indexOf("<summary>2. Application Queries (DML/SQL Mapping Migration)</summary>")
                 < resultHtml.indexOf("<td>SELECT</td>"));
         assertTrue(resultHtml.indexOf("<td>SELECT</td>")
-                < resultHtml.indexOf("<h3>PL/CSQL</h3>"));
+                < resultHtml.indexOf("<summary>PL/CSQL</summary>"));
+    }
+
+    @Test
+    @DisplayName("result html conclusion separates DDL and PLCSQL from DML")
+    void shouldSplitConclusionByDdlPlcsqlAndDml() {
+        AnalyzerReport report = new AnalyzerReport();
+        report.addStatementResult(
+                "DDL_TABLE",
+                "TABLE_1",
+                "CREATE TABLE t(id int)",
+                true,
+                "parsed",
+                null);
+        report.addStatementResult(
+                "DDL_PROC_BODY",
+                "PROC_1",
+                "CREATE PROCEDURE p AS BEGIN NULL; END;",
+                true,
+                "parsed",
+                null);
+        report.addStatementResult(
+                "SELECT",
+                "PROC_1_STATIC_1_L1_C1",
+                "SELECT broken",
+                false,
+                "syntax error",
+                AnalyzerFailureStage.PARSER);
+        report.addStatementResult(
+                "SELECT",
+                "Q1",
+                "SELECT broken",
+                false,
+                "syntax error",
+                AnalyzerFailureStage.PARSER);
+
+        AnalyzerFailure staticSqlFailure = new AnalyzerFailure();
+        staticSqlFailure.setStatementType("SELECT");
+        staticSqlFailure.setStatementId("PROC_1_STATIC_1_L1_C1");
+        staticSqlFailure.setEstimatedCost(0.5f);
+        report.addFailure(staticSqlFailure);
+
+        AnalyzerFailure dmlFailure = new AnalyzerFailure();
+        dmlFailure.setStatementType("SELECT");
+        dmlFailure.setStatementId("Q1");
+        dmlFailure.setEstimatedCost(0.7f);
+        report.addFailure(dmlFailure);
+
+        String resultHtml = report.buildResultHtml();
+
+        assertTrue(resultHtml.contains("<tr><td class=\"metric\">DDL + PL/CSQL</td>"
+                + "<td class=\"number\">3</td><td class=\"number status-fail\">1</td>"
+                + "<td class=\"number\">0.5</td><td class=\"number\">0.04 hr</td></tr>"));
+        assertTrue(resultHtml.contains("<tr><td class=\"metric\">DML</td>"
+                + "<td class=\"number\">1</td><td class=\"number status-fail\">1</td>"
+                + "<td class=\"number\">0.7</td><td class=\"number\">0.06 hr</td></tr>"));
     }
 
     @Test

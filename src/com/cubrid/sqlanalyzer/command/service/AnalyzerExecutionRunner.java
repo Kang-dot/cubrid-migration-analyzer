@@ -259,6 +259,7 @@ public class AnalyzerExecutionRunner {
             AnalyzerExecutionPlan executionPlan,
             ObjectProgressTracker objectProgressTracker,
             AnalyzerProgressListener progressListener) {
+        QueryParser queryParser = new QueryParser();
         List<String> cleanupQueries = new ArrayList<String>();
         int analyzed = 0;
         int succeeded = 0;

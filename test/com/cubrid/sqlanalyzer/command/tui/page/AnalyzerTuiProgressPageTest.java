@@ -19,7 +19,6 @@ import com.googlecode.lanterna.gui2.Component;
 import com.googlecode.lanterna.gui2.Label;
 import com.googlecode.lanterna.gui2.Panel;
 import com.googlecode.lanterna.gui2.TextBox;
-import com.googlecode.lanterna.gui2.table.Table;
 
 class AnalyzerTuiProgressPageTest {
     @Test
@@ -37,8 +36,8 @@ class AnalyzerTuiProgressPageTest {
     }
 
     @Test
-    @DisplayName("progress TUI page keeps every recent event in a scrollable table")
-    void shouldRenderRecentEventsInScrollableTable() {
+    @DisplayName("progress TUI page hides recent events")
+    void shouldHideRecentEvents() {
         ProgressView progressView = new AnalyzerTuiProgressPage().buildView();
 
         for (int i = 1; i <= 12; i++) {
@@ -51,31 +50,23 @@ class AnalyzerTuiProgressPageTest {
 
         String screenText = String.join(
                 System.lineSeparator(), collectLabelTexts(progressView.getPanel()));
-        Table<?> recentTable = collectTables(progressView.getPanel()).get(0);
-        String tableText = collectTableText(progressView.getPanel());
 
         assertTrue(screenText.contains("Progress : 12 / 12"));
         assertTrue(screenText.contains("OK       : 12"));
         assertTrue(screenText.contains("FAIL     : 0"));
         assertTrue(screenText.contains("Current  : [OK] SELECT q12"));
-        assertTrue(tableText.contains("[OK] SELECT q1"));
-        assertTrue(tableText.contains("[OK] SELECT q12"));
-        assertTrue(recentTable.getVisibleRows() < recentTable.getTableModel().getRowCount());
+        assertFalse(screenText.contains("Recent"));
     }
 
     @Test
-    @DisplayName("progress TUI page reduces recent event viewport for constrained terminal size")
-    void shouldReduceRecentEventViewportForConstrainedTerminalSize() {
+    @DisplayName("progress TUI page renders object summary without a scrollable text box")
+    void shouldRenderObjectSummaryWithoutScrollableTextBox() {
         ProgressView progressView = new AnalyzerTuiProgressPage().buildView(new TerminalSize(70, 22));
-        List<TextBox> textBoxes = collectTextBoxes(progressView.getPanel());
-        TextBox objectSummaryTextBox = textBoxes.get(0);
-        TextBox recentTextBox = textBoxes.get(1);
+        String screenText = String.join(
+                System.lineSeparator(), collectLabelTexts(progressView.getPanel()));
 
-        assertTrue(objectSummaryTextBox.isReadOnly());
-        assertTrue(objectSummaryTextBox.getPreferredSize().getRows() <= 5);
-        assertTrue(recentTextBox.isReadOnly());
-        assertTrue(recentTextBox.getPreferredSize().getRows() < 8);
-        assertTrue(recentTextBox.getPreferredSize().getColumns() <= 64);
+        assertTrue(screenText.contains("(none)"));
+        assertTrue(collectTextBoxes(progressView.getPanel()).isEmpty());
     }
 
     @Test
@@ -99,17 +90,16 @@ class AnalyzerTuiProgressPageTest {
 
         String screenText = String.join(
                 System.lineSeparator(), collectLabelTexts(progressView.getPanel()));
-        String objectSummaryText = collectTextBoxes(progressView.getPanel()).get(0).getText();
 
         assertTrue(screenText.contains("Object summary"));
-        assertTrue(objectSummaryText.contains("TABLE"));
-        assertTrue(objectSummaryText.contains("VIEW_CREATE"));
-        assertTrue(objectSummaryText.contains("    2    1    1"));
+        assertTrue(screenText.contains("TABLE"));
+        assertTrue(screenText.contains("VIEW_CREATE"));
+        assertTrue(screenText.contains("    2    1    1"));
     }
 
     @Test
-    @DisplayName("progress TUI page keeps every object summary row in a scrollable viewport")
-    void shouldRenderObjectSummaryRowsInScrollableViewport() {
+    @DisplayName("progress TUI page expands every object summary row")
+    void shouldExpandEveryObjectSummaryRow() {
         ProgressView progressView = new AnalyzerTuiProgressPage().buildView();
         List<AnalyzerProgressObjectCount> objectCounts = new ArrayList<AnalyzerProgressObjectCount>();
         for (int i = 1; i <= 10; i++) {
@@ -122,13 +112,13 @@ class AnalyzerTuiProgressPageTest {
                         "parsed",
                         new AnalyzerProgressCounts(10, 1, 1, 0, objectCounts)));
 
-        TextBox objectSummaryTextBox = collectTextBoxes(progressView.getPanel()).get(0);
-        String objectSummaryText = objectSummaryTextBox.getText();
+        String objectSummaryText = String.join(
+                System.lineSeparator(), collectLabelTexts(progressView.getPanel()));
 
         assertTrue(objectSummaryText.contains("TYPE_1"));
         assertTrue(objectSummaryText.contains("TYPE_10"));
-        assertTrue(objectSummaryTextBox.getPreferredSize().getRows() <= 5);
         assertFalse(objectSummaryText.contains("more"));
+        assertTrue(collectTextBoxes(progressView.getPanel()).isEmpty());
     }
 
     @Test
@@ -149,40 +139,22 @@ class AnalyzerTuiProgressPageTest {
         for (Component component : panel.getChildren()) {
             if (component instanceof Label) {
                 texts.add(((Label) component).getText());
+            } else if (component instanceof Panel) {
+                texts.addAll(collectLabelTexts((Panel) component));
             }
         }
         return texts;
     }
 
-    private List<Table<?>> collectTables(Panel panel) {
-        List<Table<?>> tables = new ArrayList<Table<?>>();
-        for (Component component : panel.getChildren()) {
-            if (component instanceof Table<?>) {
-                tables.add((Table<?>) component);
-            }
-        }
-        return tables;
-    }
-
     private List<TextBox> collectTextBoxes(Panel panel) {
         List<TextBox> textBoxes = new ArrayList<TextBox>();
         for (Component component : panel.getChildren()) {
-            if (component instanceof TextBox) {
+            if (component instanceof Panel) {
+                textBoxes.addAll(collectTextBoxes((Panel) component));
+            } else if (component instanceof TextBox) {
                 textBoxes.add((TextBox) component);
             }
         }
         return textBoxes;
-    }
-
-    private String collectTableText(Panel panel) {
-        List<String> values = new ArrayList<String>();
-        for (Table<?> table : collectTables(panel)) {
-            for (List<?> row : table.getTableModel().getRows()) {
-                for (Object cell : row) {
-                    values.add(String.valueOf(cell));
-                }
-            }
-        }
-        return String.join(System.lineSeparator(), values);
     }
 }

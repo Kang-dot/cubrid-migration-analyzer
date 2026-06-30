@@ -117,6 +117,12 @@ public class AnalyzerReport {
         private final List<AnalyzerFailure> staticSqlFailures = new ArrayList<AnalyzerFailure>();
     }
 
+    private static class HtmlConclusionSummary {
+        private int analyzedCount;
+        private int failedCount;
+        private float cost;
+    }
+
     private AnalyzerSourceType sourceType;
     private AnalyzerTargetType targetType;
     private AnalyzerExecutionMode executionMode;
@@ -379,6 +385,10 @@ public class AnalyzerReport {
         sb.append(".status-fail{color:#b42318;font-weight:bold;}\n");
         sb.append(".row-toggle{border:0;background:transparent;color:#006f9f;cursor:pointer;font-weight:bold;margin:0 6px 0 0;padding:0;width:16px;}\n");
         sb.append(".summary-child-object{display:inline-block;padding-left:22px;}\n");
+        sb.append(".summary-part{padding:0;overflow:hidden;}\n");
+        sb.append(".summary-part>summary{background:#f8fafc;padding:10px;}\n");
+        sb.append(".summary-part>table{margin:0;}\n");
+        sb.append(".summary-total-row td{background:#f8fafc;font-weight:bold;}\n");
         sb.append(".nested-summary-cell{background:#f8fafc;padding:10px 10px 10px 32px;}\n");
         sb.append(".nested-summary-table{margin:0;background:#fff;}\n");
         sb.append("details{background:#fff;border:1px solid #d7dde4;margin:0 0 12px;padding:10px;}\n");
@@ -549,11 +559,11 @@ public class AnalyzerReport {
         } else {
             appendHtmlSummaryPart(
                     sb,
-                    "DDL",
+                    "1. Database Objects (DDL Migration)",
                     filterHtmlSummaryRows(rows, HtmlSummaryPart.DDL));
             appendHtmlSummaryPart(
                     sb,
-                    "DML",
+                    "2. Application Queries (DML/SQL Mapping Migration)",
                     filterHtmlSummaryRows(rows, HtmlSummaryPart.DML));
             appendHtmlSummaryPart(
                     sb,
@@ -567,7 +577,9 @@ public class AnalyzerReport {
             StringBuilder sb,
             String title,
             List<HtmlSummaryRow> rows) {
-        sb.append("<h3>").append(escapeHtml(title)).append("</h3>\n");
+        sb.append("<details class=\"summary-part\" open><summary>")
+                .append(escapeHtml(title))
+                .append("</summary>\n");
         sb.append("<table>\n");
         sb.append("<tr><th>Object</th><th>Total</th><th>Error</th><th>Cost</th></tr>\n");
         if (rows.isEmpty()) {
@@ -577,7 +589,29 @@ public class AnalyzerReport {
                 appendHtmlSummaryRow(sb, row);
             }
         }
+        appendHtmlSummaryTotalRow(sb, rows);
         sb.append("</table>\n");
+        sb.append("</details>\n");
+    }
+
+    private void appendHtmlSummaryTotalRow(StringBuilder sb, List<HtmlSummaryRow> rows) {
+        long totalCount = 0;
+        int errorCount = 0;
+        float cost = 0;
+        for (HtmlSummaryRow row : rows) {
+            totalCount += row.totalCount;
+            errorCount += row.errorCount;
+            cost += row.cost;
+        }
+        sb.append("<tr class=\"summary-total-row\"><td>Total</td><td class=\"number\">")
+                .append(formatNumber(totalCount))
+                .append("</td><td class=\"number ")
+                .append(errorCount > 0 ? "status-fail" : "status-ok")
+                .append("\">")
+                .append(formatNumber(errorCount))
+                .append("</td><td class=\"number\">")
+                .append(escapeHtml(formatEstimatedCostWithTime(cost)))
+                .append("</td></tr>\n");
     }
 
     private List<HtmlSummaryRow> filterHtmlSummaryRows(
@@ -941,21 +975,84 @@ public class AnalyzerReport {
     private void appendHtmlConclusion(StringBuilder sb, float totalCost) {
         sb.append("<section>\n");
         sb.append("<h2>Conclusion</h2>\n");
-        sb.append("<div class=\"grid\">\n");
-        appendHtmlConclusionBox(sb, "Total Cost", AnalyzerCostFormatter.formatCost(totalCost));
-        appendHtmlConclusionBox(sb, "Estimated Time", AnalyzerCostFormatter.formatTime(totalCost));
-        appendHtmlConclusionBox(sb, "Analyzed", formatNumber(analyzedStatementCount));
-        appendHtmlConclusionBox(sb, "Failed", formatNumber(failedStatementCount));
-        sb.append("</div>\n");
+        Map<String, HtmlConclusionSummary> summaries = buildHtmlConclusionSummaries(totalCost);
+        sb.append("<table>\n");
+        sb.append("<tr><th>Category</th><th>Analyzed</th><th>Failed</th><th>Total Cost</th><th>Estimated Time</th></tr>\n");
+        appendHtmlConclusionRow(sb, "DDL + PL/CSQL", summaries.get("DDL_PLCSQL"));
+        appendHtmlConclusionRow(sb, "DML", summaries.get("DML"));
+        sb.append("</table>\n");
         sb.append("</section>\n");
     }
 
-    private void appendHtmlConclusionBox(StringBuilder sb, String label, String value) {
-        sb.append("<div class=\"box\"><div class=\"muted\">")
-                .append(escapeHtml(label))
-                .append("</div><div class=\"metric\">")
-                .append(escapeHtml(value))
-                .append("</div></div>\n");
+    private Map<String, HtmlConclusionSummary> buildHtmlConclusionSummaries(float totalCost) {
+        Map<String, HtmlConclusionSummary> summaries = new LinkedHashMap<String, HtmlConclusionSummary>();
+        summaries.put("DDL_PLCSQL", new HtmlConclusionSummary());
+        summaries.put("DML", new HtmlConclusionSummary());
+
+        for (StatementResult statementResult : statementResults) {
+            if ("CLEANUP".equals(statementResult.statementType)) {
+                continue;
+            }
+            HtmlConclusionSummary summary = summaries.get(htmlConclusionCategory(statementResult));
+            summary.analyzedCount++;
+            if (!statementResult.success) {
+                summary.failedCount++;
+            }
+        }
+
+        for (AnalyzerFailure failure : failures) {
+            HtmlConclusionSummary summary = summaries.get(htmlConclusionCategory(failure));
+            summary.cost += failure.getEstimatedCost();
+        }
+
+        if (statementResults.isEmpty() && analyzedStatementCount > 0) {
+            HtmlConclusionSummary summary = summaries.get("DDL_PLCSQL");
+            summary.analyzedCount = analyzedStatementCount;
+            summary.failedCount = failedStatementCount;
+            summary.cost = totalCost;
+        }
+
+        return summaries;
+    }
+
+    private String htmlConclusionCategory(StatementResult statementResult) {
+        if (staticSqlParentObjectType(statementResult.statementId) != null) {
+            return "DDL_PLCSQL";
+        }
+        HtmlSummaryPart part = htmlSummaryPart(new HtmlSummaryRow(
+                displayObjectType(statementResult.statementType),
+                0));
+        return part == HtmlSummaryPart.DML ? "DML" : "DDL_PLCSQL";
+    }
+
+    private String htmlConclusionCategory(AnalyzerFailure failure) {
+        if (staticSqlParentObjectType(failure.getStatementId()) != null) {
+            return "DDL_PLCSQL";
+        }
+        HtmlSummaryPart part = htmlSummaryPart(new HtmlSummaryRow(
+                displayObjectType(failure.getStatementType()),
+                0));
+        return part == HtmlSummaryPart.DML ? "DML" : "DDL_PLCSQL";
+    }
+
+    private void appendHtmlConclusionRow(
+            StringBuilder sb,
+            String category,
+            HtmlConclusionSummary summary) {
+        HtmlConclusionSummary safeSummary = summary == null ? new HtmlConclusionSummary() : summary;
+        sb.append("<tr><td class=\"metric\">")
+                .append(escapeHtml(category))
+                .append("</td><td class=\"number\">")
+                .append(formatNumber(safeSummary.analyzedCount))
+                .append("</td><td class=\"number ")
+                .append(safeSummary.failedCount > 0 ? "status-fail" : "status-ok")
+                .append("\">")
+                .append(formatNumber(safeSummary.failedCount))
+                .append("</td><td class=\"number\">")
+                .append(escapeHtml(AnalyzerCostFormatter.formatCost(safeSummary.cost)))
+                .append("</td><td class=\"number\">")
+                .append(escapeHtml(AnalyzerCostFormatter.formatTime(safeSummary.cost)))
+                .append("</td></tr>\n");
     }
 
     private List<HtmlSummaryRow> buildHtmlSummaryRows() {
