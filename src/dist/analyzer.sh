@@ -23,5 +23,5 @@ exec java \
     -Djava.library.path="$APP_HOME/jni" \
     -Dsqlanalyzer.plcsql.jar="$APP_HOME/lib/pl_server.jar" \
     -cp "$APP_HOME/analyzer.jar:$APP_HOME/lib/*" \
-    com.cubrid.sqlanalyzer.command.AnalyzerConsoleMain \
+    com.cubrid.sqlanalyzer.command.cli.AnalyzerConsoleMain \
     "$@"

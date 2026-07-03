@@ -5,19 +5,8 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
-import java.util.Map;
 
-import com.cubrid.cubridmigration.core.dbobject.PlcsqlFunction;
-import com.cubrid.cubridmigration.core.dbobject.PlcsqlProcedure;
-import com.cubrid.cubridmigration.core.dbobject.Sequence;
-import com.cubrid.cubridmigration.core.dbobject.Synonym;
-import com.cubrid.cubridmigration.core.dbobject.Table;
-import com.cubrid.cubridmigration.core.dbobject.View;
-import com.cubrid.cubridmigration.core.engine.config.SourceGrantConfig;
-import com.cubrid.cubridmigration.cubrid.CUBRIDSQLHelper;
 import com.cubrid.sqlanalyzer.command.model.AnalyzerSession;
 import com.cubrid.sqlanalyzer.command.model.AnalyzerExecutionMode;
 import com.cubrid.sqlanalyzer.command.model.AnalyzerFailure;
@@ -26,8 +15,6 @@ import com.cubrid.sqlanalyzer.command.model.AnalyzerSourceType;
 import com.cubrid.sqlanalyzer.command.model.AnalyzerTargetType;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerProgressEventViewModel;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerProgressCounts;
-import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerProgressObjectCount;
-import com.cubrid.sqlanalyzer.core.AnalyzerConfiguration;
 import com.cubrid.sqlanalyzer.core.cost.AnalyzerCostCalculator;
 import com.cubrid.sqlanalyzer.core.cost.FailureCostCalculator;
 import com.cubrid.sqlanalyzer.core.plan.AnalyzerExecutionPlan;
@@ -325,7 +312,7 @@ public class AnalyzerExecutionRunner {
                                     resultSummary,
                                     objectProgressTracker.snapshot(analyzed, succeeded, failed)));
 
-                    String cleanupQuery = buildCleanupQuery(session, statement);
+                    String cleanupQuery = new AnalyzerCleanupQueryBuilder().build(session, statement);
                     if (cleanupQuery != null) {
                         cleanupQueries.add(cleanupQuery);
                     }
@@ -451,7 +438,7 @@ public class AnalyzerExecutionRunner {
             }
 
             AnalyzerStatement staticStatement =
-                    buildStaticSqlStatement(parentStatement, staticSql, ++staticSqlIndex);
+                    new StaticSqlStatementBuilder().build(parentStatement, staticSql, ++staticSqlIndex);
             objectProgressTracker.addDiscovered(staticStatement);
             analyzed++;
             try {
@@ -510,93 +497,6 @@ public class AnalyzerExecutionRunner {
         }
 
         return new AnalysisCounters(analyzed, succeeded, failed);
-    }
-
-    private AnalyzerStatement buildStaticSqlStatement(
-            AnalyzerStatement parentStatement,
-            StaticSql staticSql,
-            int staticSqlIndex) {
-        String parentId = parentStatement.getId();
-        if (parentId == null || parentId.isBlank()) {
-            parentId = "PLCSQL";
-        }
-
-        StringBuilder id = new StringBuilder(parentId)
-                .append("_STATIC_")
-                .append(staticSqlIndex);
-        if (staticSql.getRow() > 0) {
-            id.append("_L").append(staticSql.getRow());
-        }
-        if (staticSql.getColumn() > 0) {
-            id.append("_C").append(staticSql.getColumn());
-        }
-
-        return new AnalyzerStatement(
-                inferStaticSqlType(staticSql.getCode()),
-                id.toString(),
-                staticSql.getCode(),
-                staticSqlObjectName(parentStatement, staticSqlIndex));
-    }
-
-    private String staticSqlObjectName(AnalyzerStatement parentStatement, int staticSqlIndex) {
-        String parentObjectName = parentStatement.getObjectName();
-        if (parentObjectName == null || parentObjectName.isBlank()) {
-            return "";
-        }
-        return parentObjectName + " / static SQL #" + staticSqlIndex;
-    }
-
-    private String inferStaticSqlType(String sql) {
-        String normalizedSql = stripLeadingSqlComments(sql).stripLeading().toUpperCase(Locale.ENGLISH);
-        if (startsWithKeyword(normalizedSql, "SELECT")) {
-            return "SELECT";
-        }
-        if (startsWithKeyword(normalizedSql, "INSERT")) {
-            return "INSERT";
-        }
-        if (startsWithKeyword(normalizedSql, "UPDATE")) {
-            return "UPDATE";
-        }
-        if (startsWithKeyword(normalizedSql, "DELETE")) {
-            return "DELETE";
-        }
-        return AnalyzerStatementTypes.TYPE_STATIC_SQL;
-    }
-
-    private String stripLeadingSqlComments(String sql) {
-        String remaining = sql == null ? "" : sql;
-        while (true) {
-            remaining = remaining.stripLeading();
-            if (remaining.startsWith("--")) {
-                int lineEnd = remaining.indexOf('\n');
-                if (lineEnd < 0) {
-                    return "";
-                }
-                remaining = remaining.substring(lineEnd + 1);
-                continue;
-            }
-            if (remaining.startsWith("/*")) {
-                int commentEnd = remaining.indexOf("*/");
-                if (commentEnd < 0) {
-                    return "";
-                }
-                remaining = remaining.substring(commentEnd + 2);
-                continue;
-            }
-            return remaining;
-        }
-    }
-
-    private boolean startsWithKeyword(String sql, String keyword) {
-        if (!sql.startsWith(keyword)) {
-            return false;
-        }
-        if (sql.length() == keyword.length()) {
-            return true;
-        }
-
-        char nextChar = sql.charAt(keyword.length());
-        return !Character.isLetterOrDigit(nextChar) && nextChar != '_';
     }
 
     private String executeJdbcStatement(Connection connection, AnalyzerStatement statement)
@@ -733,80 +633,6 @@ public class AnalyzerExecutionRunner {
         return statement.getType() != null && statement.getType().startsWith("DDL_");
     }
 
-    private String buildCleanupQuery(AnalyzerSession session, AnalyzerStatement statement) {
-        if (!isDDL(statement)) {
-            return null;
-        }
-
-        AnalyzerConfiguration config = session.getConfig();
-        CUBRIDSQLHelper helper = CUBRIDSQLHelper.getInstance(null);
-
-        if (AnalyzerStatementTypes.TYPE_DDL_TABLE.equals(statement.getType())) {
-            Table table = getStatementObject(
-                    config.getTargetTableSchema(), statement.getId(), "TABLE_", "table");
-            return "DROP TABLE "
-                    + helper.getOwnerNameWithDot(table.getOwner(), config.isAddUserSchema())
-                    + helper.getQuotedObjName(table.getName())
-                    + ";";
-        }
-
-        if (AnalyzerStatementTypes.TYPE_DDL_VIEW.equals(statement.getType())
-                || AnalyzerStatementTypes.TYPE_DDL_VIEW_CREATE.equals(statement.getType())) {
-            View view = getStatementObject(
-                    config.getTargetViewSchema(), statement.getId(), "VIEW_", "view");
-            return "DROP VIEW "
-                    + helper.getOwnerNameWithDot(view.getOwner(), config.isAddUserSchema())
-                    + helper.getQuotedObjName(view.getName())
-                    + ";";
-        }
-
-        if (AnalyzerStatementTypes.TYPE_DDL_SEQUENCE.equals(statement.getType())) {
-            Sequence sequence = getStatementObject(
-                    config.getTargetSerialSchema(), statement.getId(), "SEQ_", "sequence");
-            return "DROP SERIAL "
-                    + helper.getOwnerNameWithDot(sequence.getOwner(), config.isAddUserSchema())
-                    + helper.getQuotedObjName(sequence.getName())
-                    + ";";
-        }
-
-        if (AnalyzerStatementTypes.TYPE_DDL_SYNONYM.equals(statement.getType())) {
-            Synonym synonym = getStatementObject(
-                    config.getTargetSynonymSchema(), statement.getId(), "SYNONYM_", "synonym");
-            return "DROP SYNONYM "
-                    + helper.getOwnerNameWithDot(synonym.getOwner(), config.isAddUserSchema())
-                    + helper.getQuotedObjName(synonym.getName())
-                    + ";";
-        }
-
-        if (AnalyzerStatementTypes.TYPE_DDL_GRANT.equals(statement.getType())) {
-            SourceGrantConfig grant = getStatementObject(
-                    config.getExpGrantCfg(), statement.getId(), "GRANT_", "grant");
-            return "REVOKE "
-                    + grant.getAuthType()
-                    + " ON "
-                    + helper.getOwnerNameWithDot(grant.getClassOwner(), config.isAddUserSchema())
-                    + helper.getQuotedObjName(grant.getClassName())
-                    + " FROM "
-                    + helper.getQuotedObjName(grant.getGranteeName())
-                    + ";";
-        }
-
-        if (AnalyzerStatementTypes.TYPE_DDL_PROC_HEADER.equals(statement.getType())) {
-            PlcsqlProcedure procedure = getStatementObject(
-                    config.getTargetPlcsqlProcedureSchema(), statement.getId(), "PROC_", "procedure");
-            return helper.getPlcsqlProcedureDropDDL(procedure, config.isAddUserSchema());
-        }
-
-        if (AnalyzerStatementTypes.TYPE_DDL_FUNC_HEADER.equals(statement.getType())) {
-            PlcsqlFunction function = getStatementObject(
-                    config.getTargetPlcsqlFunctionSchema(), statement.getId(), "FUNC_", "function");
-            return helper.getPlcsqlFunctionDropDDL(function, config.isAddUserSchema());
-        }
-
-        // Remaining DDL types do not require an independent cleanup query.
-        return null;
-    }
-
     private boolean isUnsupportedStatement(AnalyzerStatement statement) {
         return AnalyzerUnsupportedStatementPolicy.getUnsupportedReason(statement) != null;
     }
@@ -855,36 +681,6 @@ public class AnalyzerExecutionRunner {
                         counts));
     }
 
-    private <T> T getStatementObject(List<T> objects, String id, String prefix, String objectType) {
-        int index = parseStatementIndex(id, prefix);
-        int size = objects == null ? 0 : objects.size();
-        if (index < 0 || index >= size) {
-            throw new IllegalArgumentException(
-                    "Unexpected "
-                            + objectType
-                            + " statement id: "
-                            + id
-                            + " (index="
-                            + index
-                            + ", size="
-                            + size
-                            + ")");
-        }
-        return objects.get(index);
-    }
-
-    private int parseStatementIndex(String id, String prefix) {
-        if (id == null || !id.startsWith(prefix)) {
-            throw new IllegalArgumentException("Unexpected statement id: " + id);
-        }
-
-        try {
-            return Integer.parseInt(id.substring(prefix.length())) - 1;
-        } catch (NumberFormatException ex) {
-            throw new IllegalArgumentException("Unexpected statement id: " + id, ex);
-        }
-    }
-
     private void notifyAnalysisCompleted(
             AnalyzerProgressListener progressListener, AnalyzerProgressCounts counts) {
         notifyProgress(progressListener, AnalyzerProgressEventViewModel.completed(counts));
@@ -904,86 +700,6 @@ public class AnalyzerExecutionRunner {
         if (progressListener != null) {
             progressListener.onProgress(event);
         }
-    }
-
-    private static class ObjectProgressTracker {
-        private int totalCount;
-        private final Map<String, MutableObjectProgressCount> objectCounts =
-                new LinkedHashMap<String, MutableObjectProgressCount>();
-
-        private ObjectProgressTracker(int totalCount) {
-            this.totalCount = totalCount;
-        }
-
-        static ObjectProgressTracker from(AnalyzerExecutionPlan executionPlan) {
-            ObjectProgressTracker tracker =
-                    new ObjectProgressTracker(executionPlan.getStatements().size());
-            for (AnalyzerStatement statement : executionPlan.getStatements()) {
-                tracker.getOrCreate(displayObjectType(statement)).totalCount++;
-            }
-            return tracker;
-        }
-
-        void addDiscovered(AnalyzerStatement statement) {
-            totalCount++;
-            getOrCreate(displayObjectType(statement)).totalCount++;
-        }
-
-        void record(AnalyzerStatement statement, boolean success) {
-            MutableObjectProgressCount count = getOrCreate(displayObjectType(statement));
-            if (success) {
-                count.succeededCount++;
-                return;
-            }
-            count.failedCount++;
-        }
-
-        AnalyzerProgressCounts snapshot(int completedCount, int succeededCount, int failedCount) {
-            List<AnalyzerProgressObjectCount> snapshots =
-                    new ArrayList<AnalyzerProgressObjectCount>();
-            for (Map.Entry<String, MutableObjectProgressCount> entry : objectCounts.entrySet()) {
-                MutableObjectProgressCount count = entry.getValue();
-                snapshots.add(
-                        new AnalyzerProgressObjectCount(
-                                entry.getKey(),
-                                count.totalCount,
-                                count.succeededCount,
-                                count.failedCount));
-            }
-            return new AnalyzerProgressCounts(
-                    totalCount,
-                    completedCount,
-                    succeededCount,
-                    failedCount,
-                    snapshots);
-        }
-
-        private MutableObjectProgressCount getOrCreate(String objectType) {
-            MutableObjectProgressCount count = objectCounts.get(objectType);
-            if (count == null) {
-                count = new MutableObjectProgressCount();
-                objectCounts.put(objectType, count);
-            }
-            return count;
-        }
-
-        private static String displayObjectType(AnalyzerStatement statement) {
-            if (statement == null || statement.getType() == null || statement.getType().isEmpty()) {
-                return "UNKNOWN";
-            }
-
-            String type = statement.getType();
-            if (type.startsWith("DDL_")) {
-                return type.substring("DDL_".length());
-            }
-            return type;
-        }
-    }
-
-    private static class MutableObjectProgressCount {
-        private int totalCount;
-        private int succeededCount;
-        private int failedCount;
     }
 
     private static class AnalysisCounters {
