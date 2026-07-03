@@ -317,11 +317,8 @@ public final class XMLMemento {
      * @throws IOException IO exception
      */
     public static XMLMemento loadMemento(String filename) throws IOException {
-        FileInputStream reader = new FileInputStream(filename);
-        try {
+        try (FileInputStream reader = new FileInputStream(filename)) {
             return loadMemento(reader);
-        } finally {
-            reader.close();
         }
     }
 
