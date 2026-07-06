@@ -415,6 +415,8 @@ class AnalyzerReportTest {
                         0,
                         3_145_728L,
                         List.of(new AnalyzerTableSizeViewModel("EMP", 2_097_152L, 1_234L))));
+        report.addSourceStatusMessage("Oracle source loaded.");
+        report.addSourceStatusMessage("XML source skipped: No XML files found in directory: /tmp/sqlmap");
         report.addStatementResult(
                 "DDL_TABLE",
                 "TABLE_1",
@@ -435,19 +437,56 @@ class AnalyzerReportTest {
 
         String resultHtml = report.buildResultHtml();
 
-        assertEquals(3, countOccurrences(resultHtml, "<section class=\"report-section\">"));
-        assertTrue(resultHtml.contains("toggleReportSection(this,'summary-report-section-connection-info')"));
+        assertEquals(0, countOccurrences(resultHtml, "<section"));
+        assertFalse(resultHtml.contains("class=\"report-section\""));
+        assertTrue(resultHtml.contains("body>h2:first-of-type{margin-top:0;}"));
+        assertFalse(resultHtml.contains(".compact-table{"));
+        assertTrue(resultHtml.contains(
+                "table{border-collapse:collapse;table-layout:fixed;width:100%;"));
+        assertTrue(resultHtml.contains("vertical-align:top;word-break:break-word;"));
+        assertTrue(resultHtml.contains(".info-table col{width:50%;}"));
+        assertTrue(resultHtml.contains(".section-body{display:block;max-width:100%;"
+                + "box-sizing:border-box;background:#fff;border:1px solid #d7dde4;"));
+        assertTrue(resultHtml.contains(".section-body[hidden]{display:none;}"));
         assertTrue(resultHtml.contains("<h2>Connection Info</h2>"));
-        assertTrue(resultHtml.contains("<table class=\"collapsed-section-summary\" "
-                + "id=\"summary-report-section-connection-info-summary\" hidden>"));
+        assertTrue(resultHtml.contains("<div class=\"section-body\" "
+                + "id=\"summary-report-section-connection-info-body\">"));
+        assertTrue(resultHtml.contains("<table class=\"info-table\">\n"
+                + "<colgroup><col><col></colgroup>\n"
+                + "<tr><td class=\"metric\">Source Oracle SID</td><td>XE</td></tr>"));
+        assertFalse(resultHtml.contains("<tr><td class=\"metric\">Connected User</td>"));
+        assertTrue(resultHtml.contains("<tr><td class=\"metric\">Source Oracle Status</td><td>Executed</td></tr>"));
+        assertTrue(resultHtml.contains("<tr><td class=\"metric\">XML Directory Status</td><td>"
+                + "Not executed - No XML files found in directory: /tmp/sqlmap</td></tr>"));
         assertTrue(resultHtml.contains("<tr><td class=\"metric\">Source schema</td><td>HR</td></tr>"));
         assertTrue(resultHtml.contains("<tr><td class=\"metric\">Target type</td><td>PARSER</td></tr>"));
         assertTrue(resultHtml.contains("<tr><td class=\"metric\">Source table size</td><td>3.00 MB</td></tr>"));
-        assertTrue(resultHtml.contains("jdbc:oracle:thin:@localhost:1521/XE"));
-        assertTrue(resultHtml.contains("<td class=\"metric\">Parser</td><td>Yes</td>"));
-        assertTrue(resultHtml.contains("<td class=\"metric\">Schema name</td><td>HR</td>"));
-        assertTrue(resultHtml.contains("<td class=\"metric\">Source table size</td><td>3.00 MB</td>"));
-        assertTrue(resultHtml.contains("<h2>Table Summary</h2>"));
+        assertFalse(resultHtml.contains("jdbc:oracle:thin:@localhost:1521/XE"));
+        assertFalse(resultHtml.contains("<td class=\"metric\">Parser</td><td>Yes</td>"));
+        assertFalse(resultHtml.contains("<td class=\"metric\">Schema name</td><td>HR</td>"));
+        assertTrue(resultHtml.indexOf("<h2>Connection Info</h2>")
+                < resultHtml.indexOf("<h2>Conclusion</h2>"));
+        assertTrue(resultHtml.indexOf("<h2>Conclusion</h2>")
+                < resultHtml.indexOf("<h2>Summary</h2>"));
+        assertTrue(resultHtml.contains("<h2>Summary</h2>"));
+        assertTrue(resultHtml.contains("<div class=\"section-body\" "
+                + "id=\"summary-report-section-summary-body\">"));
+        assertFalse(resultHtml.contains("section-collapsed-summary"));
+        assertTrue(resultHtml.contains("<span class=\"metric\">Compatibility:</span> 80.00%"));
+        assertTrue(resultHtml.contains("<h3>Object Summary</h3>"));
+        assertTrue(resultHtml.contains("<span class=\"metric\">DB Objects (DDL):</span> "
+                + "80.00% (total 5, 1 errors)"));
+        assertTrue(resultHtml.contains("<span class=\"metric\">XML Queries (DML):</span> "
+                + "0.00% (total 0, 0 errors)"));
+        assertTrue(resultHtml.contains("<span class=\"metric\">PL/CSQL:</span> 0.00% "
+                + "(total 0, 0 errors; triggers and procedures cannot be converted)"));
+        assertTrue(resultHtml.contains("<h3>Estimated Work Time</h3>"));
+        assertTrue(resultHtml.contains("<span class=\"metric\">Total estimated time:</span> 0.10 hr"));
+        assertTrue(resultHtml.contains("<span class=\"metric\">DBA estimated work:</span> 0.10 hr"));
+        assertTrue(resultHtml.contains("<span class=\"metric\">Developer estimated work:</span> 0.00 hr"));
+        assertTrue(resultHtml.contains("<h2>Detail Summary</h2>"));
+        assertTrue(resultHtml.contains("<div class=\"section-body\" "
+                + "id=\"summary-report-section-detail-summary-body\">"));
         assertTrue(resultHtml.contains(">&#9656;</button>TABLE</td>"));
         assertTrue(resultHtml.contains("data-summary-parent=\"summary-table\" hidden>"
                 + "<td colspan=\"4\" class=\"nested-summary-cell\">"));
@@ -456,8 +495,23 @@ class AnalyzerReportTest {
         assertTrue(resultHtml.contains("<tr><td>EMP</td><td class=\"number\">2.00 MB</td>"
                 + "<td class=\"number\">1,234</td></tr>"));
         assertTrue(resultHtml.contains("1.2 (0.10 hr)"));
-        assertTrue(resultHtml.contains("<h2>Detail</h2>"));
-        assertTrue(resultHtml.contains("<details class=\"detail-item\" open>"));
+        assertTrue(resultHtml.contains("<h2>Fail Summary</h2>"));
+        assertTrue(resultHtml.contains("<div class=\"section-body\" "
+                + "id=\"summary-report-section-fail-summary-body\">"));
+        assertTrue(resultHtml.contains("<h2>Fail Detail</h2>"));
+        assertTrue(resultHtml.contains("aria-expanded=\"false\" onclick=\"toggleReportSection(this,'summary-report-section-fail-detail')"));
+        assertTrue(resultHtml.contains("<div class=\"section-body\" "
+                + "id=\"summary-report-section-fail-detail-body\" hidden>"));
+        assertTrue(resultHtml.contains("<tr><th>Object Type</th><th>Count</th></tr>"));
+        assertTrue(resultHtml.contains("<tr><td>TABLE</td><td class=\"number status-fail\">1</td></tr>"));
+        assertTrue(resultHtml.contains("<h2>Conclusion</h2>"));
+        assertTrue(resultHtml.contains("<div class=\"section-body\" "
+                + "id=\"summary-report-section-conclusion-body\">"));
+        assertTrue(resultHtml.contains("<table>\n"
+                + "<tr><th>Category</th><th>Analyzed</th><th>Failed</th>"
+                + "<th>Total Cost</th><th>Estimated Time</th></tr>"));
+        assertTrue(resultHtml.contains("<details class=\"detail-item\">"));
+        assertFalse(resultHtml.contains("<details class=\"detail-item\" open>"));
         assertTrue(resultHtml.contains("line 2, column 13"));
         assertTrue(resultHtml.contains("1 | CREATE TABLE t("));
         assertTrue(resultHtml.contains("2 | col DEFAULT broken"));
@@ -543,11 +597,10 @@ class AnalyzerReportTest {
 
         String resultHtml = report.buildResultHtml();
 
-        assertTrue(resultHtml.contains("<details class=\"summary-part\" open>"
-                + "<summary>1. Database Objects (DDL Migration)</summary>"));
-        assertTrue(resultHtml.contains("<details class=\"summary-part\" open>"
-                + "<summary>2. Application Queries (DML/SQL Mapping Migration)</summary>"));
-        assertTrue(resultHtml.contains("<details class=\"summary-part\" open><summary>PL/CSQL</summary>"));
+        assertFalse(resultHtml.contains("<details class=\"summary-part\">"));
+        assertTrue(resultHtml.contains("<h3>1. Database Objects (DDL Migration)</h3>"));
+        assertTrue(resultHtml.contains("<h3>2. Application Queries (DML/SQL Mapping Migration)</h3>"));
+        assertTrue(resultHtml.contains("<h3>PL/CSQL</h3>"));
         assertTrue(resultHtml.contains("toggleSummaryRows(this,'summary-view')"));
         assertTrue(resultHtml.contains(">&#9656;</button>VIEW</td>"));
         assertTrue(resultHtml.contains("<td class=\"number\">2</td>"));
@@ -566,11 +619,11 @@ class AnalyzerReportTest {
         assertTrue(resultHtml.indexOf(">&#9656;</button>VIEW</td>")
                 < resultHtml.indexOf("<span class=\"summary-child-object\">VIEW_CREATE</span>"));
         assertTrue(resultHtml.indexOf(">&#9656;</button>VIEW</td>")
-                < resultHtml.indexOf("<summary>2. Application Queries (DML/SQL Mapping Migration)</summary>"));
-        assertTrue(resultHtml.indexOf("<summary>2. Application Queries (DML/SQL Mapping Migration)</summary>")
+                < resultHtml.indexOf("<h3>2. Application Queries (DML/SQL Mapping Migration)</h3>"));
+        assertTrue(resultHtml.indexOf("<h3>2. Application Queries (DML/SQL Mapping Migration)</h3>")
                 < resultHtml.indexOf("<td>SELECT</td>"));
         assertTrue(resultHtml.indexOf("<td>SELECT</td>")
-                < resultHtml.indexOf("<summary>PL/CSQL</summary>"));
+                < resultHtml.indexOf("<h3>PL/CSQL</h3>"));
     }
 
     @Test

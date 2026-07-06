@@ -1,0 +1,18 @@
+package com.cubrid.sqlanalyzer.command.service;
+
+import java.sql.SQLException;
+
+/**
+ * Narrow seam over a JDBC target connection: only the operations
+ * {@link AnalyzerExecutionRunner} actually needs, so JDBC-target orchestration
+ * (commit decisions, DDL labeling, cleanup ordering) can be tested without a real
+ * driver/connection.
+ */
+interface AnalyzerJdbcExecutor extends AutoCloseable {
+    AnalyzerJdbcExecutionResult execute(String sql) throws SQLException;
+
+    void commit() throws SQLException;
+
+    @Override
+    void close() throws SQLException;
+}

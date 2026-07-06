@@ -148,10 +148,10 @@ class CalculatorKeywordCostTest extends CostTestSupport {
                         float unitCost,
                         float totalCost) {
                 for (AnalyzerCostDetail costDetail : failure.getCostDetails()) {
-                        if (itemName.equals(costDetail.getItemName())
-                                        && count == costDetail.getCount()
-                                        && Math.abs(unitCost - costDetail.getUnitCost()) < DELTA
-                                        && Math.abs(totalCost - costDetail.getTotalCost()) < DELTA) {
+                        if (itemName.equals(costDetail.itemName())
+                                        && count == costDetail.count()
+                                        && Math.abs(unitCost - costDetail.unitCost()) < DELTA
+                                        && Math.abs(totalCost - costDetail.totalCost()) < DELTA) {
                                 return true;
                         }
                 }

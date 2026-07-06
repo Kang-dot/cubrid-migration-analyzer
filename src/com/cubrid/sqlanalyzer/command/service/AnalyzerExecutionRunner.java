@@ -1,17 +1,12 @@
 package com.cubrid.sqlanalyzer.command.service;
 
-import java.sql.Connection;
-import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 
 import com.cubrid.sqlanalyzer.command.model.AnalyzerSession;
-import com.cubrid.sqlanalyzer.command.model.AnalyzerExecutionMode;
 import com.cubrid.sqlanalyzer.command.model.AnalyzerFailure;
 import com.cubrid.sqlanalyzer.command.model.AnalyzerFailureStage;
-import com.cubrid.sqlanalyzer.command.model.AnalyzerSourceType;
 import com.cubrid.sqlanalyzer.command.model.AnalyzerTargetType;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerProgressEventViewModel;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerProgressCounts;
@@ -34,6 +29,15 @@ public class AnalyzerExecutionRunner {
     private static final Logger LOG = LoggerFactory.getLogger(AnalyzerExecutionRunner.class);
 
     private final AnalyzerCostCalculator costCalculator = new FailureCostCalculator();
+    private final AnalyzerJdbcExecutorFactory jdbcExecutorFactory;
+
+    public AnalyzerExecutionRunner() {
+        this(config -> new AnalyzerJdbcConnectionExecutor(config.getTargetConParams().createConnection()));
+    }
+
+    AnalyzerExecutionRunner(AnalyzerJdbcExecutorFactory jdbcExecutorFactory) {
+        this.jdbcExecutorFactory = jdbcExecutorFactory;
+    }
 
     public void run(
             AnalyzerSession session, AnalyzerProgressListener progressListener) {
@@ -255,7 +259,7 @@ public class AnalyzerExecutionRunner {
         session.clearFailures();
 
         try (PlcsqlChecker plcsqlChecker = new PlcsqlChecker();
-                Connection connection = session.getConfig().getTargetConParams().createConnection()) {
+                AnalyzerJdbcExecutor jdbcExecutor = jdbcExecutorFactory.open(session.getConfig())) {
             for (AnalyzerStatement statement : executionPlan.getStatements()) {
                 analyzed++;
                 if (isUnsupportedStatement(statement)) {
@@ -293,7 +297,7 @@ public class AnalyzerExecutionRunner {
                         continue;
                     }
 
-                    String resultSummary = executeJdbcStatement(connection, statement);
+                    String resultSummary = executeJdbcStatement(jdbcExecutor, statement);
                     succeeded++;
                     objectProgressTracker.record(statement, true);
                     session.getReport()
@@ -351,7 +355,7 @@ public class AnalyzerExecutionRunner {
             }
             if (!cleanupQueries.isEmpty()) {
                 runJdbcCleanup(
-                        connection,
+                        jdbcExecutor,
                         cleanupQueries,
                         session,
                         progressListener,
@@ -499,36 +503,27 @@ public class AnalyzerExecutionRunner {
         return new AnalysisCounters(analyzed, succeeded, failed);
     }
 
-    private String executeJdbcStatement(Connection connection, AnalyzerStatement statement)
+    private String executeJdbcStatement(AnalyzerJdbcExecutor jdbcExecutor, AnalyzerStatement statement)
             throws SQLException {
-        try (Statement jdbcStatement = connection.createStatement()) {
-            boolean hasResultSet = jdbcStatement.execute(statement.getSQL());
+        AnalyzerJdbcExecutionResult result = jdbcExecutor.execute(statement.getSQL());
 
-            if (hasResultSet) {
-                try (ResultSet resultSet = jdbcStatement.getResultSet()) {
-                    int rowCount = 0;
-                    while (resultSet.next()) {
-                        rowCount++;
-                    }
-                    return "rows=" + rowCount;
-                }
-            }
-
-            int updateCount = jdbcStatement.getUpdateCount();
-            if (shouldCommit(statement)) {
-                connection.commit();
-            }
-
-            if (isDDL(statement)) {
-                return "ddl executed";
-            }
-
-            return "updated=" + updateCount;
+        if (result.hasResultSet()) {
+            return "rows=" + result.rowCount();
         }
+
+        if (shouldCommit(statement)) {
+            jdbcExecutor.commit();
+        }
+
+        if (isDDL(statement)) {
+            return "ddl executed";
+        }
+
+        return "updated=" + result.updateCount();
     }
 
     private void runJdbcCleanup(
-            Connection connection,
+            AnalyzerJdbcExecutor jdbcExecutor,
             List<String> cleanupQueries,
             AnalyzerSession session,
             AnalyzerProgressListener progressListener,
@@ -536,9 +531,9 @@ public class AnalyzerExecutionRunner {
         for (int i = cleanupQueries.size() - 1; i >= 0; i--) {
             String cleanupQuery = cleanupQueries.get(i);
             String cleanupId = "CLEANUP_" + (cleanupQueries.size() - i);
-            try (Statement statement = connection.createStatement()) {
-                statement.execute(cleanupQuery);
-                connection.commit();
+            try {
+                jdbcExecutor.execute(cleanupQuery);
+                jdbcExecutor.commit();
                 session.getReport()
                         .addStatementResult(
                                 "CLEANUP",

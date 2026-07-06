@@ -173,19 +173,20 @@
 					<version>${version.surefire.plugin}</version>
 					<configuration>
 						<useModulePath>false</useModulePath>
+						<argLine>-Djava.library.path=${project.basedir}/jni</argLine>
 					</configuration>
 				</plugin>
 		</plugins>
 	</build>
+	<repositories>
+		<repository>
+			<id>sqlanalyzer-local-artifacts</id>
+			<url>file://${project.basedir}/lib/m2repo</url>
+		</repository>
+	</repositories>
 	<profiles>
 		<profile>
 			<id>dev-prebuilt-artifacts</id>
-			<repositories>
-				<repository>
-					<id>sqlanalyzer-local-artifacts</id>
-					<url>file://${project.basedir}/lib/m2repo</url>
-				</repository>
-			</repositories>
 		</profile>
 	</profiles>
 	<dependencies>
@@ -200,6 +201,12 @@
 	        <artifactId>com.cubrid.common.configuration</artifactId>
 	        <version>${cmt.version}</version>
 	    </dependency>
+
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-lang3</artifactId>
+			<version>3.18.0</version>
+		</dependency>
 
 	    <dependency>
 	        <groupId>com.beust</groupId>

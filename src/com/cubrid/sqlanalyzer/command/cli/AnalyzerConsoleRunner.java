@@ -24,8 +24,12 @@ public class AnalyzerConsoleRunner {
     private final AnalyzerResultPage resultPage;
 
     public AnalyzerConsoleRunner(ConsoleIO io) {
+        this(io, new AnalyzerService());
+    }
+
+    AnalyzerConsoleRunner(ConsoleIO io, AnalyzerService analyzerService) {
         this.io = io;
-        this.analyzerService = new AnalyzerService();
+        this.analyzerService = analyzerService;
         this.overviewPage = new AnalyzerOverviewPage(io);
         this.objectCountPage = new AnalyzerObjectCountPage(io);
         this.resultPage = new AnalyzerResultPage(io);

@@ -13,8 +13,17 @@ import com.cubrid.cubridmigration.cubrid.CUBRIDTimeUtil;
 
 class AnalyzerReportWriter {
 
+    private final File reportDir;
+
+    AnalyzerReportWriter() {
+        this(new File(System.getProperty("user.dir"), "report"));
+    }
+
+    AnalyzerReportWriter(File reportDir) {
+        this.reportDir = reportDir;
+    }
+
     String save(AnalyzerReport report) throws IOException {
-        File reportDir = getReportDirectory();
         if (!reportDir.exists() && !reportDir.mkdirs()) {
             throw new IOException("Failed to create report directory: " + reportDir);
         }
@@ -37,10 +46,6 @@ class AnalyzerReportWriter {
         }
 
         return reportFile.getAbsolutePath();
-    }
-
-    private File getReportDirectory() {
-        return new File(System.getProperty("user.dir"), "report");
     }
 
     private String buildTimestamp(long generatedAt) {
