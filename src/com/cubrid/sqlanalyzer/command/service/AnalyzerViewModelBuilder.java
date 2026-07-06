@@ -174,33 +174,21 @@ public class AnalyzerViewModelBuilder {
     }
 
     private long countTargetPrimaryKeys(List<Table> tables) {
-        long count = 0;
-
-        for (Table table : tables) {
-            if (table.getPk() != null && !table.getPk().getPkColumns().isEmpty()) {
-                count++;
-            }
-        }
-
-        return count;
+        return tables.stream()
+                .filter(t -> t.getPk() != null && !t.getPk().getPkColumns().isEmpty())
+                .count();
     }
 
     private long countTargetForeignKeys(List<Table> tables) {
-        long count = 0;
-
-        for (Table table : tables) {
-            count += table.getFks().size();
-        }
-
-        return count;
+        return tables.stream()
+                .mapToLong(t -> t.getFks().size())
+                .sum();
     }
 
     private long sumTableBytes(List<AnalyzerTableSizeViewModel> tableSizes) {
-        long totalBytes = 0;
-        for (AnalyzerTableSizeViewModel tableSize : tableSizes) {
-            totalBytes += Math.max(0L, tableSize.bytes());
-        }
-        return totalBytes;
+        return tableSizes.stream()
+                .mapToLong(t -> Math.max(0L, t.bytes()))
+                .sum();
     }
 
     private String getProgramVersion() {

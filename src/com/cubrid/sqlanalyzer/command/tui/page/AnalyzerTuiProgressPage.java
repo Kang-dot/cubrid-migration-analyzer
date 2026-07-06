@@ -1,26 +1,16 @@
 package com.cubrid.sqlanalyzer.command.tui.page;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-import com.googlecode.lanterna.TerminalSize;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerProgressEventViewModel;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerProgressObjectCount;
-import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerProgressStage;
+import com.googlecode.lanterna.TerminalSize;
 import com.googlecode.lanterna.gui2.Label;
 import com.googlecode.lanterna.gui2.Panel;
 import com.googlecode.lanterna.gui2.ProgressBar;
-import com.googlecode.lanterna.gui2.TextBox;
-import com.googlecode.lanterna.gui2.table.Table;
 
 public class AnalyzerTuiProgressPage {
-    private static final int PAGE_FIXED_ROWS = 14;
-    private static final int OBJECT_SUMMARY_VISIBLE_ROWS = 5;
-    private static final int RECENT_EVENT_VISIBLE_ROWS = 8;
-    private static final int RECENT_MESSAGE_WIDTH = 72;
-    private static final int MIN_SCROLLABLE_ROWS = 3;
-
     public Panel build() {
         return buildView(null).getPanel();
     }
@@ -42,22 +32,8 @@ public class AnalyzerTuiProgressPage {
         private final Label statusLabel;
         private final ProgressBar progressBar;
         private final Panel objectSummaryPanel;
-        private final Table<String> recentTable;
-        private final TextBox recentTextBox;
-        private final List<String> recentMessages = new ArrayList<String>();
-
-        private final int objectSummaryVisibleRows;
-        private final int recentVisibleRows;
-        private final int recentMessageWidth;
 
         private ProgressView(TerminalSize terminalSize) {
-            int contentWidth = AnalyzerTuiLayout.contentWidth(terminalSize);
-            int recentTableWidth = Math.min(82, contentWidth);
-            int availableScrollableRows = availableScrollableRows(terminalSize);
-            objectSummaryVisibleRows = objectSummaryVisibleRows(availableScrollableRows);
-            recentVisibleRows = recentVisibleRows(availableScrollableRows, objectSummaryVisibleRows);
-            recentMessageWidth =
-                    Math.max(16, Math.min(RECENT_MESSAGE_WIDTH, recentTableWidth - 10));
             panel = new Panel();
             progressLabel = new Label("Progress : 0 / 0");
             okLabel = new Label("OK       : 0");
@@ -68,20 +44,6 @@ public class AnalyzerTuiProgressPage {
             progressBar.setPreferredWidth(40);
             objectSummaryPanel = new Panel();
             objectSummaryPanel.addComponent(new Label("(none)"));
-            if (terminalSize == null) {
-                recentTable = new Table<String>("No.", "Event");
-                recentTable.setVisibleColumns(2);
-                recentTable.setVisibleRows(recentVisibleRows);
-                recentTable.setPreferredSize(new TerminalSize(recentTableWidth, recentVisibleRows + 2));
-                recentTextBox = null;
-            } else {
-                recentTable = null;
-                recentTextBox = new TextBox(
-                        new TerminalSize(recentTableWidth, recentVisibleRows),
-                        "",
-                        TextBox.Style.MULTI_LINE);
-                recentTextBox.setReadOnly(true);
-            }
 
             panel.addComponent(new Label("[3/4] Analysis progress"));
             panel.addComponent(new Label(""));
@@ -96,40 +58,8 @@ public class AnalyzerTuiProgressPage {
             panel.addComponent(new Label(
                     "  Type             Total   OK FAIL"));
             panel.addComponent(objectSummaryPanel);
-            // Recent output is temporarily hidden from the analysis progress page.
-            // panel.addComponent(new Label("Recent"));
-            // if (recentTable != null) {
-            //     panel.addComponent(recentTable);
-            // } else {
-            //     panel.addComponent(recentTextBox);
-            // }
             panel.addComponent(new Label(""));
             panel.addComponent(statusLabel);
-        }
-
-        private int availableScrollableRows(TerminalSize terminalSize) {
-            if (terminalSize == null) {
-                return OBJECT_SUMMARY_VISIBLE_ROWS + RECENT_EVENT_VISIBLE_ROWS;
-            }
-            return Math.max(
-                    MIN_SCROLLABLE_ROWS * 2,
-                    terminalSize.getRows() - PAGE_FIXED_ROWS);
-        }
-
-        private int objectSummaryVisibleRows(int availableScrollableRows) {
-            return Math.max(
-                    MIN_SCROLLABLE_ROWS,
-                    Math.min(OBJECT_SUMMARY_VISIBLE_ROWS, availableScrollableRows / 2));
-        }
-
-        private int recentVisibleRows(
-                int availableScrollableRows,
-                int usedObjectSummaryRows) {
-            return Math.max(
-                    MIN_SCROLLABLE_ROWS,
-                    Math.min(
-                            RECENT_EVENT_VISIBLE_ROWS,
-                            availableScrollableRows - usedObjectSummaryRows));
         }
 
         public Panel getPanel() {
@@ -156,9 +86,6 @@ public class AnalyzerTuiProgressPage {
             String message = formatMessage(event);
             if (!message.isEmpty()) {
                 currentLabel.setText("Current  : " + message);
-                // if (shouldShowAsRecent(event.stage())) {
-                //     addRecentMessage(message);
-                // }
             }
         }
 
@@ -195,35 +122,6 @@ public class AnalyzerTuiProgressPage {
 
         public void markCompleted() {
             statusLabel.setText("Analysis completed. Open the result.");
-        }
-
-        private void addRecentMessage(String message) {
-            recentMessages.add(fitText(message, recentMessageWidth));
-            if (recentTextBox != null) {
-                int firstMessageIndex = Math.max(0, recentMessages.size() - recentVisibleRows);
-                recentTextBox.setText(String.join("\n", recentMessages.subList(
-                        firstMessageIndex,
-                        recentMessages.size())));
-                return;
-            }
-
-            int rowNumber = recentTable.getTableModel().getRowCount() + 1;
-            recentTable.getTableModel().addRow(
-                    String.valueOf(rowNumber),
-                    recentMessages.get(recentMessages.size() - 1));
-            recentTable.setVisibleRows(
-                    Math.min(recentVisibleRows, recentTable.getTableModel().getRowCount()));
-            int firstVisibleRow = Math.max(
-                    0,
-                    recentTable.getTableModel().getRowCount() - recentTable.getVisibleRows());
-            recentTable.setViewTopRow(firstVisibleRow);
-        }
-
-        private boolean shouldShowAsRecent(AnalyzerProgressStage stage) {
-            return stage == AnalyzerProgressStage.STATEMENT_SUCCEEDED
-                    || stage == AnalyzerProgressStage.STATEMENT_FAILED
-                    || stage == AnalyzerProgressStage.CLEANUP_SUCCEEDED
-                    || stage == AnalyzerProgressStage.CLEANUP_FAILED;
         }
 
         private String formatMessage(AnalyzerProgressEventViewModel event) {

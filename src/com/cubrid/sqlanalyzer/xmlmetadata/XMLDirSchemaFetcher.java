@@ -60,8 +60,8 @@ public class XMLDirSchemaFetcher implements IDBSchemaInfoFetcher {
                 
 //                InputSource is = new InputSource(reader);
                 
-                for (File flie : fileList) {
-                	sp.parse(flie, analyzerHandler);
+                for (File file : fileList) {
+                	sp.parse(file, analyzerHandler);
                 }
                 
                 AnalyzerCatalog catalog = new AnalyzerCatalog(); 

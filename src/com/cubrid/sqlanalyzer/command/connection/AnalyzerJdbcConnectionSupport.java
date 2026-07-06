@@ -3,6 +3,7 @@ package com.cubrid.sqlanalyzer.command.connection;
 import java.io.File;
 import java.io.IOException;
 import java.sql.Connection;
+import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -57,7 +58,11 @@ public final class AnalyzerJdbcConnectionSupport {
 
     public static AnalyzerJdbcConnectionInfo parseOracleProfile(
             String jdbcUrl, String user, String password) {
-        String driverLocation = resolveAndLoadDriver(DatabaseType.ORACLE);
+        return parseOracleProfile(jdbcUrl, user, password, resolveAndLoadDriver(DatabaseType.ORACLE));
+    }
+
+    static AnalyzerJdbcConnectionInfo parseOracleProfile(
+            String jdbcUrl, String user, String password, String driverLocation) {
         Matcher sidMatcher = ORACLE_SID_URL.matcher(jdbcUrl);
         if (sidMatcher.matches()) {
             return new AnalyzerJdbcConnectionInfo(
@@ -89,7 +94,11 @@ public final class AnalyzerJdbcConnectionSupport {
 
     public static AnalyzerJdbcConnectionInfo parseCubridProfile(
             String jdbcUrl, String user, String password) {
-        String driverLocation = resolveAndLoadDriver(DatabaseType.CUBRID);
+        return parseCubridProfile(jdbcUrl, user, password, resolveAndLoadDriver(DatabaseType.CUBRID));
+    }
+
+    static AnalyzerJdbcConnectionInfo parseCubridProfile(
+            String jdbcUrl, String user, String password, String driverLocation) {
         Matcher matcher = CUBRID_URL.matcher(jdbcUrl);
         if (!matcher.matches()) {
             throw new IllegalArgumentException("Unsupported CUBRID JDBC URL format: " + jdbcUrl);
@@ -160,23 +169,22 @@ public final class AnalyzerJdbcConnectionSupport {
             return null;
         }
 
-        for (File file : files) {
-            if (!file.isFile()) {
-                continue;
-            }
-            String lowerName = file.getName().toLowerCase();
-            if (!lowerName.endsWith(".jar")) {
-                continue;
-            }
-            if (DatabaseType.ORACLE.equals(databaseType) && lowerName.startsWith("ojdbc")) {
-                return file;
-            }
-            if (DatabaseType.CUBRID.equals(databaseType) && lowerName.contains("cubrid")) {
-                return file;
-            }
-        }
+        return Arrays.stream(files)
+                .filter(File::isFile)
+                .filter(f -> f.getName().toLowerCase().endsWith(".jar"))
+                .filter(f -> matchesDriverName(f.getName().toLowerCase(), databaseType))
+                .findFirst()
+                .orElse(null);
+    }
 
-        return null;
+    private static boolean matchesDriverName(String lowerName, DatabaseType databaseType) {
+        if (DatabaseType.ORACLE.equals(databaseType)) {
+            return lowerName.startsWith("ojdbc");
+        }
+        if (DatabaseType.CUBRID.equals(databaseType)) {
+            return lowerName.contains("cubrid");
+        }
+        return false;
     }
 
     private static String[] getRepositoryDirectories() {

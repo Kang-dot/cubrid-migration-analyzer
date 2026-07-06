@@ -193,7 +193,6 @@ class AnalyzerHtmlReportBuilder {
         sb.append("<table class=\"info-table\">\n");
         sb.append("<colgroup><col><col></colgroup>\n");
         appendHtmlInfoRow(sb, "Source Oracle SID", resolveSourceOracleSid());
-        appendHtmlInfoRow(sb, "Connected User", resolveSourceOracleUser());
         appendHtmlInfoRow(sb, "Source Oracle Status", resolveSourceStatus(AnalyzerSourceType.ORACLE));
         appendHtmlInfoRow(sb, "XML Directory Status", resolveSourceStatus(AnalyzerSourceType.XML));
         appendHtmlInfoRow(sb, "Source schema", resolveSchemaName());
@@ -749,17 +748,17 @@ class AnalyzerHtmlReportBuilder {
         } else {
             for (AnalyzerCostDetail costDetail : failure.getCostDetails()) {
                 sb.append("<tr><td>")
-                        .append(AnalyzerReportFormatter.escapeHtml(costDetail.getItemName()))
+                        .append(AnalyzerReportFormatter.escapeHtml(costDetail.itemName()))
                         .append("</td><td class=\"number\">")
-                        .append(AnalyzerReportFormatter.formatNumber(costDetail.getCount()))
-                        .append("</td><td class=\"number\">")
-                        .append(AnalyzerReportFormatter.escapeHtml(
-                                AnalyzerReportFormatter.formatEstimatedCostWithTime(
-                                        costDetail.getUnitCost())))
+                        .append(AnalyzerReportFormatter.formatNumber(costDetail.count()))
                         .append("</td><td class=\"number\">")
                         .append(AnalyzerReportFormatter.escapeHtml(
                                 AnalyzerReportFormatter.formatEstimatedCostWithTime(
-                                        costDetail.getTotalCost())))
+                                        costDetail.unitCost())))
+                        .append("</td><td class=\"number\">")
+                        .append(AnalyzerReportFormatter.escapeHtml(
+                                AnalyzerReportFormatter.formatEstimatedCostWithTime(
+                                        costDetail.totalCost())))
                         .append("</td></tr>\n");
             }
         }
@@ -1077,19 +1076,6 @@ class AnalyzerHtmlReportBuilder {
         for (AnalyzerSourceOverviewViewModel source : overview.sources()) {
             if (source.type() == AnalyzerSourceType.ORACLE) {
                 return AnalyzerReportFormatter.nullToEmpty(source.databaseName());
-            }
-        }
-        return "";
-    }
-
-    private String resolveSourceOracleUser() {
-        AnalyzerOverviewViewModel overview = report.getOverview();
-        if (overview == null || overview.sources().isEmpty()) {
-            return "";
-        }
-        for (AnalyzerSourceOverviewViewModel source : overview.sources()) {
-            if (source.type() == AnalyzerSourceType.ORACLE) {
-                return AnalyzerReportFormatter.nullToEmpty(source.user());
             }
         }
         return "";

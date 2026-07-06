@@ -6,6 +6,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Properties;
@@ -82,9 +83,10 @@ public final class AnalyzerSettingsLoader {
 
         String rawArguments = trimToNull(properties.getProperty("arguments"));
         if (rawArguments != null) {
-            List<String> tokens = new ArrayList<String>(List.of(splitArguments(rawArguments)));
+            List<String> tokens = new ArrayList<String>();
+            Collections.addAll(tokens, splitArguments(rawArguments));
             addDebugOptions(tokens, properties);
-            return tokens.toArray(new String[tokens.size()]);
+            return tokens.toArray(new String[0]);
         }
 
         validateRequiredSettings(properties);
@@ -105,7 +107,7 @@ public final class AnalyzerSettingsLoader {
 
         addTarget(tokens, properties, getFirst(properties, "target.type", "target"));
 
-        return tokens.toArray(new String[tokens.size()]);
+        return tokens.toArray(new String[0]);
     }
 
     private static void addDebugOptions(List<String> tokens, Properties properties) {
@@ -346,7 +348,7 @@ public final class AnalyzerSettingsLoader {
         }
 
         return new StartupArguments(
-                remainingArgs.toArray(new String[remainingArgs.size()]), settingsPath);
+                remainingArgs.toArray(new String[0]), settingsPath);
     }
 
     private static String getFirst(Properties properties, String... names) {
@@ -415,7 +417,7 @@ public final class AnalyzerSettingsLoader {
         }
 
         addToken(tokens, token);
-        return tokens.toArray(new String[tokens.size()]);
+        return tokens.toArray(new String[0]);
     }
 
     private static void addToken(List<String> tokens, StringBuilder token) {

@@ -251,7 +251,6 @@ public class AnalyzerService {
         }
         ensureXmlFilesExist(session.getXmlDirectory());
 
-        config.setSourceType(AnalyzerConfiguration.SOURCE_TYPE_XML);
         XMLDirSource source = new XMLDirSource(session.getXmlDirectory(), session.getXmlCharset());
         XMLDirSchemaFetcher fetcher = new XMLDirSchemaFetcher();
         AnalyzerCatalog catalog = fetcher.fetchSchema(source, null);
@@ -262,7 +261,6 @@ public class AnalyzerService {
 
         QueryDictionary queryDictionary = catalog.getQueryDictionary();
         session.setAnalyzerCatalog(catalog);
-        session.setSourceCatalog(catalog);
         config.setQueryDict(queryDictionary);
         LOG.info(
                 "XML query dictionary built. select={}, insert={}, update={}, delete={}",

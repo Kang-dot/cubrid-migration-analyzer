@@ -391,13 +391,13 @@ class AnalyzerTextReportBuilder {
 
         for (AnalyzerCostDetail costDetail : failure.getCostDetails()) {
             sb.append("    - ")
-                    .append(AnalyzerReportFormatter.nullToEmpty(costDetail.getItemName()))
+                    .append(AnalyzerReportFormatter.nullToEmpty(costDetail.itemName()))
                     .append(" : count=")
-                    .append(costDetail.getCount())
+                    .append(costDetail.count())
                     .append(", unit=")
-                    .append(AnalyzerReportFormatter.formatEstimatedCostWithTime(costDetail.getUnitCost()))
+                    .append(AnalyzerReportFormatter.formatEstimatedCostWithTime(costDetail.unitCost()))
                     .append(", total=")
-                    .append(AnalyzerReportFormatter.formatEstimatedCostWithTime(costDetail.getTotalCost()))
+                    .append(AnalyzerReportFormatter.formatEstimatedCostWithTime(costDetail.totalCost()))
                     .append(lineSeparator);
         }
     }

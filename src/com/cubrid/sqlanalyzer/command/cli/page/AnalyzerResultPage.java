@@ -85,12 +85,12 @@ public class AnalyzerResultPage {
     private void renderCostDetail(AnalyzerCostDetail costDetail) {
         io.println(
                 "    - "
-                        + costDetail.getItemName()
+                        + costDetail.itemName()
                         + " : count="
-                        + costDetail.getCount()
+                        + costDetail.count()
                         + ", unit="
-                        + AnalyzerCostFormatter.formatCostWithTime(costDetail.getUnitCost())
+                        + AnalyzerCostFormatter.formatCostWithTime(costDetail.unitCost())
                         + ", total="
-                        + AnalyzerCostFormatter.formatCostWithTime(costDetail.getTotalCost()));
+                        + AnalyzerCostFormatter.formatCostWithTime(costDetail.totalCost()));
     }
 }

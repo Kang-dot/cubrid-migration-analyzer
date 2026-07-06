@@ -170,12 +170,10 @@ public class AnalyzerConnectionManager {
      * @return connection information, or null
      */
     public AnalyzerConnectionInfo getConnection(String name) {
-        for (AnalyzerConnectionInfo conn : connections) {
-            if (name.equals(conn.getName())) {
-                return conn;
-            }
-        }
-        return null;
+        return connections.stream()
+                .filter(conn -> name.equals(conn.getName()))
+                .findFirst()
+                .orElse(null);
     }
     
     /**
