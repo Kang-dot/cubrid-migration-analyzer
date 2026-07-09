@@ -93,8 +93,6 @@ public final class AnalyzerSettingsLoader {
 
         List<String> tokens = new ArrayList<String>();
         addOption(tokens, "-ui", getFirst(properties, "ui.mode", "ui"));
-        addOption(tokens, "-tw", getFirst(properties, "tui.width", "tuiWidth"));
-        addOption(tokens, "-th", getFirst(properties, "tui.height", "tuiHeight"));
         addOption(tokens, "-jr", getFirst(properties, "jdbc.repository.dir", "jdbcRepositoryDir"));
         addDebugOptions(tokens, properties);
 

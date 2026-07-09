@@ -67,8 +67,7 @@ public class AnalyzerConsoleMain {
         try {
             analyzerService.applyArguments(session, arguments);
             analyzerService.prepareConfiguration(session);
-            new AnalyzerTuiRunner(arguments.getTuiWidth(), arguments.getTuiHeight())
-                    .start(session, analyzerService);
+            new AnalyzerTuiRunner().start(session, analyzerService);
             LOG.info("TUI analyzer finished successfully.");
             return 0;
         } catch (IOException | RuntimeException ex) {

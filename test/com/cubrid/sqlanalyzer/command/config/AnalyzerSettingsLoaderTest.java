@@ -25,8 +25,6 @@ class AnalyzerSettingsLoaderTest {
                 settingsFile,
                 "ui.mode=tui\n"
                         + "debug.fullquery=true\n"
-                        + "tui.width=120\n"
-                        + "tui.height=40\n"
                         + "source.type=xml\n"
                         + "xml.directory=/tmp/sqlmap\n"
                         + "xml.charset=EUC-KR\n"
@@ -40,8 +38,6 @@ class AnalyzerSettingsLoaderTest {
         assertEquals("EUC-KR", arguments.getXmlCharset());
         assertEquals(AnalyzerTargetType.PARSER, arguments.getTargetType());
         assertEquals(AnalyzerUiMode.TUI, arguments.getUiMode());
-        assertEquals(120, arguments.getTuiWidth());
-        assertEquals(40, arguments.getTuiHeight());
         assertEquals(true, arguments.isDebugFullQuery());
     }
 

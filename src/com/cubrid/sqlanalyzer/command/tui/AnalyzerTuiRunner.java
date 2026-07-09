@@ -49,10 +49,6 @@ public class AnalyzerTuiRunner {
         this(DEFAULT_TERMINAL_SIZE);
     }
 
-    public AnalyzerTuiRunner(int terminalWidth, int terminalHeight) {
-        this(new TerminalSize(terminalWidth, terminalHeight));
-    }
-
     private AnalyzerTuiRunner(TerminalSize initialTerminalSize) {
         this(
                 initialTerminalSize,

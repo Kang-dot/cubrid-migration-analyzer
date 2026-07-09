@@ -94,6 +94,20 @@ The default Maven arguments are:
 -DskipTests package
 ```
 
+If you call Maven directly, keep using the project-local Maven repository:
+
+```bash
+mvn -Dmaven.repo.local=.build/submodule-m2repo clean compile
+```
+
+This repository is populated by the initial `bash build.sh --with-submodules`
+run. On a fresh checkout, do not rely on the direct Maven command until the CMT
+submodule artifacts have been installed there.
+
+Use `clean` when switching between IDE builds and Maven builds. Some IDE
+incremental compilers may leave broken classes in `target/classes`; a clean
+compile forces Maven to regenerate them.
+
 The Linux distribution archive is generated at:
 
 ```text
@@ -101,6 +115,16 @@ target/sql-analyzer-0.0.1-SNAPSHOT-linux-x86_64.tar.gz
 ```
 
 The unpacked distribution files are available under `target/analyzer`.
+
+### JDBC Drivers
+
+The CUBRID JDBC driver is included in the analyzer distribution during the
+build. No separate CUBRID JDBC driver setup is required for a normal build.
+
+The Oracle JDBC driver (`ojdbc`) is not bundled. To analyze an Oracle source,
+obtain the appropriate `ojdbc` JAR separately and place it in a JDBC driver
+repository directory. Pass that directory with `-jr <directory>` or configure
+it with `jdbc.repository.dir`.
 
 ## Running the Analyzer
 
@@ -132,8 +156,8 @@ be started with command-line options:
   -sx -xd /path/to/sqlmap
 ```
 
-For Oracle source analysis, place the required Oracle JDBC driver in a driver
-repository and specify it with `-jr <directory>`.
+For Oracle source analysis, configure the `ojdbc` driver as described in
+[JDBC Drivers](#jdbc-drivers).
 
 ## Configuration
 
@@ -157,8 +181,6 @@ Run the analyzer with a specific settings file:
 | --- | --- | --- |
 | `arguments` | Command-line arguments | Provides the complete analyzer argument string, for example `-so -oj jdbc\|user\|password -sx -xd ./sqlmap` |
 | `ui.mode` | `console` or `tui` / `console` | Selects the user interface mode |
-| `tui.width` | Integer / `100` | Sets the initial TUI width |
-| `tui.height` | Integer / `30` | Sets the initial TUI height |
 | `jdbc.repository.dir` | Directory path | Specifies a directory containing JDBC drivers |
 | `log.dir` | Directory path / `logs` | Specifies the runtime log directory |
 
@@ -251,3 +273,26 @@ bash build.sh test
 
 Add `--with-submodules` when the CMT artifacts have not been installed yet or
 when the submodule source has changed.
+
+### Testability Notes
+
+Several command-layer classes expose package-private constructors or small
+interfaces so integration-style tests can drive the full flow without touching
+external systems:
+
+* `AnalyzerConsoleRunner` keeps its public constructor for production use, and
+  also accepts an injected `AnalyzerService` in tests. This lets tests verify
+  console flow, exit codes, and error handling without forcing a real service
+  implementation.
+* `AnalyzerExecutionRunner` creates JDBC executors through
+  `AnalyzerJdbcExecutorFactory`. Production code opens a real JDBC connection
+  from `AnalyzerConfiguration`, while tests can inject `ScriptedJdbcExecutor`
+  to record executed SQL, commits, cleanup order, and failures without a
+  database.
+* `AnalyzerReportWriter` keeps writing to `report` by default, and also accepts
+  an injected report directory. Tests use a temporary directory so report files
+  do not pollute the project workspace.
+
+These seams are intentionally package-private and small. They preserve normal
+runtime behavior while making end-to-end command scenarios deterministic in
+JUnit.

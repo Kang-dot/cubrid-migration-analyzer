@@ -50,8 +50,7 @@ public class AnalyzerTuiMain {
         try {
             analyzerService.applyArguments(session, arguments);
             analyzerService.prepareConfiguration(session);
-            new AnalyzerTuiRunner(arguments.getTuiWidth(), arguments.getTuiHeight())
-                    .start(session, analyzerService);
+            new AnalyzerTuiRunner().start(session, analyzerService);
             LOG.info("SQL Analyzer TUI command finished successfully.");
         } catch (IOException | RuntimeException ex) {
             LOG.error("SQL Analyzer TUI command failed.", ex);
