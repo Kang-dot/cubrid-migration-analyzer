@@ -2,6 +2,12 @@
 set -e
 
 APP_HOME="$(cd "$(dirname "$0")" && pwd)"
+JAVA="$APP_HOME/jre/bin/java"
+
+if [ ! -x "$JAVA" ]; then
+    echo "Bundled Java runtime is missing or not executable: $JAVA" >&2
+    exit 1
+fi
 
 if [ -z "${CUBRID:-}" ]; then
     echo "CUBRID environment variable is not set." >&2
@@ -19,7 +25,7 @@ if [ -z "$ANTLR4_RUNTIME" ]; then
     exit 1
 fi
 
-exec java \
+exec "$JAVA" \
     -Djava.library.path="$APP_HOME/jni" \
     -Dsqlanalyzer.plcsql.jar="$APP_HOME/lib/pl_server.jar" \
     -cp "$APP_HOME/analyzer.jar:$APP_HOME/lib/*" \

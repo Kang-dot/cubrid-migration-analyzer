@@ -14,6 +14,11 @@
 			<dist.dir>${project.build.directory}/analyzer</dist.dir>
 			<cmt.version>1.0.0-SNAPSHOT</cmt.version>
 			<pl.server.jar>${project.basedir}/pl_server/pl_server.jar</pl.server.jar>
+			<jre.version>21.0.12_8</jre.version>
+			<jre.release>jdk-21.0.12%2B8</jre.release>
+			<jre.archive>OpenJDK21U-jre_x64_linux_hotspot_${jre.version}.tar.gz</jre.archive>
+			<jre.download.url>https://github.com/adoptium/temurin21-binaries/releases/download/${jre.release}/${jre.archive}</jre.download.url>
+			<jre.sha256>8a379a67c91a3ae61ffb33d46e0a40c7ba35e70713c4db31cfca30492f792eff</jre.sha256>
 	</properties>
 	<build>
 		<finalName>analyzer</finalName>
@@ -137,6 +142,39 @@
 							</configuration>
 						</execution>
 						<execution>
+							<id>prepare-bundled-jre</id>
+							<phase>prepare-package</phase>
+							<goals>
+								<goal>run</goal>
+							</goals>
+							<configuration>
+								<target>
+									<get src="${jre.download.url}"
+										dest="${project.build.directory}/${jre.archive}"
+										usetimestamp="true"
+										retries="3"/>
+									<checksum file="${project.build.directory}/${jre.archive}"
+										algorithm="SHA-256"
+										property="jre.checksum.actual"/>
+									<condition property="jre.checksum.valid">
+										<equals arg1="${jre.checksum.actual}" arg2="${jre.sha256}"/>
+									</condition>
+									<fail unless="jre.checksum.valid"
+										message="Downloaded JRE checksum does not match ${jre.sha256}"/>
+									<untar src="${project.build.directory}/${jre.archive}"
+										dest="${dist.dir}"
+										compression="gzip">
+										<mapper type="regexp" from="^[^/]+/(.*)$" to="jre/\1"/>
+									</untar>
+									<chmod perm="755">
+										<fileset dir="${dist.dir}/jre/bin" includes="**/*"/>
+									</chmod>
+									<chmod file="${dist.dir}/jre/lib/jexec" perm="755"/>
+									<chmod file="${dist.dir}/jre/lib/jspawnhelper" perm="755"/>
+								</target>
+							</configuration>
+						</execution>
+						<execution>
 							<id>package-linux-distribution</id>
 							<phase>package</phase>
 							<goals>
@@ -153,6 +191,9 @@
 											dirmode="0755">
 											<exclude name="analyzer.sh"/>
 											<exclude name="jni/libsqlvalidator.so"/>
+											<exclude name="jre/bin/**"/>
+											<exclude name="jre/lib/jexec"/>
+											<exclude name="jre/lib/jspawnhelper"/>
 										</tarfileset>
 										<tarfileset dir="${dist.dir}"
 											prefix="sql-analyzer-${project.version}"
@@ -160,6 +201,9 @@
 											dirmode="0755">
 											<include name="analyzer.sh"/>
 											<include name="jni/libsqlvalidator.so"/>
+											<include name="jre/bin/**"/>
+											<include name="jre/lib/jexec"/>
+											<include name="jre/lib/jspawnhelper"/>
 										</tarfileset>
 									</tar>
 								</target>
