@@ -9,17 +9,27 @@ public class QueryParser {
 				System.loadLibrary("sqlvalidator");
 			}
 		} catch (UnsatisfiedLinkError e) {
-			e.printStackTrace();
+			throw new ExceptionInInitializerError(e);
 		}
 	}
 	
 	/**
-	 * JNI native method to validate SQL query using C library.
+	 * Validate SQL query using CUBRID native parser.
 	 * 
 	 * @param query SQL string to validate
 	 * @return "NO_ERROR" if valid, or error message if invalid
 	 */
-	public native String validateSQL(String query);
+	public String validateSQL(String query) {
+		synchronized (QueryParser.class) {
+			String result = validateSQLNative(query);
+			if (result == null) {
+				return "CUBRID SQL parser returned no validation result.";
+			}
+			return result;
+		}
+	}
+
+	private native String validateSQLNative(String query);
 
 	/**
 	 * Check SQL query using validateSQL and throw SQLAnalyzeException if invalid.

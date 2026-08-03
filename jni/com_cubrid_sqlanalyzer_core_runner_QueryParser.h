@@ -9,10 +9,10 @@ extern "C" {
 #endif
 /*
  * Class:     com_cubrid_sqlanalyzer_core_runner_QueryParser
- * Method:    validateSQL
+ * Method:    validateSQLNative
  * Signature: (Ljava/lang/String;)Ljava/lang/String;
  */
-JNIEXPORT jstring JNICALL Java_com_cubrid_sqlanalyzer_core_runner_QueryParser_validateSQL
+JNIEXPORT jstring JNICALL Java_com_cubrid_sqlanalyzer_core_runner_QueryParser_validateSQLNative
   (JNIEnv *, jobject, jstring);
 
 #ifdef __cplusplus

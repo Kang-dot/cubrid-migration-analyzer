@@ -39,11 +39,6 @@ enum er_exit_ask {
 	ER_EXIT_DEFAULT = ER_NEVER_EXIT
 };
 
-typedef struct error_buf {
-	char *buf;
-	int length;
-} ERROR_BUF;
-
 typedef int (*fn_er_init)(const char *msglog_filename, int exit_ask);
 typedef int (*fn_er_errid)();
 typedef const char * (*fn_er_msg)();
@@ -73,9 +68,17 @@ static fn_db_set_connect_status cub_db_set_connect_status = NULL;
 static fn_db_open_buffer cub_db_open_buffer = NULL;
 static fn_db_close_session cub_db_close_session = NULL;
 
+static LIB_HANDLE cubrid_library = NULL;
+static int cubrid_initialized = 0;
+
+static int ensure_initialized(void);
+static int reset_error_manager(void);
+static void unload_library(void);
+static void clear_symbols(void);
 static int load(LIB_HANDLE *hDLL, const char * libraryPath);
 static int init(const char *lang_charset);
-static int set_error(char ** error_buf, const char *er_msg);
+static int append_error(char **out_buf, int *out_buf_len, int *out_buf_maxlen,
+		int line, int col, int error, const char *er_msg);
 static char * jstring_to_char(JNIEnv *env, jstring j_str);
 static jstring char_to_jstring(JNIEnv *env, const char *str);
 #ifndef _WIN32
@@ -85,16 +88,11 @@ static void * load_symbol_with_fallback(LIB_HANDLE hDLL, const char *symbol,
 
 /*
  * Class:     com_cubrid_sqlanalyzer_core_runner_QueryParser
- * Method:    validateSQL
+ * Method:    validateSQLNative
  * Signature: (Ljava/lang/String;)Ljava/lang/String;
  */
-JNIEXPORT jstring JNICALL Java_com_cubrid_sqlanalyzer_core_runner_QueryParser_validateSQL(
+JNIEXPORT jstring JNICALL Java_com_cubrid_sqlanalyzer_core_runner_QueryParser_validateSQLNative(
 		JNIEnv *env, jobject j_obj, jstring j_str) {
-	LIB_HANDLE hDLL = NULL;
-#ifndef _WIN32
-	char libraryPath[PATH_MAX];
-	const char *cubrid = NULL;
-#endif
 	char *query = NULL;
 	DB_SESSION *session = NULL;
 	DB_SESSION_ERROR *session_error = NULL;
@@ -104,34 +102,21 @@ JNIEXPORT jstring JNICALL Java_com_cubrid_sqlanalyzer_core_runner_QueryParser_va
 	int has_error = 0;
 	jstring result = NULL;
 
-#ifdef _WIN32
-	if (load(&hDLL, DEFAULT_LIBRARY_PATH) != NO_ERROR) {
-		goto exit_on_error;
-	}
-#else
-	cubrid = getenv("CUBRID");
-	if (cubrid == NULL || cubrid[0] == '\0') {
-		fprintf(stderr, "CUBRID environment variable is not set.\n");
+	(void) j_obj;
+
+	if (ensure_initialized() != NO_ERROR) {
+		result = char_to_jstring(env, "Failed to initialize CUBRID SQL parser.");
 		goto exit_on_error;
 	}
 
-	if (snprintf(libraryPath, sizeof(libraryPath), "%s%s", cubrid,
-			DEFAULT_LIBRARY_PATH_SUFFIX) >= (int) sizeof(libraryPath)) {
-		fprintf(stderr, "CUBRID library path is too long.\n");
-		goto exit_on_error;
-	}
-
-	if (load(&hDLL, libraryPath) != NO_ERROR) {
-		goto exit_on_error;
-	}
-#endif
-
-	if (init(DEFAULT_LANG_CHARSET) != NO_ERROR) {
+	if (reset_error_manager() != NO_ERROR) {
+		result = char_to_jstring(env, "Failed to reset CUBRID SQL parser error state.");
 		goto exit_on_error;
 	}
 
 	query = jstring_to_char(env, j_str);
 	if (query == NULL) {
+		result = char_to_jstring(env, "SQL query is null or could not be converted.");
 		goto exit_on_error;
 	}
 
@@ -139,13 +124,13 @@ JNIEXPORT jstring JNICALL Java_com_cubrid_sqlanalyzer_core_runner_QueryParser_va
 	if (session == NULL) {
 		fprintf(stderr, "Failed to db_open_buffer().\n");
 		fprintf(stderr, "%s\n", cub_er_msg());
+		result = char_to_jstring(env, cub_er_msg());
 		goto exit_on_error;
 	}
 
 	session_error = cub_db_get_errors(session);
 	do {
 		int line = 0, col = 0;
-		int len = 0;
 		int error = NO_ERROR;
 		const char *er_msg = NULL;
 
@@ -156,41 +141,10 @@ JNIEXPORT jstring JNICALL Java_com_cubrid_sqlanalyzer_core_runner_QueryParser_va
 			has_error = 1;
 
 			er_msg = cub_er_msg();
-
-			len = snprintf(NULL, 0, "In line %d, column %d,\n\nERROR(%d): %s\n",
-					line, col, error, er_msg);
-
-			if (out_buf == NULL) {
-				out_buf = malloc(sizeof(char) * DEFAULT_BUF_LENGTH);
-				if (out_buf == NULL) {
-					fprintf(stderr, "Failed to allocate memory.\n");
-					goto exit_on_error;
-				}
-
-				out_buf_len = 0;
-				out_buf_maxlen = DEFAULT_BUF_LENGTH;
-
-				snprintf(out_buf, len,
-						"In line %d, column %d,\n\nERROR(%d): %s\n", line, col,
-						error, er_msg);
-				out_buf_len += len;
-			} else {
-				if (out_buf_len + len > out_buf_maxlen) {
-					out_buf = realloc(out_buf,
-							sizeof(char)
-									* (out_buf_maxlen + DEFAULT_BUF_LENGTH));
-					if (out_buf == NULL) {
-						fprintf(stderr, "Failed to allocate memory.\n");
-						goto exit_on_error;
-					}
-
-					out_buf_maxlen += DEFAULT_BUF_LENGTH;
-				}
-
-				snprintf(out_buf + out_buf_len - 1, len,
-						"In line %d, column %d,\n\nERROR(%d): %s\n", line, col,
-						error, er_msg);
-				out_buf_len += len;
+			if (append_error(&out_buf, &out_buf_len, &out_buf_maxlen, line, col,
+					error, er_msg) != NO_ERROR) {
+				fprintf(stderr, "Failed to allocate memory.\n");
+				goto exit_on_error;
 			}
 		}
 	} while (session_error != NULL);
@@ -200,15 +154,6 @@ JNIEXPORT jstring JNICALL Java_com_cubrid_sqlanalyzer_core_runner_QueryParser_va
 
 	cub_db_close_session(session);
 	session = NULL;
-
-	if (hDLL != NULL) {
-#ifdef _WIN32
-		FreeLibrary(hDLL);
-#else
-		dlclose(hDLL);
-#endif
-		hDLL = NULL;
-	}
 
 	if (has_error) {
 		result = char_to_jstring(env, out_buf);
@@ -235,16 +180,93 @@ JNIEXPORT jstring JNICALL Java_com_cubrid_sqlanalyzer_core_runner_QueryParser_va
 		session = NULL;
 	}
 
-	if (hDLL != NULL) {
-#ifdef _WIN32
-		FreeLibrary(hDLL);
-#else
-		dlclose(hDLL);
+	return result;
+}
+
+JNIEXPORT void JNICALL JNI_OnUnload(JavaVM *vm, void *reserved) {
+	(void) vm;
+	(void) reserved;
+
+	unload_library();
+}
+
+static int ensure_initialized(void) {
+#ifndef _WIN32
+	char libraryPath[PATH_MAX];
+	const char *cubrid = NULL;
 #endif
-		hDLL = NULL;
+
+	if (cubrid_initialized) {
+		return NO_ERROR;
 	}
 
-	return result;
+#ifdef _WIN32
+	if (load(&cubrid_library, DEFAULT_LIBRARY_PATH) != NO_ERROR) {
+		unload_library();
+		return ER_FAILED;
+	}
+#else
+	cubrid = getenv("CUBRID");
+	if (cubrid == NULL || cubrid[0] == '\0') {
+		fprintf(stderr, "CUBRID environment variable is not set.\n");
+		return ER_FAILED;
+	}
+
+	if (snprintf(libraryPath, sizeof(libraryPath), "%s%s", cubrid,
+			DEFAULT_LIBRARY_PATH_SUFFIX) >= (int) sizeof(libraryPath)) {
+		fprintf(stderr, "CUBRID library path is too long.\n");
+		return ER_FAILED;
+	}
+
+	if (load(&cubrid_library, libraryPath) != NO_ERROR) {
+		unload_library();
+		return ER_FAILED;
+	}
+#endif
+
+	if (init(DEFAULT_LANG_CHARSET) != NO_ERROR) {
+		unload_library();
+		return ER_FAILED;
+	}
+
+	cubrid_initialized = 1;
+	return NO_ERROR;
+}
+
+static int reset_error_manager(void) {
+	if (cub_er_init(NULL, ER_NEVER_EXIT) != NO_ERROR) {
+		fprintf(stderr, "Failed to reset error manager.\n");
+		return ER_FAILED;
+	}
+
+	return NO_ERROR;
+}
+
+static void unload_library(void) {
+	if (cubrid_library != NULL) {
+#ifdef _WIN32
+		FreeLibrary(cubrid_library);
+#else
+		dlclose(cubrid_library);
+#endif
+		cubrid_library = NULL;
+	}
+
+	cubrid_initialized = 0;
+	clear_symbols();
+}
+
+static void clear_symbols(void) {
+	cub_er_init = NULL;
+	cub_er_errid = NULL;
+	cub_er_msg = NULL;
+	cub_db_get_errors = NULL;
+	cub_db_get_next_error = NULL;
+	cub_lang_init = NULL;
+	cub_lang_set_charset_lang = NULL;
+	cub_db_set_connect_status = NULL;
+	cub_db_open_buffer = NULL;
+	cub_db_close_session = NULL;
 }
 
 static int load(LIB_HANDLE *hDLL, const char * libraryPath) {
@@ -396,6 +418,61 @@ static int init(const char *lang_charset) {
 	return NO_ERROR;
 }
 
+static int append_error(char **out_buf, int *out_buf_len, int *out_buf_maxlen,
+		int line, int col, int error, const char *er_msg) {
+	int len = 0;
+	int required = 0;
+	int new_maxlen = 0;
+	char *new_buf = NULL;
+
+	if (er_msg == NULL) {
+		er_msg = "";
+	}
+
+	len = snprintf(NULL, 0, "In line %d, column %d,\n\nERROR(%d): %s\n", line,
+			col, error, er_msg);
+	if (len < 0) {
+		return ER_FAILED;
+	}
+
+	required = *out_buf_len + len + 1;
+	if (*out_buf == NULL) {
+		new_maxlen = DEFAULT_BUF_LENGTH;
+		while (new_maxlen < required) {
+			new_maxlen += DEFAULT_BUF_LENGTH;
+		}
+
+		*out_buf = malloc(sizeof(char) * new_maxlen);
+		if (*out_buf == NULL) {
+			return ER_FAILED;
+		}
+
+		*out_buf_len = 0;
+		*out_buf_maxlen = new_maxlen;
+		(*out_buf)[0] = '\0';
+	} else if (required > *out_buf_maxlen) {
+		new_maxlen = *out_buf_maxlen;
+		while (new_maxlen < required) {
+			new_maxlen += DEFAULT_BUF_LENGTH;
+		}
+
+		new_buf = realloc(*out_buf, sizeof(char) * new_maxlen);
+		if (new_buf == NULL) {
+			return ER_FAILED;
+		}
+
+		*out_buf = new_buf;
+		*out_buf_maxlen = new_maxlen;
+	}
+
+	snprintf(*out_buf + *out_buf_len, *out_buf_maxlen - *out_buf_len,
+			"In line %d, column %d,\n\nERROR(%d): %s\n", line, col, error,
+			er_msg);
+	*out_buf_len += len;
+
+	return NO_ERROR;
+}
+
 #ifndef _WIN32
 static void * load_symbol_with_fallback(LIB_HANDLE hDLL, const char *symbol,
 		const char *fallback_symbol) {
@@ -418,6 +495,10 @@ static char * jstring_to_char(JNIEnv *env, jstring j_str) {
 	}
 
 	str = (*env)->GetStringUTFChars(env, j_str, NULL);
+	if (str == NULL) {
+		return NULL;
+	}
+
 	buf = strdup(str);
 	(*env)->ReleaseStringUTFChars(env, j_str, str);
 
