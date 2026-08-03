@@ -18,23 +18,21 @@ import com.cubrid.sqlanalyzer.core.dbobject.QueryDictionary;
 
 /**
  * Exercises the JDBC-target branch of {@link AnalyzerExecutionRunner} through the
- * {@link AnalyzerJdbcExecutor} seam, so commit/DDL/failure-stage decisions are
+ * {@link AnalyzerJdbcExecutor} seam, so prepare-only/failure-stage decisions are
  * verified without a real CUBRID connection or CMT's {@code ConnParameters}.
  */
 class AnalyzerExecutionRunnerJdbcTest {
     @Test
-    void shouldCommitForDmlStatementsButNotForSelect() {
+    void shouldPrepareDmlStatementsWithoutExecutingOrCommitting() {
         ScriptedJdbcExecutor executor = new ScriptedJdbcExecutor();
-        executor.whenExecuting("SELECT * FROM emp", new AnalyzerJdbcExecutionResult(true, 3, 0));
-        executor.whenExecuting("INSERT INTO emp VALUES (1)", new AnalyzerJdbcExecutionResult(false, 0, 1));
         AnalyzerExecutionRunner executionRunner = new AnalyzerExecutionRunner(config -> executor);
 
         AnalyzerSession session = new AnalyzerSession();
         session.setTargetType(AnalyzerTargetType.JDBC);
         session.setXmlSourceLoaded(true);
         QueryDictionary queryDictionary = new QueryDictionary();
-        queryDictionary.addSelectQuery("Q_SELECT", "SELECT * FROM emp");
-        queryDictionary.addInsertQuery("Q_INSERT", "INSERT INTO emp VALUES (1)");
+        queryDictionary.addSelectQuery("Q_SELECT", "SELECT * FROM emp WHERE empno = ?");
+        queryDictionary.addInsertQuery("Q_INSERT", "INSERT INTO emp (empno, ename) VALUES (?, ?)");
         session.getConfig().setQueryDict(queryDictionary);
 
         List<AnalyzerProgressEventViewModel> events = new ArrayList<>();
@@ -42,26 +40,32 @@ class AnalyzerExecutionRunnerJdbcTest {
 
         assertEquals(2, session.getSucceededStatementCount());
         assertEquals(0, session.getFailedStatementCount());
-        assertEquals(1, executor.commitCount());
+        assertEquals(
+                List.of(
+                        "SELECT * FROM emp WHERE empno = ?",
+                        "INSERT INTO emp (empno, ename) VALUES (?, ?)"),
+                executor.preparedSql());
+        assertTrue(executor.executedSql().isEmpty());
+        assertEquals(0, executor.commitCount());
         assertTrue(executor.isClosed());
         assertTrue(events.stream().anyMatch(e ->
-                "Q_SELECT".equals(e.statementId()) && "rows=3".equals(e.detail())));
+                "Q_SELECT".equals(e.statementId()) && "prepared".equals(e.detail())));
         assertTrue(events.stream().anyMatch(e ->
-                "Q_INSERT".equals(e.statementId()) && "updated=1".equals(e.detail())));
+                "Q_INSERT".equals(e.statementId()) && "prepared".equals(e.detail())));
     }
 
     @Test
-    void shouldTagJdbcFailureStageWhenExecutionThrows() {
+    void shouldTagJdbcFailureStageWhenPrepareThrows() {
         ScriptedJdbcExecutor executor = new ScriptedJdbcExecutor();
-        executor.whenExecutingThrow(
-                "INSERT INTO emp VALUES (1)", new SQLException("constraint violation"));
+        executor.whenPreparingThrow(
+                "INSERT INTO emp (empno) VALUES (?)", new SQLException("syntax error"));
         AnalyzerExecutionRunner executionRunner = new AnalyzerExecutionRunner(config -> executor);
 
         AnalyzerSession session = new AnalyzerSession();
         session.setTargetType(AnalyzerTargetType.JDBC);
         session.setXmlSourceLoaded(true);
         QueryDictionary queryDictionary = new QueryDictionary();
-        queryDictionary.addInsertQuery("Q_INSERT", "INSERT INTO emp VALUES (1)");
+        queryDictionary.addInsertQuery("Q_INSERT", "INSERT INTO emp (empno) VALUES (?)");
         session.getConfig().setQueryDict(queryDictionary);
 
         List<AnalyzerProgressEventViewModel> events = new ArrayList<>();

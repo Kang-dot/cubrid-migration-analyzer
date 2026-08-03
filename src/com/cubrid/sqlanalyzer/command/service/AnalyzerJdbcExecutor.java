@@ -9,6 +9,8 @@ import java.sql.SQLException;
  * driver/connection.
  */
 interface AnalyzerJdbcExecutor extends AutoCloseable {
+    void prepare(String sql) throws SQLException;
+
     AnalyzerJdbcExecutionResult execute(String sql) throws SQLException;
 
     void commit() throws SQLException;

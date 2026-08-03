@@ -505,6 +505,11 @@ public class AnalyzerExecutionRunner {
 
     private String executeJdbcStatement(AnalyzerJdbcExecutor jdbcExecutor, AnalyzerStatement statement)
             throws SQLException {
+        if (isDML(statement)) {
+            jdbcExecutor.prepare(statement.getSQL());
+            return "prepared";
+        }
+
         AnalyzerJdbcExecutionResult result = jdbcExecutor.execute(statement.getSQL());
 
         if (result.hasResultSet()) {
@@ -618,14 +623,18 @@ public class AnalyzerExecutionRunner {
     }
 
     private boolean shouldCommit(AnalyzerStatement statement) {
-        return isDDL(statement)
-                || "INSERT".equals(statement.getType())
-                || "UPDATE".equals(statement.getType())
-                || "DELETE".equals(statement.getType());
+        return isDDL(statement);
     }
 
     private boolean isDDL(AnalyzerStatement statement) {
         return statement.getType() != null && statement.getType().startsWith("DDL_");
+    }
+
+    private boolean isDML(AnalyzerStatement statement) {
+        return "SELECT".equals(statement.getType())
+                || "INSERT".equals(statement.getType())
+                || "UPDATE".equals(statement.getType())
+                || "DELETE".equals(statement.getType());
     }
 
     private boolean isUnsupportedStatement(AnalyzerStatement statement) {

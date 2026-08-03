@@ -1,6 +1,7 @@
 package com.cubrid.sqlanalyzer.command.service;
 
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -10,6 +11,13 @@ final class AnalyzerJdbcConnectionExecutor implements AnalyzerJdbcExecutor {
 
     AnalyzerJdbcConnectionExecutor(Connection connection) {
         this.connection = connection;
+    }
+
+    @Override
+    public void prepare(String sql) throws SQLException {
+        try (PreparedStatement ignored = connection.prepareStatement(sql)) {
+            // Preparing the statement is the validation step. Do not bind or execute it.
+        }
     }
 
     @Override

@@ -14,6 +14,8 @@ import java.util.Map;
 final class ScriptedJdbcExecutor implements AnalyzerJdbcExecutor {
     private final Map<String, AnalyzerJdbcExecutionResult> results = new HashMap<>();
     private final Map<String, SQLException> failures = new HashMap<>();
+    private final Map<String, SQLException> prepareFailures = new HashMap<>();
+    private final List<String> preparedSql = new ArrayList<>();
     private final List<String> executedSql = new ArrayList<>();
     private int commitCount;
     private boolean closed;
@@ -24,6 +26,18 @@ final class ScriptedJdbcExecutor implements AnalyzerJdbcExecutor {
 
     void whenExecutingThrow(String sql, SQLException exception) {
         failures.put(sql, exception);
+    }
+
+    void whenPreparingThrow(String sql, SQLException exception) {
+        prepareFailures.put(sql, exception);
+    }
+
+    @Override
+    public void prepare(String sql) throws SQLException {
+        preparedSql.add(sql);
+        if (prepareFailures.containsKey(sql)) {
+            throw prepareFailures.get(sql);
+        }
     }
 
     @Override
@@ -55,5 +69,9 @@ final class ScriptedJdbcExecutor implements AnalyzerJdbcExecutor {
 
     List<String> executedSql() {
         return executedSql;
+    }
+
+    List<String> preparedSql() {
+        return preparedSql;
     }
 }
