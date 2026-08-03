@@ -55,6 +55,10 @@ Install or prepare the following:
 * A CUBRID installation with the `CUBRID` environment variable configured
 * `pl_server.jar` at `pl_server/pl_server.jar`
 
+The build downloads and bundles the Linux x86_64 Eclipse Temurin OpenJDK 21
+JRE. The machine running the packaged analyzer does not need a system Java
+installation.
+
 ### 2. Clone Submodules
 
 ```bash
@@ -135,6 +139,9 @@ tar -xzf target/sql-analyzer-0.0.1-SNAPSHOT-linux-x86_64.tar.gz
 cd sql-analyzer-0.0.1-SNAPSHOT
 ./analyzer.sh
 ```
+
+The launcher always uses the bundled JRE under `jre`; it does not use the
+system `java` command or `JAVA_HOME`.
 
 Running without arguments starts the interactive console. The analyzer can also
 be started with command-line options:
