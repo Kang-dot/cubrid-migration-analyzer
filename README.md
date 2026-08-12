@@ -5,7 +5,7 @@ Oracle database objects and SQL statements with CUBRID.
 
 The analyzer reads DDL metadata from an Oracle database and DML statements from
 XML mapper files when those sources are configured, validates them with the
-embedded CUBRID parser, and generates a report containing success and failure details. Failed
+embedded CUBRID parser or an online CUBRID target, and generates a report containing success and failure details. Failed
 statements are also assigned an estimated migration cost based on configurable
 rules.
 
@@ -17,7 +17,7 @@ rules.
   * Skips a missing or failed source and continues with the other source.
 * **CUBRID Validation**
   * Validates statements with the embedded CUBRID parser.
-  * CUBRID JDBC target execution is deferred and currently not selected by default.
+  * Executes DDL and prepares DML without executing it against an online CUBRID JDBC target.
 * **Execution Modes**
   * Interactive console mode.
   * Non-interactive command-line mode.
@@ -220,11 +220,11 @@ sources fail, the analyzer exits.
 
 | Property | Values / Default | Description |
 | --- | --- | --- |
-| `target.type` | `parser` | CUBRID JDBC execution is deferred; parser is used for now |
-| `target.jdbc` | `<jdbcUrl\|user\|password>` | Deferred; currently ignored |
-| `target.jdbc.url` | CUBRID JDBC URL | Deferred; currently ignored |
-| `target.username` | User name | Deferred; currently ignored |
-| `target.password` | Password | Deferred; currently ignored |
+| `target.type` | `parser`, `jdbc`, or `cubrid` | Selects embedded parser validation or an online CUBRID target; `cubrid` is an alias for `jdbc` |
+| `target.jdbc` | `<jdbcUrl\|user\|password>` | Provides a CUBRID connection as a single value |
+| `target.jdbc.url` | CUBRID JDBC URL | Provides the CUBRID JDBC URL separately |
+| `target.username` | User name | CUBRID database user |
+| `target.password` | Password | CUBRID database password |
 
 ### Configuration Examples
 
@@ -235,6 +235,19 @@ ui.mode=console
 xml.directory=./sqlmap
 xml.charset=UTF-8
 target.type=parser
+```
+
+Analyze against an online CUBRID target:
+
+```properties
+source.type=xml
+xml.directory=./sqlmap
+xml.charset=UTF-8
+
+target.type=jdbc
+target.jdbc.url=jdbc:cubrid:localhost:33000:demodb:::
+target.username=dba
+target.password=
 ```
 
 Analyze Oracle DDL and XML mapper DML together:
