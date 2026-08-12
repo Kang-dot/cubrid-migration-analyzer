@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2025-2026 CUBRID Corporation
+ * SPDX-License-Identifier: BSD-3-Clause
+ */
+
 package com.cubrid.sqlanalyzer.command.cli;
 
 import org.slf4j.Logger;
@@ -79,6 +84,7 @@ public class AnalyzerConsoleRunner {
         try {
             analyzerService.applyArguments(session, arguments);
             analyzerService.prepareConfiguration(session);
+            validateJdbcTargetConnection(session);
             loadSourceCatalog(session);
             renderPreviewPages(session);
             runAnalysis(session);
@@ -121,6 +127,12 @@ public class AnalyzerConsoleRunner {
         session.setXmlDirectory(io.readRequired("XML directory path: "));
         String charset = readLineWithDefault("XML charset [UTF-8]: ", DEFAULT_XML_CHARSET);
         session.setXmlCharset(charset.isEmpty() ? DEFAULT_XML_CHARSET : charset);
+    }
+
+    private void validateJdbcTargetConnection(AnalyzerSession session) {
+        if (session.getTargetType() == AnalyzerTargetType.JDBC) {
+            analyzerService.validateJdbcTargetConnection(session);
+        }
     }
 
     private void loadSourceCatalog(AnalyzerSession session) {

@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2025-2026 CUBRID Corporation
+ * SPDX-License-Identifier: BSD-3-Clause
+ */
+
 package com.cubrid.sqlanalyzer.command.cli;
 
 import java.io.IOException;
@@ -10,6 +15,7 @@ import com.cubrid.sqlanalyzer.command.config.AnalyzerLogInitializer;
 import com.cubrid.sqlanalyzer.command.config.AnalyzerSettingsLoader;
 import com.cubrid.sqlanalyzer.command.connection.AnalyzerJdbcConnectionSupport;
 import com.cubrid.sqlanalyzer.command.model.AnalyzerSession;
+import com.cubrid.sqlanalyzer.command.model.AnalyzerTargetType;
 import com.cubrid.sqlanalyzer.command.service.AnalyzerService;
 import com.cubrid.sqlanalyzer.command.tui.AnalyzerTuiRunner;
 
@@ -67,6 +73,9 @@ public class AnalyzerConsoleMain {
         try {
             analyzerService.applyArguments(session, arguments);
             analyzerService.prepareConfiguration(session);
+            if (session.getTargetType() == AnalyzerTargetType.JDBC) {
+                analyzerService.validateJdbcTargetConnection(session);
+            }
             new AnalyzerTuiRunner().start(session, analyzerService);
             LOG.info("TUI analyzer finished successfully.");
             return 0;

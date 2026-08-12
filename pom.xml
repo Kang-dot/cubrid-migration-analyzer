@@ -50,6 +50,36 @@
 			</testResources>
 		
 		<plugins>
+			<!--
+				LICENSE BOUNDARY: runtime dependencies must remain separate,
+				replaceable JARs under lib/. Do not add shade/assembly/uber-JAR
+				packaging that merges Lanterna, Logback, JExcelApi, or other
+				third-party classes into analyzer.jar.
+			-->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-enforcer-plugin</artifactId>
+				<version>3.6.3</version>
+				<executions>
+					<execution>
+						<id>ban-fat-jar-plugins</id>
+						<goals>
+							<goal>enforce</goal>
+						</goals>
+						<configuration>
+							<rules>
+								<bannedPlugins>
+									<excludes>
+										<exclude>org.apache.maven.plugins:maven-shade-plugin</exclude>
+										<exclude>org.apache.maven.plugins:maven-assembly-plugin</exclude>
+									</excludes>
+								</bannedPlugins>
+							</rules>
+							<fail>true</fail>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-jar-plugin</artifactId>
@@ -131,6 +161,15 @@
 										todir="${dist.dir}/settings"/>
 									<copy file="${project.basedir}/src/dist/settings/logback.xml"
 										todir="${dist.dir}/settings"/>
+									<copy file="${project.basedir}/LICENSE"
+										todir="${dist.dir}"/>
+									<copy file="${project.basedir}/NOTICE"
+										todir="${dist.dir}"/>
+									<copy file="${project.basedir}/THIRD-PARTY-NOTICES.md"
+										todir="${dist.dir}"/>
+									<copy todir="${dist.dir}/licenses">
+										<fileset dir="${project.basedir}/licenses"/>
+									</copy>
 									<available file="${pl.server.jar}" property="pl.server.jar.exists"/>
 									<fail unless="pl.server.jar.exists"
 										message="pl_server jar is missing: ${pl.server.jar}"/>
@@ -194,6 +233,19 @@
 											<exclude name="jre/bin/**"/>
 											<exclude name="jre/lib/jexec"/>
 											<exclude name="jre/lib/jspawnhelper"/>
+											<exclude name="LICENSE"/>
+											<exclude name="NOTICE"/>
+											<exclude name="THIRD-PARTY-NOTICES.md"/>
+											<exclude name="licenses/**"/>
+										</tarfileset>
+										<tarfileset dir="${dist.dir}"
+											prefix="sql-analyzer-${project.version}"
+											filemode="0644"
+											dirmode="0755">
+											<include name="LICENSE"/>
+											<include name="NOTICE"/>
+											<include name="THIRD-PARTY-NOTICES.md"/>
+											<include name="licenses/**"/>
 										</tarfileset>
 										<tarfileset dir="${dist.dir}"
 											prefix="sql-analyzer-${project.version}"

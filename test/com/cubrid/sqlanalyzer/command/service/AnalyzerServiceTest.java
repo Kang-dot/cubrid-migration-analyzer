@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2025-2026 CUBRID Corporation
+ * SPDX-License-Identifier: BSD-3-Clause
+ */
+
 package com.cubrid.sqlanalyzer.command.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -14,12 +19,31 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import com.cubrid.cubridmigration.core.dbobject.Catalog;
+import com.cubrid.sqlanalyzer.command.config.AnalyzerArgumentsController;
 import com.cubrid.sqlanalyzer.command.model.AnalyzerSession;
 import com.cubrid.sqlanalyzer.command.model.AnalyzerSourceType;
+import com.cubrid.sqlanalyzer.command.model.AnalyzerTargetType;
 
 class AnalyzerServiceTest {
     @TempDir
     Path xmlDirectory;
+
+    @Test
+    void shouldApplyJdbcTargetArgumentsToSession() {
+        AnalyzerArgumentsController arguments = AnalyzerArgumentsController.parse(
+                new String[] {
+                    "-sx", "-xd", "/tmp/sqlmap",
+                    "-tc", "-cj", "jdbc:cubrid:localhost:33000:demodb:::|dba|secret"
+                });
+        AnalyzerSession session = new AnalyzerSession();
+
+        new AnalyzerService().applyArguments(session, arguments);
+
+        assertEquals(AnalyzerTargetType.JDBC, session.getTargetType());
+        assertEquals("jdbc:cubrid:localhost:33000:demodb:::", session.getTargetJdbcUrl());
+        assertEquals("dba", session.getTargetUser());
+        assertEquals("secret", session.getTargetPassword());
+    }
 
     @Test
     void shouldReportNoXmlFilesWhenXmlDirectoryIsEmpty() {

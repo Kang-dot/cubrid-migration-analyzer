@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2025-2026 CUBRID Corporation
+ * SPDX-License-Identifier: BSD-3-Clause
+ */
+
 package com.cubrid.sqlanalyzer.command.service;
 
 import java.io.File;
@@ -82,7 +87,12 @@ public class AnalyzerService {
             session.setXmlCharset(arguments.getXmlCharset());
         }
 
-        session.setTargetType(AnalyzerTargetType.PARSER);
+        session.setTargetType(arguments.getTargetType());
+        if (arguments.getTargetType() == AnalyzerTargetType.JDBC) {
+            session.setTargetJdbcUrl(arguments.getTargetJdbcUrl());
+            session.setTargetUser(arguments.getTargetUser());
+            session.setTargetPassword(arguments.getTargetPassword());
+        }
 
         applyExecutionMode(session);
         LOG.info("Analyzer arguments applied. executionMode={}", session.getExecutionMode());
@@ -94,7 +104,6 @@ public class AnalyzerService {
                 session.isOracleSourceRequested(),
                 session.isXmlSourceRequested());
         session.setExecutionMode(AnalyzerExecutionMode.ALL);
-        session.setTargetType(AnalyzerTargetType.PARSER);
         LOG.info("Execution mode resolved. executionMode={}", session.getExecutionMode());
     }
 
@@ -128,7 +137,17 @@ public class AnalyzerService {
                 session.getExecutionMode());
         AnalyzerConfiguration config = session.getConfig();
 
-        config.setDestType(AnalyzerConfiguration.TARGET_TYPE_PARSER);
+        if (session.getTargetType() == AnalyzerTargetType.JDBC) {
+            AnalyzerJdbcConnectionInfo profile = AnalyzerJdbcConnectionSupport.parseCubridProfile(
+                    session.getTargetJdbcUrl(),
+                    session.getTargetUser(),
+                    session.getTargetPassword());
+            config.setDestType(AnalyzerConfiguration.TARGET_TYPE_CUBRID);
+            config.setTargetConParams(CUBRID_CONN_PARAMETERS_FACTORY.create(TARGET_CONNECTION_NAME, profile));
+        } else {
+            config.setDestType(AnalyzerConfiguration.TARGET_TYPE_PARSER);
+            config.setTargetConParams(null);
+        }
         LOG.info("Analyzer configuration prepared.");
     }
 

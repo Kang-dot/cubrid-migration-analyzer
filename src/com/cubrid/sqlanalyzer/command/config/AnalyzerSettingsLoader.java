@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2025-2026 CUBRID Corporation
+ * SPDX-License-Identifier: BSD-3-Clause
+ */
+
 package com.cubrid.sqlanalyzer.command.config;
 
 import java.io.IOException;
@@ -126,6 +131,11 @@ public final class AnalyzerSettingsLoader {
         String target = getFirst(properties, "target.type", "target");
         if (target == null) {
             missing.add("target.type");
+        } else if (isJdbcTarget(target)
+                && !hasAny(properties, "target.jdbc", "cubrid.jdbc")) {
+            addMissingIfAbsent(properties, missing, "target.jdbc.url", "cubrid.jdbc.url");
+            addMissingIfAbsent(properties, missing, "target.username", "target.user",
+                    "cubrid.username", "cubrid.user");
         }
 
         if (!missing.isEmpty()) {
@@ -264,14 +274,22 @@ public final class AnalyzerSettingsLoader {
         }
 
         String normalized = target.toLowerCase(Locale.ENGLISH);
-        if ("parser".equals(normalized)
-                || "jdbc".equals(normalized)
-                || "cubrid".equals(normalized)) {
+        if ("parser".equals(normalized)) {
             tokens.add("-tp");
+            return;
+        }
+        if (isJdbcTarget(normalized)) {
+            tokens.add("-tc");
+            addOption(tokens, "-cj", buildConnectionSpec(properties, "target", "cubrid"));
             return;
         }
 
         throw new IllegalArgumentException("Unsupported target.type in setting.conf: " + target);
+    }
+
+    private static boolean isJdbcTarget(String target) {
+        String normalized = target.toLowerCase(Locale.ENGLISH);
+        return "jdbc".equals(normalized) || "cubrid".equals(normalized);
     }
 
     private static String buildConnectionSpec(

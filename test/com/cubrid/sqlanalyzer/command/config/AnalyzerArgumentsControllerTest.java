@@ -1,6 +1,12 @@
+/*
+ * Copyright (c) 2025-2026 CUBRID Corporation
+ * SPDX-License-Identifier: BSD-3-Clause
+ */
+
 package com.cubrid.sqlanalyzer.command.config;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -96,6 +102,46 @@ class AnalyzerArgumentsControllerTest {
         assertTrue(arguments.isXmlSourceRequested());
         assertEquals("/tmp/sqlmap", arguments.getXmlDirectory());
         assertTrue(arguments.getSourceInputMessages().get(0).contains("-oj is invalid"));
+    }
+
+    @Test
+    @DisplayName("CUBRID JDBC target arguments are parsed correctly")
+    void shouldParseCubridJdbcTargetArguments() {
+        AnalyzerArgumentsController arguments = AnalyzerArgumentsController.parse(
+                new String[] {
+                    "-sx", "-xd", "/tmp/sqlmap",
+                    "-tc", "-cj", "jdbc:cubrid:localhost:33000:demodb:::|dba|secret"
+                });
+
+        assertEquals(AnalyzerTargetType.JDBC, arguments.getTargetType());
+        assertEquals("jdbc:cubrid:localhost:33000:demodb:::", arguments.getTargetJdbcUrl());
+        assertEquals("dba", arguments.getTargetUser());
+        assertEquals("secret", arguments.getTargetPassword());
+    }
+
+    @Test
+    @DisplayName("CUBRID JDBC target requires a connection spec")
+    void shouldRejectJdbcTargetWithoutConnectionSpec() {
+        IllegalArgumentException ex = assertThrows(
+                IllegalArgumentException.class,
+                () -> AnalyzerArgumentsController.parse(
+                        new String[] {"-sx", "-xd", "/tmp/sqlmap", "-tc"}));
+
+        assertTrue(ex.getMessage().contains("CUBRID JDBC target requires -cj"));
+    }
+
+    @Test
+    @DisplayName("parser and JDBC targets cannot be selected together")
+    void shouldRejectConflictingTargets() {
+        IllegalArgumentException ex = assertThrows(
+                IllegalArgumentException.class,
+                () -> AnalyzerArgumentsController.parse(
+                        new String[] {
+                            "-sx", "-xd", "/tmp/sqlmap", "-tp", "-tc",
+                            "-cj", "jdbc:cubrid:localhost:33000:demodb:::|dba|secret"
+                        }));
+
+        assertTrue(ex.getMessage().contains("cannot be selected together"));
     }
 
 }

@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2025-2026 CUBRID Corporation
+ * SPDX-License-Identifier: BSD-3-Clause
+ */
+
 package com.cubrid.sqlanalyzer.core.plan;
 
 import static com.cubrid.sqlanalyzer.core.plan.AnalyzerExecutionPhase.DDL_FOREIGN_KEY;

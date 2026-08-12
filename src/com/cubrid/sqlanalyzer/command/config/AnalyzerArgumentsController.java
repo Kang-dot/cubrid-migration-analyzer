@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2025-2026 CUBRID Corporation
+ * SPDX-License-Identifier: BSD-3-Clause
+ */
+
 package com.cubrid.sqlanalyzer.command.config;
 
 import java.util.ArrayList;
@@ -129,9 +134,9 @@ public class AnalyzerArgumentsController {
                 + "  -xd <path>   XML directory path" + System.lineSeparator()
                 + "  -xc <name>   XML charset. Default: UTF-8" + System.lineSeparator()
                 + "  -tp          Use embedded parser target (default)" + System.lineSeparator()
-                + "  -tc          CUBRID JDBC target option is deferred; parser is used"
+                + "  -tc          Use CUBRID JDBC target"
                 + System.lineSeparator()
-                + "  -cj <spec>   CUBRID connection spec is currently ignored";
+                + "  -cj <spec>   CUBRID connection spec: <jdbcUrl|user|password>";
     }
 
     public boolean isInteractive() {
@@ -236,7 +241,14 @@ public class AnalyzerArgumentsController {
             sourceType = AnalyzerSourceType.XML;
         }
 
-        targetType = AnalyzerTargetType.PARSER;
+        boolean jdbcTargetRequested = jdbcTarget || cubridConnectionSpec != null;
+        if (parserTarget && jdbcTargetRequested) {
+            throw new IllegalArgumentException(
+                    "Parser and CUBRID JDBC targets cannot be selected together."
+                            + System.lineSeparator()
+                            + usage());
+        }
+        targetType = jdbcTargetRequested ? AnalyzerTargetType.JDBC : AnalyzerTargetType.PARSER;
 
         if (oracleConnectionSpec != null) {
             String[] values = splitConnectionSpec(oracleConnectionSpec, "-oj", sourceInputMessages);
@@ -250,9 +262,14 @@ public class AnalyzerArgumentsController {
         xmlDirectory = parsedXmlDirectory;
         xmlCharset = parsedXmlCharset;
 
-        targetJdbcUrl = null;
-        targetUser = null;
-        targetPassword = null;
+        if (cubridConnectionSpec != null) {
+            String[] values = splitConnectionSpec(cubridConnectionSpec, "-cj", sourceInputMessages);
+            if (values != null) {
+                targetJdbcUrl = values[0];
+                targetUser = values[1];
+                targetPassword = values[2];
+            }
+        }
     }
 
     private void applyUiMode() {
@@ -278,6 +295,13 @@ public class AnalyzerArgumentsController {
     private void validate() {
         if (!oracleSourceRequested && !xmlSourceRequested) {
             throw new IllegalArgumentException("Source option is required." + System.lineSeparator() + usage());
+        }
+        if (targetType == AnalyzerTargetType.JDBC
+                && (targetJdbcUrl == null || targetUser == null)) {
+            throw new IllegalArgumentException(
+                    "CUBRID JDBC target requires -cj <jdbcUrl|user|password>."
+                            + System.lineSeparator()
+                            + usage());
         }
     }
 

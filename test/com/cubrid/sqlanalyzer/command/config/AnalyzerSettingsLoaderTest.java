@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2025-2026 CUBRID Corporation
+ * SPDX-License-Identifier: BSD-3-Clause
+ */
+
 package com.cubrid.sqlanalyzer.command.config;
 
 import java.nio.file.Files;
@@ -133,6 +138,61 @@ class AnalyzerSettingsLoaderTest {
         assertEquals("jdbc:oracle:thin:@//192.168.1.6:1521/xe", arguments.getSourceJdbcUrl());
         assertEquals("/tmp/sqlmap", arguments.getXmlDirectory());
         assertEquals(AnalyzerTargetType.PARSER, arguments.getTargetType());
+    }
+
+    @Test
+    void shouldLoadCubridJdbcTargetFromStructuredSettings() throws Exception {
+        Path settingsFile = tempDir.resolve("setting.conf");
+        Files.writeString(
+                settingsFile,
+                "source.type=xml\n"
+                        + "xml.directory=/tmp/sqlmap\n"
+                        + "target.type=jdbc\n"
+                        + "target.jdbc.url=jdbc:cubrid:localhost:33000:demodb:::\n"
+                        + "target.username=dba\n"
+                        + "target.password=secret\n");
+
+        String[] args = AnalyzerSettingsLoader.loadStartupArguments(new String[0], settingsFile);
+        AnalyzerArgumentsController arguments = AnalyzerArgumentsController.parse(args);
+
+        assertEquals(AnalyzerTargetType.JDBC, arguments.getTargetType());
+        assertEquals("jdbc:cubrid:localhost:33000:demodb:::", arguments.getTargetJdbcUrl());
+        assertEquals("dba", arguments.getTargetUser());
+        assertEquals("secret", arguments.getTargetPassword());
+    }
+
+    @Test
+    void shouldLoadCubridJdbcTargetFromCombinedSetting() throws Exception {
+        Path settingsFile = tempDir.resolve("setting.conf");
+        Files.writeString(
+                settingsFile,
+                "source.type=xml\n"
+                        + "xml.directory=/tmp/sqlmap\n"
+                        + "target.type=cubrid\n"
+                        + "target.jdbc=jdbc:cubrid:localhost:33000:demodb:::|dba|\n");
+
+        AnalyzerArgumentsController arguments = AnalyzerArgumentsController.parse(
+                AnalyzerSettingsLoader.loadStartupArguments(new String[0], settingsFile));
+
+        assertEquals(AnalyzerTargetType.JDBC, arguments.getTargetType());
+        assertEquals("", arguments.getTargetPassword());
+    }
+
+    @Test
+    void shouldRejectJdbcTargetWithoutConnectionSettings() throws Exception {
+        Path settingsFile = tempDir.resolve("setting.conf");
+        Files.writeString(
+                settingsFile,
+                "source.type=xml\n"
+                        + "xml.directory=/tmp/sqlmap\n"
+                        + "target.type=jdbc\n");
+
+        IllegalArgumentException ex = assertThrows(
+                IllegalArgumentException.class,
+                () -> AnalyzerSettingsLoader.loadStartupArguments(new String[0], settingsFile));
+
+        assertTrue(ex.getMessage().contains("target.jdbc.url"));
+        assertTrue(ex.getMessage().contains("target.username"));
     }
 
     @Test
