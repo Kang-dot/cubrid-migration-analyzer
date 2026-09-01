@@ -49,7 +49,6 @@ public class XMLDirSource implements IDBSource, Serializable, Cloneable	{
      * @return XML reader RmInvalidXMLCharReader
      */
     
-    // TODO: ANALYZER
     public Reader createReader() {
         try {
             RmInvalidXMLCharReader reader =
