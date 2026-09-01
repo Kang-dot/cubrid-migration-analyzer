@@ -10,15 +10,11 @@ import com.cubrid.sqlanalyzer.core.dbobject.QueryDictionary;
 
 public class AnalyzerConfiguration extends MigrationConfiguration {
 
-	// TODO: ora2cubrid
-	// TODO: need to change oracle ID
-    public static int SOURCE_TYPE_DB = 3;
+	public static final int SOURCE_TYPE_XML = 2;
+    public static final int SOURCE_TYPE_DB = 3;
     
-    // TODO: mybatis xml
-    public static int SOURCE_TYPE_XML = 2;
-    
-    public static int TARGET_TYPE_CUBRID = 4;
-    public static int TARGET_TYPE_PARSER = 5;
+    public static final int TARGET_TYPE_CUBRID = 4;
+    public static final int TARGET_TYPE_PARSER = 5;
 	
 	private QueryDictionary queryDict = null;
     

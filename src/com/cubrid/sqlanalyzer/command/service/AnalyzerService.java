@@ -272,7 +272,7 @@ public class AnalyzerService {
 
         XMLDirSource source = new XMLDirSource(session.getXmlDirectory(), session.getXmlCharset());
         XMLDirSchemaFetcher fetcher = new XMLDirSchemaFetcher();
-        AnalyzerCatalog catalog = fetcher.fetchSchema(source, null);
+        AnalyzerCatalog catalog = fetcher.fetchSchema(source);
 
         if (catalog == null || catalog.getQueryDictionary() == null) {
             throw new RuntimeException("Failed to build query dictionary from XML directory.");

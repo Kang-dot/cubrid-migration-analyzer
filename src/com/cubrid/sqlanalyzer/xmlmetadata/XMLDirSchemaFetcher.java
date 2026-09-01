@@ -7,8 +7,6 @@ package com.cubrid.sqlanalyzer.xmlmetadata;
 
 import java.io.File;
 import java.io.FilenameFilter;
-//import java.io.IOException;
-//import java.io.Reader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -16,76 +14,35 @@ import java.util.List;
 import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
 
-//import com.cubrid.cubridmigration.core.common.Closer;
-import com.cubrid.cubridmigration.core.dbmetadata.IBuildSchemaFilter;
-import com.cubrid.cubridmigration.core.dbmetadata.IDBSchemaInfoFetcher;
-import com.cubrid.cubridmigration.core.dbmetadata.IDBSource;
-import com.cubrid.cubridmigration.core.dbobject.Catalog;
-import com.cubrid.cubridmigration.core.dbobject.SchemaCatalog;
-//import com.cubrid.cubridmigration.core.dbobject.Catalog;
 import com.cubrid.sqlanalyzer.core.dbobject.AnalyzerCatalog;
 import com.cubrid.sqlanalyzer.dmlparser.SqlMapHandler;
 
-public class XMLDirSchemaFetcher implements IDBSchemaInfoFetcher {
-	private Runnable cancelRunnable;
-	
-    public AnalyzerCatalog fetchSchema(IDBSource ds, IBuildSchemaFilter filter) {
-        if (cancelRunnable != null) {
-            throw new RuntimeException("One fetching work is running");
-        }
-        XMLDirSource xmlDir = (XMLDirSource) ds;
-//        final Reader reader = xmlDir.createReader();
-        
-        String XMLDir = xmlDir.getFilePath();
-        List<File> fileList = getXmlFilesFromDirectory(XMLDir);
-
-//        cancelRunnable =
-//                new Runnable() {
-//                    public void run() {
-//                        try {
-//                            reader.close();
-//                        } catch (IOException e) {
-//                            // DO nothing
-//                        }
-//                    }
-//                };
+public class XMLDirSchemaFetcher {
+    public AnalyzerCatalog fetchSchema(XMLDirSource xmlDir) {
         try {
-            try {
-                SAXParserFactory sf = SAXParserFactory.newInstance();
-                sf.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
-        		sf.setNamespaceAware(true);
-                sf.setValidating(false);
-                
-                SAXParser sp = sf.newSAXParser();
-                //		sp.setProperty(
-                //				"http://apache.org/xml/features/continue-after-fatal-error",
-                //				true);
-//                MySQLXMLSchemaParser structReader = new MySQLXMLSchemaParser();
-                SqlMapHandler analyzerHandler = new SqlMapHandler();
-                
-//                InputSource is = new InputSource(reader);
-                
-                for (File file : fileList) {
-                	sp.parse(file, analyzerHandler);
-                }
-                
-                AnalyzerCatalog catalog = new AnalyzerCatalog(); 
-                catalog.setQueryDictionary(analyzerHandler.getQueryDictionary());
-                
-                return catalog;
-            } catch (Exception e) {
-            	e.printStackTrace();
+            String xmlDirectory = xmlDir.getFilePath();
+            List<File> fileList = getXmlFilesFromDirectory(xmlDirectory);
+
+            SAXParserFactory parserFactory = SAXParserFactory.newInstance();
+            parserFactory.setFeature(
+                    "http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
+            parserFactory.setNamespaceAware(true);
+            parserFactory.setValidating(false);
+
+            SAXParser parser = parserFactory.newSAXParser();
+            SqlMapHandler analyzerHandler = new SqlMapHandler();
+
+            for (File file : fileList) {
+                parser.parse(file, analyzerHandler);
             }
-            finally {
-                cancelRunnable = null;
-//                Closer.close(reader);
-            }
-        } catch (RuntimeException ex) {
-            throw ex;
+
+            AnalyzerCatalog catalog = new AnalyzerCatalog();
+            catalog.setQueryDictionary(analyzerHandler.getQueryDictionary());
+            return catalog;
         } catch (Exception ex) {
-            throw new RuntimeException(ex);
+            throw new RuntimeException(
+                    "Failed to parse XML mapper files from: " + xmlDir.getFilePath(), ex);
         }
-		return null;
     }
     
     private List<File> getXmlFilesFromDirectory(String directoryPath) {
@@ -107,23 +64,4 @@ public class XMLDirSchemaFetcher implements IDBSchemaInfoFetcher {
         
         return xmlFiles;
     }
-	
-    public void cancel() {
-        if (cancelRunnable != null) {
-            cancelRunnable.run();
-            cancelRunnable = null;
-        }
-    }
-
-	@Override
-	public SchemaCatalog fetchSchemaNames(IDBSource ds) {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	@Override
-	public Catalog fetchSchemaObjects(IDBSource ds, SchemaCatalog sc, List<String> schemas) {
-		// TODO Auto-generated method stub
-		return null;
-	}
 }
