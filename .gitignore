@@ -97,6 +97,13 @@ nb-configuration.xml
 *.log
 /db.properties
 /jdbc/
+/lib/
+/logs/
+/report/
+/sqlmap/
+/workspace/
+/gemini.md
+/TEST_CASE_GUIDE.md
 
 ##############################
 ## settings
