@@ -95,6 +95,8 @@ nb-configuration.xml
 ## Miscellaneous
 ##############################
 *.log
+/db.properties
+/jdbc/
 
 ##############################
 ## settings

@@ -86,6 +86,19 @@ if [ ! -f "$PL_SERVER_JAR" ]; then
     exit 1
 fi
 
+if [ -z "${JAVA_HOME:-}" ] || [ ! -d "$JAVA_HOME/include" ]; then
+    echo "JAVA_HOME must point to a JDK installation with JNI headers." >&2
+    exit 1
+fi
+
+if [ -z "${CUBRID:-}" ] || [ ! -d "$CUBRID/include" ]; then
+    echo "CUBRID must point to a CUBRID installation with development headers." >&2
+    exit 1
+fi
+
+echo "Building JNI SQL validator..."
+make -C "$PROJECT_DIR/jni" all
+
 echo "Building SQL Analyzer..."
 mvn \
     -Dmaven.repo.local="$BUILD_REPO" \
