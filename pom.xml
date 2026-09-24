@@ -32,7 +32,7 @@
 					</excludes>
 				</resource>
 				<resource>
-					<directory>.</directory>
+					<directory>src/dist/settings</directory>
 					<includes>
 						<include>logback.xml</include>
 					</includes>

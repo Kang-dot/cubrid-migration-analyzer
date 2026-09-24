@@ -96,6 +96,7 @@ nb-configuration.xml
 ##############################
 *.log
 /db.properties
+/logback.xml
 /jdbc/
 /lib/
 /logs/

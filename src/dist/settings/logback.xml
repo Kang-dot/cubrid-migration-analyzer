@@ -40,7 +40,7 @@
     </appender>
 
     <!-- Change INFO to DEBUG, WARN, or ERROR to adjust the application log level. -->
-    <root level="INFO">
+    <root level="DEBUG">
         <appender-ref ref="ASYNC_FILE"/>
         <appender-ref ref="ASYNC_ERROR_FILE"/>
     </root>
