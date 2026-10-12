@@ -12,18 +12,15 @@ import org.slf4j.LoggerFactory;
 
 import com.cubrid.cubridmigration.core.dbmetadata.JDBCDBSchemaFetcherFacade;
 import com.cubrid.cubridmigration.core.dbobject.Catalog;
-import com.cubrid.cubridmigration.core.dbobject.Schema;
-import com.cubrid.cubridmigration.core.dbobject.Table;
 import com.cubrid.cubridmigration.core.dbtype.DatabaseType;
 import com.cubrid.sqlanalyzer.command.config.AnalyzerArgumentsController;
 import com.cubrid.sqlanalyzer.command.connection.AnalyzerConnParametersFactory;
-import com.cubrid.sqlanalyzer.command.model.AnalyzerSession;
-import com.cubrid.sqlanalyzer.command.report.AnalyzerReport;
-import com.cubrid.sqlanalyzer.command.model.AnalyzerExecutionMode;
 import com.cubrid.sqlanalyzer.command.connection.AnalyzerJdbcConnectionInfo;
 import com.cubrid.sqlanalyzer.command.connection.AnalyzerJdbcConnectionSupport;
-import com.cubrid.sqlanalyzer.command.model.AnalyzerSourceType;
+import com.cubrid.sqlanalyzer.command.model.AnalyzerExecutionMode;
+import com.cubrid.sqlanalyzer.command.model.AnalyzerSession;
 import com.cubrid.sqlanalyzer.command.model.AnalyzerTargetType;
+import com.cubrid.sqlanalyzer.command.report.AnalyzerReport;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerObjectCountPreviewViewModel;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerOverviewViewModel;
 import com.cubrid.sqlanalyzer.command.viewmodel.AnalyzerResultViewModel;
@@ -248,10 +245,8 @@ public class AnalyzerService {
             throw new RuntimeException("Failed to fetch Oracle catalog.");
         }
 
-        logOracleSourceTables(catalog);
         session.setSourceCatalog(catalog);
         config.setSrcCatalog(catalog, false);
-        logOracleTargetTables(config);
         config.parsingProcedureFunction(true);
         try {
             session.setOracleTableSizes(oracleTableSizeFetcher.fetch(config.getSourceConParams()));
@@ -261,40 +256,6 @@ public class AnalyzerService {
             LOG.warn("Oracle table sizes skipped.", ex);
         }
         LOG.info("Oracle source schema fetched. schemaCount={}", catalog.getSchemas().size());
-    }
-
-    private void logOracleSourceTables(Catalog catalog) {
-        int tableCount = 0;
-        for (Schema schema : catalog.getSchemas()) {
-            tableCount += schema.getTables().size();
-            if (!LOG.isDebugEnabled()) {
-                continue;
-            }
-            for (Table table : schema.getTables()) {
-                LOG.debug(
-                        "Oracle source catalog table. schema={}, owner={}, table={}",
-                        schema.getName(),
-                        table.getOwner(),
-                        table.getName());
-            }
-        }
-        LOG.info("Oracle source catalog tables fetched. tableCount={}", tableCount);
-    }
-
-    private void logOracleTargetTables(AnalyzerConfiguration config) {
-        LOG.info(
-                "Oracle target tables transformed. tableCount={}",
-                config.getTargetTableSchema().size());
-        if (!LOG.isDebugEnabled()) {
-            return;
-        }
-        for (Table table : config.getTargetTableSchema()) {
-            LOG.debug(
-                    "Oracle target schema table. owner={}, sourceOwner={}, table={}",
-                    table.getOwner(),
-                    table.getSourceOwner(),
-                    table.getName());
-        }
     }
 
     private void loadXmlQueryDictionary(AnalyzerSession session) {
